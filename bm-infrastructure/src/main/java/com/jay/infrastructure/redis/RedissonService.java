@@ -1,11 +1,13 @@
 package com.jay.infrastructure.redis;
 
 import com.alibaba.fastjson2.JSON;
+import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.*;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -16,6 +18,7 @@ import java.util.stream.Collectors;
  * @date 2025/6/27 16:46
  * @description
  */
+@Slf4j
 @Service("redissonService")
 public class RedissonService implements IRedisService {
 
@@ -191,27 +194,25 @@ public class RedissonService implements IRedisService {
         if (list == null || list.isEmpty()) {
             return;
         }
-        RList<String> rList = redissonClient.getList(key);
-        rList.clear();
-        List<String> jsonList = list.stream()
-                .map(JSON::toJSONString)
-                .collect(Collectors.toList());
-        rList.addAll(jsonList);
+        // 把整个 list 转成 JSON 数组字符串
+        String jsonArray = JSON.toJSONString(list);
+        RBucket<String> bucket = redissonClient.getBucket(key);
 
         // 设置过期时间（如果传入时间合法）
         if (timeout > 0 && unit != null) {
-            rList.expire(timeout, unit);
+            bucket.set(jsonArray, timeout, unit);
+        } else {
+            bucket.set(jsonArray);
         }
     }
 
     @Override
     public <T> List<T> getList(String key, Class<T> clazz) {
-        RList<String> rList = redissonClient.getList(key);
-        if (rList == null || rList.isEmpty()) {
+        RBucket<String> bucket = redissonClient.getBucket(key);
+        String jsonArray = bucket.get();
+        if (jsonArray == null) {
             return Collections.emptyList();
         }
-        return rList.stream()
-                .map(json -> JSON.parseObject(json, clazz))
-                .collect(Collectors.toList());
+        return JSON.parseArray(jsonArray, clazz);
     }
 }

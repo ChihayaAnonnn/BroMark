@@ -2,6 +2,7 @@ package com.jay.test;
 
 import com.jay.infrastructure.redis.IRedisService;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.ibatis.annotations.Select;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.redisson.api.RMap;

@@ -76,7 +76,7 @@ public class DecisionTreeEngine implements IDecisionTreeEngine {
                 return nodeLine.getRuleNodeTo();
             }
         }
-        log.warn("决策树引擎 - nextNode 计算失败，未找到可执行节点！");
+        // log.warn("决策树引擎 - nextNode 计算失败，未找到可执行节点！");
         return null;
     }
 

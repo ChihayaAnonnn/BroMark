@@ -77,12 +77,12 @@ public class AwardService implements IAwardService {
         // 奖品服务
         IDistributeAward distributeAward = distributeAwardMap.get(awardKey);
         if (null == distributeAward) {
-            log.error("分发奖品，对应的服务不存在。awardKey:{}", awardKey);
-            throw new RuntimeException("分发奖品，奖品" + awardKey + "对应的服务不存在");
+            // log.error("分发奖品，对应的服务不存在。awardKey:{}", awardKey);
+            // throw new RuntimeException("分发奖品，奖品" + awardKey + "对应的服务不存在");
+            return;
         }
         // 发放奖品
         distributeAward.giveOutPrizes(distributeAwardEntity);
-
     }
 
 }

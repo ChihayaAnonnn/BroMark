@@ -68,11 +68,15 @@ public class StrategyRepository implements IStrategyRepository {
         // 1.设置Key
         String key = Constants.RedisKey.STRATEGY_AWARD_LIST_KEY + strategyId;
         // 2.从Redis查询
+        long start = System.currentTimeMillis();
         List<StrategyAwardEntity> list = redisService.getList(key, StrategyAwardEntity.class);
+        long end = System.currentTimeMillis();
+        log.info("queryStrategyAwardList 查询Redis 耗时 {} ms", end - start);
         // 3.查询成功，直接返回
         if (list != null && !list.isEmpty()) {
             return list;
         }
+
         // 4.查询缓存失败，从数据库查
         List<StrategyAward> strategyAwards = strategyAwardDao.queryStrategyAwardListByStrategyId(strategyId);
 
@@ -304,7 +308,13 @@ public class StrategyRepository implements IStrategyRepository {
 
     @Override
     public Long queryStrategyIdByActivityId(Long activityId) {
-        return raffleActivityDao.queryStrategyIdByActivityId(activityId);
+        long start = System.currentTimeMillis();
+        try {
+            return raffleActivityDao.queryStrategyIdByActivityId(activityId);
+        } finally {
+            long end = System.currentTimeMillis();
+            log.info("queryStrategyIdByActivityId 执行耗时: {} ms", (end - start));
+        }
     }
 
     @Override

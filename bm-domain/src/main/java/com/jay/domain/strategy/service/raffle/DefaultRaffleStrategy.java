@@ -67,7 +67,14 @@ public class DefaultRaffleStrategy extends AbstractRaffleStrategy implements IRa
 
     @Override
     public List<StrategyAwardEntity> queryRaffleStrategyAwards(Long strategyId) {
-        return repository.queryStrategyAwardList(strategyId);
+        long start = System.currentTimeMillis();
+        try{
+            return repository.queryStrategyAwardList(strategyId);
+        }finally {
+            long end = System.currentTimeMillis();
+            log.info("queryRaffleStrategyAwards 执行耗时: {} ms", (end - start));
+        }
+
     }
 
     @Override

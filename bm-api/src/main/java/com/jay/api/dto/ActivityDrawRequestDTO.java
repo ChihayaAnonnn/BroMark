@@ -18,5 +18,4 @@ public class ActivityDrawRequestDTO {
      * 活动ID
      */
     private Long activityId;
-
 }

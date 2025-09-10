@@ -74,6 +74,30 @@
         </filter>
     </appender>
 
+    <!-- MyBatis 错误日志文件 appender -->
+    <appender name="MYBATIS_ERROR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>./data/mybatis/mybatis-error.log</file>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger - %msg%n</pattern>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <!-- 每天生成一个日志文件 -->
+            <fileNamePattern>./data/mybatis/mybatis-error.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>7</maxHistory>
+        </rollingPolicy>
+        <!-- 只接收 ERROR 级别日志 -->
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+            <level>ERROR</level>
+            <onMatch>ACCEPT</onMatch>
+            <onMismatch>DENY</onMismatch>
+        </filter>
+    </appender>
+
+    <!-- MyBatis 核心 -->
+    <logger name="org.apache.ibatis" level="ERROR" additivity="false">
+        <appender-ref ref="MYBATIS_ERROR_FILE"/>
+    </logger>
+
     <!-- 异步输出 -->
     <appender name="ASYNC_FILE_INFO" class="ch.qos.logback.classic.AsyncAppender">
         <!-- 队列剩余容量小于discardingThreshold,则会丢弃TRACT、DEBUG、INFO级别的日志;默认值-1,为queueSize的20%;0不丢失日志 -->
@@ -110,6 +134,8 @@
         <appender-ref ref="ASYNC_FILE_INFO"/>
         <!-- 异步日志-ERROR -->
         <appender-ref ref="ASYNC_FILE_ERROR"/>
+
+        <appender-ref ref="MYBATIS_ERROR_FILE"/>
     </root>
 
 </configuration>

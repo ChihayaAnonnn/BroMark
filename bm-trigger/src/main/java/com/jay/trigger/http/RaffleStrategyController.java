@@ -121,6 +121,7 @@ public class RaffleStrategyController implements IRaffleStrategyService {
             return Response.ok(raffleAwardListResponseDTOS);
         } catch (Exception e) {
             log.error("查询奖品列表配置 userId: {}, activityId:{}", request.getUserId(), request.getActivityId());
+            log.error("queryRaffleAwardList", e);
             return Response.fail(ResponseCode.UN_ERROR, null);
         }
     }

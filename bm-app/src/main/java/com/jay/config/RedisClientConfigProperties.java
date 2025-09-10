@@ -12,10 +12,15 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "redis.sdk.config", ignoreUnknownFields = true)
 public class RedisClientConfigProperties {
 
+
     /** host:ip */
     private String host;
     /** 端口 */
     private int port;
+    /**
+     * 集群地址
+     */
+    private String[] nodes;
     /** 账密 */
     private String password;
     /** 设置连接池的大小，默认为64 */
