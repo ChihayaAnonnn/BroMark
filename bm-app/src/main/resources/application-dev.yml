@@ -16,7 +16,7 @@ app:
 
 spring:
   rabbitmq:
-    addresses: 172.31.74.95
+    addresses: 47.112.25.14
     port: 5672
     username: admin
     password: admin
@@ -68,7 +68,7 @@ mini-db-router:
       list: db01,db02
       db00:
         driver-class-name: com.mysql.cj.jdbc.Driver
-        url: jdbc:mysql://172.31.74.95:13306/big_market?useUnicode=true&characterEncoding=utf8&autoReconnect=true&zeroDateTimeBehavior=convertToNull&serverTimezone=UTC&useSSL=true
+        url: jdbc:mysql://47.112.26.200:13306/big_market?useUnicode=true&characterEncoding=utf8&autoReconnect=true&zeroDateTimeBehavior=convertToNull&serverTimezone=UTC&useSSL=true
         username: root
         password: 123456
         type-class-name: com.zaxxer.hikari.HikariDataSource
@@ -83,7 +83,7 @@ mini-db-router:
           connection-test-query: SELECT 1
       db01:
         driver-class-name: com.mysql.cj.jdbc.Driver
-        url: jdbc:mysql://172.31.74.95:13306/big_market_01?useUnicode=true&characterEncoding=utf8&autoReconnect=true&zeroDateTimeBehavior=convertToNull&serverTimezone=UTC&useSSL=true
+        url: jdbc:mysql://47.112.26.200:13306/big_market_01?useUnicode=true&characterEncoding=utf8&autoReconnect=true&zeroDateTimeBehavior=convertToNull&serverTimezone=UTC&useSSL=true
         username: root
         password: 123456
         type-class-name: com.zaxxer.hikari.HikariDataSource
@@ -98,7 +98,7 @@ mini-db-router:
           connection-test-query: SELECT 1
       db02:
         driver-class-name: com.mysql.cj.jdbc.Driver
-        url: jdbc:mysql://172.31.74.95:13306/big_market_02?useUnicode=true&characterEncoding=utf8&autoReconnect=true&zeroDateTimeBehavior=convertToNull&serverTimezone=UTC&useSSL=true
+        url: jdbc:mysql://47.112.26.200:13306/big_market_02?useUnicode=true&characterEncoding=utf8&autoReconnect=true&zeroDateTimeBehavior=convertToNull&serverTimezone=UTC&useSSL=true
         username: root
         password: 123456
         type-class-name: com.zaxxer.hikari.HikariDataSource
@@ -120,7 +120,7 @@ mybatis:
 redis:
   sdk:
     config:
-#      host: 172.31.74.95
+#      host: 47.112.26.200
 #      port: 16379
       pool-size: 10
       min-idle-size: 5
@@ -138,6 +138,14 @@ redis:
         - 47.112.26.200:7001
         - 47.112.26.200:7002
 
+management:
+  endpoint:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoints:
+    health:
+      show-details: always
 
 # 日志
 logging:

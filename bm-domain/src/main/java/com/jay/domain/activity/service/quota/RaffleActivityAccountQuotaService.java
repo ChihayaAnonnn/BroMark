@@ -95,4 +95,9 @@ public class RaffleActivityAccountQuotaService extends AbstractRaffleActivityAcc
     public ActivityAccountEntity queryActivityAccountEntity(Long activityId, String userId) {
         return repository.queryActivityAccountEntity(activityId, userId);
     }
+
+    @Override
+    public void createActivityAccount(ActivityAccountEntity activityAccountEntity) {
+        repository.createActivityAccount(activityAccountEntity);
+    }
 }

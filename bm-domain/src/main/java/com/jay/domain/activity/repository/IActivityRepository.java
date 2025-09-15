@@ -62,4 +62,6 @@ public interface IActivityRepository {
     UnpaidActivityOrderEntity queryUnpaidActivityOrder(SkuRechargeEntity skuRechargeEntity);
 
     List<SkuProductEntity> querySkuProductEntityListByActivityId(Long activityId);
+
+    void createActivityAccount(ActivityAccountEntity activityAccountEntity);
 }

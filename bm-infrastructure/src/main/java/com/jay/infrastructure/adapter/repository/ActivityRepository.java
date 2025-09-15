@@ -688,6 +688,21 @@ public class ActivityRepository implements IActivityRepository {
     }
 
     @Override
+    public void createActivityAccount(ActivityAccountEntity activityAccountEntity) {
+        RaffleActivityAccount req = new RaffleActivityAccount();
+        req.setUserId(activityAccountEntity.getUserId());
+        req.setActivityId(activityAccountEntity.getActivityId());
+        req.setTotalCount(activityAccountEntity.getTotalCount());
+        req.setTotalCountSurplus(activityAccountEntity.getTotalCountSurplus());
+        req.setDayCount(activityAccountEntity.getDayCount());
+        req.setDayCountSurplus(activityAccountEntity.getDayCountSurplus());
+        req.setMonthCount(activityAccountEntity.getMonthCount());
+        req.setMonthCountSurplus(activityAccountEntity.getMonthCountSurplus());
+
+        raffleActivityAccountDao.insert(req);
+    }
+
+    @Override
     public Integer queryRaffleActivityAccountPartakeCount(Long activityId, String userId) {
         RaffleActivityAccount raffleActivityAccount = raffleActivityAccountDao.queryActivityAccount(RaffleActivityAccount.builder()
                 .activityId(activityId)

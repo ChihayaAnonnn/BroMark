@@ -56,4 +56,5 @@ public interface IRaffleActivityAccountQuotaService {
      */
     ActivityAccountEntity queryActivityAccountEntity(Long activityId, String userId);
 
+    void createActivityAccount(ActivityAccountEntity activityAccountEntity);
 }

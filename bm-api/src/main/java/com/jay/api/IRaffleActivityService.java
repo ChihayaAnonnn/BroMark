@@ -76,4 +76,6 @@ public interface IRaffleActivityService {
      */
     Response<Boolean> creditPayExchangeSku(SkuProductShopCartRequestDTO request);
 
+    Response<?> createAccount(RaffleActivityAccountDTO request);
+
 }

@@ -69,11 +69,6 @@ public class RaffleStrategyController implements IRaffleStrategyService {
             return Response.ok();
         } catch (Exception e) {
             log.error("抽奖策略装配失败 strategyId: {}", strategyId, e);
-            // return Response.<Boolean>builder()
-            //         .code(ResponseCode.UN_ERROR.getCode())
-            //         .info(ResponseCode.UN_ERROR.getInfo())
-            //         .data(false)
-            //         .build();
             return Response.fail(ResponseCode.UN_ERROR, null);
         }
     }

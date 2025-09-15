@@ -39,6 +39,7 @@ import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.LinkedList;
 import java.util.List;
 
 /**
@@ -157,7 +158,7 @@ public class RaffleActivityController implements IRaffleActivityService {
                     .build());
         } catch (AppException e) {
             log.error("活动抽奖失败 userId:{} activityId:{}", request.getUserId(), request.getActivityId(), e);
-            return Response.fail(e.getCode(), e.getInfo());
+            return Response.fail(ResponseCode.FAILURE, e.getInfo());
         } catch (Exception e) {
             log.error("活动抽奖失败 userId:{} activityId:{}", request.getUserId(), request.getActivityId(), e);
             return Response.fail(ResponseCode.UN_ERROR, null);
@@ -335,5 +336,21 @@ public class RaffleActivityController implements IRaffleActivityService {
             log.error("积分兑换商品失败 userId:{} sku:{}", request.getUserId(), request.getSku(), e);
             return Response.fail(ResponseCode.UN_ERROR, null);
         }
+    }
+    @RequestMapping(value = "createAccount", method = RequestMethod.POST)
+    @Override
+    public Response<?> createAccount(@RequestBody RaffleActivityAccountDTO request) {
+        ActivityAccountEntity activityAccount = new ActivityAccountEntity();
+        activityAccount.setUserId(request.getUserId());
+        activityAccount.setActivityId(request.getActivityId());
+        activityAccount.setTotalCount(request.getTotalCount());
+        activityAccount.setTotalCountSurplus(request.getTotalCountSurplus());
+        activityAccount.setDayCount(request.getDayCount());
+        activityAccount.setDayCountSurplus(request.getDayCountSurplus());
+        activityAccount.setMonthCount(request.getMonthCount());
+        activityAccount.setMonthCountSurplus(request.getMonthCountSurplus());
+
+        raffleActivityAccountQuotaService.createActivityAccount(activityAccount);
+        return Response.ok(activityAccount);
     }
 }

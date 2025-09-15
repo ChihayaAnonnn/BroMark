@@ -14,6 +14,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
+import java.util.ArrayList;
+import java.util.HashSet;
 
 /**
  * @author Jay
@@ -44,6 +46,8 @@ public class ActivitySkuStockActionChain extends AbstractActionChain {
                     .build());
 
             return true;
+
+            HashSet<>()
         }
 
         throw new AppException(ResponseCode.ACTIVITY_SKU_STOCK_ERROR.getCode(), ResponseCode.ACTIVITY_SKU_STOCK_ERROR.getInfo());
