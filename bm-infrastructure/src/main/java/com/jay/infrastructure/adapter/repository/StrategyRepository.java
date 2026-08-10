@@ -15,6 +15,7 @@ import com.jay.domain.strategy.model.vo.tree.RuleTreeNodeVO;
 import com.jay.domain.strategy.model.vo.tree.RuleTreeVO;
 import com.jay.domain.strategy.repository.IStrategyRepository;
 import com.jay.domain.strategy.service.rule.chain.factory.DefaultChainFactory;
+import com.jay.domain.strategy.service.armory.algorithm.AliasTable;
 import com.jay.infrastructure.dao.*;
 import com.jay.infrastructure.dao.po.*;
 import com.jay.infrastructure.redis.IRedisService;
@@ -117,6 +118,21 @@ public class StrategyRepository implements IStrategyRepository {
     @Override
     public Integer getStrategyAwardAssemble(String key, int rateKey) {
         return redisService.getFromMap(Constants.RedisKey.STRATEGY_RATE_TABLE_KEY + key, rateKey);
+    }
+
+    @Override
+    public void storeStrategyAliasTable(String key, AliasTable aliasTable) {
+        redisService.setValue(Constants.RedisKey.STRATEGY_ALIAS_TABLE_KEY + key, JSON.toJSONString(aliasTable));
+    }
+
+    @Override
+    public AliasTable getStrategyAliasTable(String key) {
+        String cacheKey = Constants.RedisKey.STRATEGY_ALIAS_TABLE_KEY + key;
+        String json = redisService.getValue(cacheKey);
+        if (json == null || json.isEmpty()) {
+            throw new AppException(UN_ASSEMBLED_STRATEGY_ARMORY.getCode(), cacheKey + Constants.COLON + UN_ASSEMBLED_STRATEGY_ARMORY.getInfo());
+        }
+        return JSON.parseObject(json, AliasTable.class);
     }
 
     @Override

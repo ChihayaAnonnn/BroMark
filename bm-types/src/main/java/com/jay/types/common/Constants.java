@@ -13,6 +13,7 @@ public class Constants {
         public static final String STRATEGY_AWARD_LIST_KEY = "strategy:award:list:key:";
         public static final String STRATEGY_RATE_TABLE_KEY = "strategy:rate:table:key:";
         public static final String STRATEGY_RATE_RANGE_KEY = "strategy:rate:range:key:";
+        public static final String STRATEGY_ALIAS_TABLE_KEY = "strategy:alias:table:key:";
         public static final String RULE_TREE_VO_KEY = "rule:tree:vo:key:";
         public static final String STRATEGY_AWARD_COUNT_KEY = "strategy:award:count:key:";
         public static final String STRATEGY_AWARD_COUNT_QUEUE_KEY = "strategy:award:count:query:key:";

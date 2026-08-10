@@ -4,6 +4,8 @@ import com.jay.domain.strategy.model.entity.StrategyAwardEntity;
 import com.jay.domain.strategy.model.entity.StrategyEntity;
 import com.jay.domain.strategy.model.entity.StrategyRuleEntity;
 import com.jay.domain.strategy.repository.IStrategyRepository;
+import com.jay.domain.strategy.service.armory.algorithm.AliasTable;
+import com.jay.domain.strategy.service.armory.algorithm.impl.AliasMethodAlgorithm;
 import com.jay.types.common.Constants;
 import com.jay.types.enums.ResponseCode;
 import com.jay.types.exception.AppException;
@@ -28,6 +30,8 @@ public class StrategyArmoryDispatch implements IStrategyArmory, IStrategyDispatc
     private static final SecureRandom RANDOM = new SecureRandom();
     @Resource
     private IStrategyRepository repository;
+    @Resource
+    private AliasMethodAlgorithm aliasMethodAlgorithm;
 
     @Override
     public Boolean assembleLotteryStrategy(Long strategyId) {
@@ -98,55 +102,21 @@ public class StrategyArmoryDispatch implements IStrategyArmory, IStrategyDispatc
      * @param strategyAwardEntities
      */
     private void assembleLotteryStrategy(String key, List<StrategyAwardEntity> strategyAwardEntities) {
-        // 1. 获取最小概率值
-        BigDecimal minAwardRate = strategyAwardEntities.stream()
-                .map(StrategyAwardEntity::getAwardRate)
-                .min(BigDecimal::compareTo)
-                .orElse(BigDecimal.ZERO);
-        // 2.获取概率值的总和
-        BigDecimal totalAwardRate = strategyAwardEntities.stream()
-                .map(StrategyAwardEntity::getAwardRate)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        // 3.得到单位大小
-        BigDecimal rateRange = totalAwardRate.divide(minAwardRate, 0, RoundingMode.CEILING);
-
-        // 4.填充概率分布
-        ArrayList<Integer> strategyAwardSearchRateTables = new ArrayList<>(rateRange.intValue());
-        for (StrategyAwardEntity strategyAward : strategyAwardEntities) {
-            Integer awardId = strategyAward.getAwardId();
-            BigDecimal awardRate = strategyAward.getAwardRate();
-            // 计算出每个概率存放到查找表的数量，循环填充
-            for (int i = 0; i < rateRange.multiply(awardRate).setScale(0, RoundingMode.CEILING).intValue(); i++) {
-                strategyAwardSearchRateTables.add(awardId);
-            }
-        }
-
-        // 5.乱序
-        Collections.shuffle(strategyAwardSearchRateTables);
-
-        // 6.转换成Hash表
-        HashMap<Integer, Integer> shuffledStrategyAwardSearchRateTables = new HashMap<>();
-        for (int i = 0; i < strategyAwardSearchRateTables.size(); i++) {
-            shuffledStrategyAwardSearchRateTables.put(i, strategyAwardSearchRateTables.get(i));
-        }
-
-        // 7.存入Redis
-        repository.storeStrategyAwardSearchRateTables(key, shuffledStrategyAwardSearchRateTables.size(), shuffledStrategyAwardSearchRateTables);
+        AliasTable aliasTable = aliasMethodAlgorithm.build(strategyAwardEntities);
+        repository.storeStrategyAliasTable(key, aliasTable);
     }
 
     @Override
     public Integer getRandomAwardId(Long strategyId) {
-        int rateRange = repository.getRateRange(strategyId);
-        // log.info("random is {}", RANDOM.nextInt(rateRange));
-        return repository.getStrategyAwardAssemble(String.valueOf(strategyId), RANDOM.nextInt(rateRange));
+        AliasTable aliasTable = repository.getStrategyAliasTable(String.valueOf(strategyId));
+        return aliasMethodAlgorithm.dispatch(aliasTable, RANDOM);
     }
 
     @Override
     public Integer getRandomAwardId(Long strategyId, Long ruleWeightKey) {
         String key = String.valueOf(strategyId).concat(":").concat(String.valueOf(ruleWeightKey));
-        int rateRange = repository.getRateRange(key);
-        return repository.getStrategyAwardAssemble(key, RANDOM.nextInt(rateRange));
+        AliasTable aliasTable = repository.getStrategyAliasTable(key);
+        return aliasMethodAlgorithm.dispatch(aliasTable, RANDOM);
     }
 
     @Override

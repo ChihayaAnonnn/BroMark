@@ -3,6 +3,7 @@ package com.jay.domain.strategy.repository;
 import com.jay.domain.strategy.model.entity.StrategyAwardEntity;
 import com.jay.domain.strategy.model.entity.StrategyEntity;
 import com.jay.domain.strategy.model.entity.StrategyRuleEntity;
+import com.jay.domain.strategy.service.armory.algorithm.AliasTable;
 import com.jay.domain.strategy.model.vo.RuleWeightVO;
 import com.jay.domain.strategy.model.vo.StrategyAwardRuleModelVO;
 import com.jay.domain.strategy.model.vo.StrategyAwardStockKeyVO;
@@ -28,6 +29,10 @@ public interface IStrategyRepository {
     int getRateRange(String key);
 
     Integer getStrategyAwardAssemble(String key, int rateKey);
+
+    void storeStrategyAliasTable(String key, AliasTable aliasTable);
+
+    AliasTable getStrategyAliasTable(String key);
 
     StrategyEntity queryStrategyEntityByStrategyId(Long strategyId);
 

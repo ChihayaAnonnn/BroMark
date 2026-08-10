@@ -11,7 +11,7 @@ public class test {
 
     public static void main(String[] args) {
         ArrayDeque<Object> objects = new ArrayDeque<>();
-        new CountDownLatch();
+        new CountDownLatch(1);
         new ConcurrentHashMap<>();
     }
 }
