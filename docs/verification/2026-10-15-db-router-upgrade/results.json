@@ -1,0 +1,135 @@
+{
+  "date": "2026-10-15",
+  "jdk": "Temurin 25.0.1+8",
+  "boot": "3.5.16",
+  "mybatisStarter": "3.0.5 (acceptance)",
+  "database": "H2 2.3.232, MySQL compatibility mode",
+  "image": "maven:3.9.11-eclipse-temurin-25@sha256:407c4423cec0cf2981055bc2c6c0dc211d9605b6669279b95997f2d1c7e91e2c",
+  "results": {
+    "original-behavior": [
+      {
+        "suite": "audit.RouterProbeTest",
+        "tests": 7,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "cases": [
+          {
+            "name": "virtualThreadsKeepTheirOwnRouteButDoNotInheritCallerRoute",
+            "status": "passed"
+          },
+          {
+            "name": "daoAspectClearsOuterManualRoute",
+            "status": "passed"
+          },
+          {
+            "name": "invalidDbKeySilentlyFallsBackToDefault",
+            "status": "passed"
+          },
+          {
+            "name": "manualImportCanCreateBeansWithModernBootApis",
+            "status": "passed"
+          },
+          {
+            "name": "changingThreadLocalInsideTransactionDoesNotChangeBoundConnection",
+            "status": "passed"
+          },
+          {
+            "name": "nullRouteAttributeBecomesLiteralNullString",
+            "status": "passed"
+          },
+          {
+            "name": "publishedStarterNotDiscoveredOnBoot3",
+            "status": "passed"
+          }
+        ]
+      }
+    ],
+    "original-acceptance": [
+      {
+        "suite": "audit.RouterAcceptanceTest",
+        "tests": 8,
+        "failures": 7,
+        "errors": 0,
+        "skipped": 0,
+        "cases": [
+          {
+            "name": "activeTransactionRejectsChangingRoute",
+            "status": "failed"
+          },
+          {
+            "name": "managerAndTemplateUseSameBean",
+            "status": "failed"
+          },
+          {
+            "name": "nestedDaoRestoresCallerRoute",
+            "status": "failed"
+          },
+          {
+            "name": "nullRouteValueIsRejected",
+            "status": "failed"
+          },
+          {
+            "name": "virtualThreadsExecuteRealMapperOnEveryDbAndTable",
+            "status": "failed"
+          },
+          {
+            "name": "autoConfigurationIsDiscovered",
+            "status": "failed"
+          },
+          {
+            "name": "unknownDatabaseDoesNotFallback",
+            "status": "failed"
+          },
+          {
+            "name": "driverMayBeInferredWhenNotConfigured",
+            "status": "passed"
+          }
+        ]
+      }
+    ],
+    "candidate-acceptance": [
+      {
+        "suite": "audit.RouterAcceptanceTest",
+        "tests": 8,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "cases": [
+          {
+            "name": "activeTransactionRejectsChangingRoute",
+            "status": "passed"
+          },
+          {
+            "name": "managerAndTemplateUseSameBean",
+            "status": "passed"
+          },
+          {
+            "name": "nestedDaoRestoresCallerRoute",
+            "status": "passed"
+          },
+          {
+            "name": "nullRouteValueIsRejected",
+            "status": "passed"
+          },
+          {
+            "name": "virtualThreadsExecuteRealMapperOnEveryDbAndTable",
+            "status": "passed"
+          },
+          {
+            "name": "autoConfigurationIsDiscovered",
+            "status": "passed"
+          },
+          {
+            "name": "unknownDatabaseDoesNotFallback",
+            "status": "passed"
+          },
+          {
+            "name": "driverMayBeInferredWhenNotConfigured",
+            "status": "passed"
+          }
+        ]
+      }
+    ]
+  }
+}
