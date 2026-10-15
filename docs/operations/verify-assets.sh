@@ -45,8 +45,17 @@ done
 if docker exec bromark-assets-redis-1 redis-cli cluster info | grep -q 'cluster_slots_assigned:0'; then
   docker exec bromark-assets-redis-1 redis-cli --cluster create redis-1:6379 redis-2:6379 redis-3:6379 --cluster-replicas 0 --cluster-yes
 fi
+# Retained nodes.conf can contain noaddr peers after containers restart on new IPs.
+# Reintroduce only the three containers owned by this isolated test stack; never reset slots/data.
+for n in 1 2 3; do
+  peer_ip=$(docker inspect "bromark-assets-redis-$n" --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
+  for source in 1 2 3; do
+    docker exec "bromark-assets-redis-$source" redis-cli cluster meet "$peer_ip" 6379 >/dev/null
+  done
+done
 attempt=0
-until docker exec bromark-assets-redis-1 redis-cli cluster info | grep -q 'cluster_state:ok'; do
+until docker exec bromark-assets-redis-1 redis-cli cluster info | grep -q 'cluster_state:ok' &&
+      ! docker exec bromark-assets-redis-1 redis-cli cluster nodes | grep -Eq 'noaddr|fail|disconnected'; do
   attempt=$((attempt+1)); [ "$attempt" -lt 50 ] || exit 1
   sleep 0.2
 done

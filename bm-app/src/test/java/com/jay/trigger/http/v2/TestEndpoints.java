@@ -5,6 +5,10 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(
+    name = "bm.v2.raffle.enabled",
+    havingValue = "false",
+    matchIfMissing = true)
 public class TestEndpoints {
   public record Input(@jakarta.validation.constraints.NotBlank String value) {}
 
