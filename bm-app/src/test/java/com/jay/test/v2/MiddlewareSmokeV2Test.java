@@ -22,8 +22,9 @@ public class MiddlewareSmokeV2Test {
     new ApplicationContextRunner()
         .withUserConfiguration(RedisClientConfig.class)
         .withPropertyValues(
-            "redis.sdk.config.host="+System.getenv().getOrDefault("V2_REDIS_HOST","host.docker.internal"),
-            "redis.sdk.config.port="+System.getenv().getOrDefault("V2_REDIS_PORT","16386"),
+            "redis.sdk.config.host="
+                + System.getenv().getOrDefault("V2_REDIS_HOST", "host.docker.internal"),
+            "redis.sdk.config.port=" + System.getenv().getOrDefault("V2_REDIS_PORT", "16386"),
             "redis.sdk.config.pool-size=4",
             "redis.sdk.config.min-idle-size=1")
         .run(
@@ -49,7 +50,10 @@ public class MiddlewareSmokeV2Test {
 
   @Test
   public void rabbitRoundTripUsesIsolatedQueue() {
-    var cf = new CachingConnectionFactory(System.getenv().getOrDefault("V2_RABBIT_HOST","host.docker.internal"),Integer.parseInt(System.getenv().getOrDefault("V2_RABBIT_PORT","15686")));
+    var cf =
+        new CachingConnectionFactory(
+            System.getenv().getOrDefault("V2_RABBIT_HOST", "host.docker.internal"),
+            Integer.parseInt(System.getenv().getOrDefault("V2_RABBIT_PORT", "15686")));
     cf.setUsername("bromark_it");
     cf.setPassword(java.util.Objects.requireNonNull(System.getenv("V2_RABBIT_PASSWORD")));
     String name = "bromark.it." + UUID.randomUUID();

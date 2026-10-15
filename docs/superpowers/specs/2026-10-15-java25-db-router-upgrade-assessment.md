@@ -4,7 +4,7 @@
 
 ## 结论与技术选型
 
-可以推进升级，但 `cn.bugstack.middleware:db-router-spring-boot-starter:1.0.2` 不能作为 Boot 3 的直接替换依赖。建议采用 Java 25、Spring Boot 3.5.16、MyBatis Starter 3.0.5，并维护一个具有独立坐标的 DB Router 适配版本。当前已完成源码下载、原版行为验证和隔离适配原型；未升级 BroMark 的 POM、镜像或业务代码，未发布适配版本。
+可以推进升级，但 `cn.bugstack.middleware:db-router-spring-boot-starter:1.0.2` 不能作为 Boot 3 的直接替换依赖。建议采用 Java 25、Spring Boot 3.5.16、MyBatis Starter 3.0.5，并维护一个具有独立坐标的 DB Router 适配版本。初始评估完成源码下载、原版行为验证和隔离原型。随后已完成正式本地适配与BroMark Java25/阶段0实施：Router28项、BroMark17项针对性测试通过，镜像已启动验证；[执行报告](../../verification/2026-10-15-java25-foundation/README.md)记录全量旧测试超时及遗留项。未发布适配制品或部署。
 
 [Spring Boot 3.5 官方要求](https://docs.spring.io/spring-boot/3.5/system-requirements.html)覆盖 Java 17–25；[MyBatis 官方兼容表](https://mybatis.org/spring-boot-starter/mybatis-spring-boot-autoconfigure/)将 Starter 3.0 对应至 Boot 3.2–3.5。Boot 4 不属于本次验证范围，升级到 Java 25 无需同时迁移 Boot 4。
 
@@ -14,8 +14,8 @@ Java 25 可使用虚拟线程。现有 ThreadLocal 可在虚拟线程上隔离�
 
 下载目录：工作区 `db-router-spring-boot-starter/`，与 BroMark 平级。
 
-- 原始 `src/`：从 Maven Central 的 [1.0.2 sources.jar](https://repo.maven.apache.org/maven2/cn/bugstack/middleware/db-router-spring-boot-starter/1.0.2/db-router-spring-boot-starter-1.0.2-sources.jar)提取的 13 个 Java 文件和 spring.factories，保留作者头部。
-- 原始 `pom.xml`：同版本二进制 jar 内嵌 POM，包含旧构建和发布配置。本次没有运行其 release/deploy/sign 流程。
+- 原始快照 `src/`（独立Router仓库根提交d3aad34；当前分支已改造）：从 Maven Central 的 [1.0.2 sources.jar](https://repo.maven.apache.org/maven2/cn/bugstack/middleware/db-router-spring-boot-starter/1.0.2/db-router-spring-boot-starter-1.0.2-sources.jar)提取的 13 个 Java 文件和 spring.factories，保留作者头部。
+- 原始快照 `pom.xml`：同版本二进制jar内嵌POM，包含旧构建和发布配置；当前正式POM已移除这些配置，未运行release/deploy/sign。
 - `upstream-checksums.json`：发布 jar 和源码 jar 的 SHA-256。
 - `compatibility-prototype/`：独立适配原型，具有自己的 POM、源码和验收测试，不覆盖原始源码。
 
@@ -67,4 +67,8 @@ Boot 3 不再读取 spring.factories 中的 EnableAutoConfiguration 条目，需
 
 ## 与既有计划的衔接
 
-Java 25 是已选目标。原阶段0文档仍记录 Java 17＋Boot 2.7 的旧方案，不应再按其 Java 升级步骤执行。先实施 [DB Router 与 Java 25 升级计划](../plans/2026-10-15-java25-db-router-upgrade.md)，完成整体依赖与业务回归后，再执行阶段0的资产基础设施任务。新计划要求同步设计稿和其余实施文档，避免仅替换版本字符串而遗漏 Jakarta、安全和测试发现迁移。
+Java25已实施；阶段0、设计稿与后续计划的技术基线已同步为Boot3.5/Jakarta，0.1复用[升级计划](../plans/2026-10-15-java25-db-router-upgrade.md)的构建验收。阶段0新增事务、预算与身份接口已通过本地针对性验收；后续资产业务按各自阶段实施，不将基础设施通过等同于业务已完成。
+
+## 正式实现验收更新
+
+执行分支：BroMark feat/java25-foundation、Router feat/java25-router。编译/运行为Temurin25.0.4.1+1，Maven3.9.16，六模块所有class major=69。Router完整语义AST字段遍历已补充IS NULL、ORDER BY/GROUP BY、duplicate-update子查询和限定通配符的审查回归。28项包含真实MySQL两库四表、1,000虚拟线程；BroMark17项覆盖真实DAO、Spring配置、预算、JWT和中间件。原型章节为历史证据，正式状态以执行报告为准。上游许可仍未确认，仅本地安装，禁止对外发布。

@@ -44,7 +44,7 @@
 
 ## 共享类型与模块边界
 
-以下是拟新增契约，不是当前已有类。DTO 放入 `bm-domain/src/main/java/com/jay/domain/<域>/model/`，每个类型独立文件、不可变字段、显式构造或 builder；统一使用Java 25 API；虚拟线程仅在许可边界后显式启用，也不为升级批量重写现有模型为record。HTTP DTO 放 `bm-api`，不能将登录 userId 从请求 DTO 传入内核。
+阶段0的路由、事务、资源许可与时间契约已实现；其余为后续拟新增契约。DTO 放入 `bm-domain/src/main/java/com/jay/domain/<域>/model/`，每个类型独立文件、不可变字段、显式构造或 builder；统一使用Java 25 API；虚拟线程仅在许可边界后显式启用，也不为升级批量重写现有模型为record。HTTP DTO 放 `bm-api`，不能将登录 userId 从请求 DTO 传入内核。
 
 | 契约 | 所属任务 | 字段或签名 |
 | --- | --- | --- |
@@ -64,7 +64,7 @@
 
 ## 测试环境和命令
 
-当前 `bm-app/pom.xml` 默认 skipTests=true，Surefire 为2.6；0.1负责修正。新增测试沿用 JUnit 4，并以 `V2Test` 结尾。单元测试不连接远程依赖；集成测试使用独立 `v2-it` profile 的 MySQL 8.0、Redis、RabbitMQ，连接信息来自环境变量。不得直接运行含既有用户数据的 dev/prod profile，也不把 H2 或 mock 锁当作 InnoDB 并发验收。
+阶段0已将skipTests默认改false，Surefire由Boot父POM管理，JUnit4通过Vintage执行。新增测试沿用 JUnit 4，并以 `V2Test` 结尾。单元测试不连接远程依赖；集成测试使用独立 `v2-it` profile 的 MySQL 8.0、Redis、RabbitMQ，连接信息来自环境变量。不得直接运行含既有用户数据的 dev/prod profile，也不把 H2 或 mock 锁当作 InnoDB 并发验收。
 
 所有计划中的 Maven 命令在仓库根目录执行；`-Dsurefire.failIfNoSpecifiedTests=false` 仅允许上游模块没有目标测试，bm-app 目标类必须有非零执行数。每次运行保存该类 Surefire XML，任一目标集成测试被 skip 或缺依赖均视为尚未完成。测试失败步骤可以先编译失败，但最终绿灯必须包含真实行为断言。
 
@@ -93,7 +93,7 @@ MySQL DDL不是整批原子回滚；执行器保存每库每脚本进度，check
 
 ## 执行检查点
 
-- [ ] 先完成0.1构建测试基线，保留当前设计文档未提交修改；不要用 reset 覆盖。
+- [x] 0.1构建测试基线已完成；阶段0针对性验收通过，完整旧演示测试超时情况见执行报告。
 - [ ] 每个任务按失败测试→最小实现→通过验证→小提交执行；每份计划退出时核对设计覆盖表。
 - [ ] 每阶段产出实际配置、测试计数、故障记录与账实报告，执行者再更新复选框。
 - [ ] 阶段1—2先隔离验收；可靠消息、迁移演练完成前不对真实账户开放新旧混写。

@@ -170,3 +170,7 @@ assertThrows(OptimisticLockingFailureException.class, staleResumeCall);
 ## 阶段退出条件
 
 真实MySQL与RabbitMQ下租约、Confirm/Return、事务后Ack及延迟重试通过；每个故障都有持久化恢复入口。资产协议无需直接发布消息；不得以消息到队列等同业务完成。
+
+## 阶段0集成约束
+
+已有V2WorkerConfig关闭流程停止worker与数据库许可；实现Relay后必须整合Confirm跟踪与关闭顺序，先停止新认领并等待Confirm及对应Outbox更新，再停止数据库许可并关闭连接池。不得直接把阶段0空闲worker关闭测试当作Confirm排空验收。

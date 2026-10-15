@@ -195,7 +195,7 @@
       "kind": "select",
       "splitTable": false,
       "xml": "bm-app/src/main/resources/mybatis/mapper/raffle_activity_mapper.xml",
-      "sqlSha256": "dfd04d37020b92675c65ab34ff5cc0423c9c7298f83765fd9cc9004fdf9faa53",
+      "sqlSha256": "65bfe9ee9c50ccd866ea1f979b07909d2a9aeeeca755a99945966895dbb023cf",
       "dynamicTags": []
     },
     {
@@ -204,7 +204,7 @@
       "kind": "select",
       "splitTable": false,
       "xml": "bm-app/src/main/resources/mybatis/mapper/raffle_activity_mapper.xml",
-      "sqlSha256": "367c47feb084f73311b19694b0005e9ff4e92383d7ad4dae7eef6e62d5ae5e0d",
+      "sqlSha256": "daae4083db5bbfc3d70346bab0ac96b498e90618f3b428461cd425252cdde9ca",
       "dynamicTags": []
     },
     {
@@ -213,7 +213,7 @@
       "kind": "select",
       "splitTable": false,
       "xml": "bm-app/src/main/resources/mybatis/mapper/raffle_activity_mapper.xml",
-      "sqlSha256": "3c41c939d49b3225befc0e054d5d9985c4980f7066f3b59222215a8533de2d87",
+      "sqlSha256": "daa21a0f58d95ab953f6aafd53ddb5c08a5b3958d2619af561f6d5735a8c2d53",
       "dynamicTags": []
     },
     {
@@ -267,7 +267,7 @@
       "kind": "update",
       "splitTable": false,
       "xml": "bm-app/src/main/resources/mybatis/mapper/raffle_activity_sku_mapper.xml",
-      "sqlSha256": "7d2a43c105c087fd1ca586938e9dd331883d9c029abc37b65b1c485a23b2dcee",
+      "sqlSha256": "f8ab0a3829e7e854084aa3c3bc832778cc9de81fae118626e02344cbce44a7e0",
       "dynamicTags": []
     },
     {
@@ -276,7 +276,7 @@
       "kind": "update",
       "splitTable": false,
       "xml": "bm-app/src/main/resources/mybatis/mapper/raffle_activity_sku_mapper.xml",
-      "sqlSha256": "c3b627703ad492417a668b9dfa950e24c90e8c8d8ad6cea4770400a00e6b9535",
+      "sqlSha256": "1e8ef0e3240987b6f69a973b7c3a4eb06c7a8461a7fdb7f3b35955d8adba7458",
       "dynamicTags": []
     },
     {
@@ -285,7 +285,7 @@
       "kind": "select",
       "splitTable": false,
       "xml": "bm-app/src/main/resources/mybatis/mapper/raffle_activity_sku_mapper.xml",
-      "sqlSha256": "7bc05eb98e3ece6a5e238c5dac6b63a9dbb3fa90f9ba7d67a935df3a088501d3",
+      "sqlSha256": "105035eb542fc14f3c52e257bba3939fa119aba38afc9ad4e19c298b94132af9",
       "dynamicTags": []
     },
     {
@@ -294,7 +294,7 @@
       "kind": "select",
       "splitTable": false,
       "xml": "bm-app/src/main/resources/mybatis/mapper/raffle_activity_sku_mapper.xml",
-      "sqlSha256": "d9b92a8c5808808e39153b046ec2b4f97033da41bc58731ff7bf6c03c934222d",
+      "sqlSha256": "80bd3297b11e831db144aaaa5e05bfff44a61e872a0affa0b9447339848f0a75",
       "dynamicTags": []
     },
     {
@@ -303,7 +303,7 @@
       "kind": "select",
       "splitTable": false,
       "xml": "bm-app/src/main/resources/mybatis/mapper/rule_tree_mapper.xml",
-      "sqlSha256": "3a4ee38fd8fdfe6e6d948ad2aba1fde7627a618f3b687e1eb33a4ae6efde8fb6",
+      "sqlSha256": "22530a1e4454a0760639acc8e5c64ec5ee53b45f828a6f1198c82c461e7caae9",
       "dynamicTags": []
     },
     {
@@ -312,7 +312,7 @@
       "kind": "select",
       "splitTable": false,
       "xml": "bm-app/src/main/resources/mybatis/mapper/rule_tree_node_line_mapper.xml",
-      "sqlSha256": "0e85577a30e0952a343213758939b4470436e09628256860a6f0486671ef938b",
+      "sqlSha256": "9ee2f12c18a07c820c3e24d2251699b9d3c721041b50a9a0904d0270ef210755",
       "dynamicTags": []
     },
     {
@@ -321,7 +321,7 @@
       "kind": "select",
       "splitTable": false,
       "xml": "bm-app/src/main/resources/mybatis/mapper/rule_tree_node_mapper.xml",
-      "sqlSha256": "3c3656fae9aca557aa977fc6568bfea933c8c024f0a25e52ced14b5859c8ffea",
+      "sqlSha256": "4e0d169420dc5d8278b0bb4300e879e04dfbe3648a59e10bc3d9858ac08e1510",
       "dynamicTags": []
     },
     {
@@ -330,7 +330,7 @@
       "kind": "select",
       "splitTable": false,
       "xml": "bm-app/src/main/resources/mybatis/mapper/rule_tree_node_mapper.xml",
-      "sqlSha256": "c8ed4eb89615dd0906d9ca7a1b7138d18df6edcbd61b4783cf20f4f642978429",
+      "sqlSha256": "efc988b34772ff756b1e12a761cd270226cdef317caa6d58596d69fa3ec4f0ec",
       "dynamicTags": [
         "foreach"
       ]
@@ -341,7 +341,7 @@
       "kind": "update",
       "splitTable": false,
       "xml": "bm-app/src/main/resources/mybatis/mapper/strategy_award_mapper.xml",
-      "sqlSha256": "868eb72aedf366ea3c4cd8f2d595974f54b71aa122c6a1710171e58378b8a413",
+      "sqlSha256": "973c3f84908395c55a8024d59b7758d2a823802330a2185af4d241ea60383967",
       "dynamicTags": []
     },
     {
@@ -350,7 +350,7 @@
       "kind": "select",
       "splitTable": false,
       "xml": "bm-app/src/main/resources/mybatis/mapper/strategy_award_mapper.xml",
-      "sqlSha256": "2d77f2acd084aae40aba896b49c76dde062b65bcf10c24716ce05e668a8e5d0d",
+      "sqlSha256": "3b6499b9d3179d6cc08b7fab0083fa9372f15b89e6b540b334b4eabc28f0521a",
       "dynamicTags": []
     },
     {
@@ -359,7 +359,7 @@
       "kind": "select",
       "splitTable": false,
       "xml": "bm-app/src/main/resources/mybatis/mapper/strategy_award_mapper.xml",
-      "sqlSha256": "9e50021655770bd5da33d4d7510403555823f27aa949c1e4a777631fe63e08ae",
+      "sqlSha256": "984427feff386ea3a1c71383762fe6f620c78da2ea380b082a07c3200babc223",
       "dynamicTags": []
     },
     {
@@ -368,7 +368,7 @@
       "kind": "select",
       "splitTable": false,
       "xml": "bm-app/src/main/resources/mybatis/mapper/strategy_award_mapper.xml",
-      "sqlSha256": "42faf009f1be232e3214ff1d168a7e663ba797203cadcf3c2b43678472ae5c2f",
+      "sqlSha256": "4141d752c66048ae982e0e48435729560375f31c988d18b0d076a94394e2e7fc",
       "dynamicTags": []
     },
     {

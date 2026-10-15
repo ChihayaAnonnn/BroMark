@@ -1,0 +1,261 @@
+{
+  "runtime": {
+    "java": "Temurin 25.0.4.1+1",
+    "maven": "3.9.16",
+    "springBoot": "3.5.16",
+    "mybatisStarter": "3.0.5",
+    "mysql": "8.0.46",
+    "redis": "7.4.11",
+    "rabbitmq": "3.13.7"
+  },
+  "buildImage": "maven:3.9-eclipse-temurin-25@sha256:93b8a14ea2f412782e4e842651273b4d903e35cc496284f178fbbe2d67d00976",
+  "runtimeImage": "eclipse-temurin:25-jre@sha256:fd4b1c02c64eef378212e23656fc0b0caa41a357876fa0b60e51ceda94a3db64",
+  "applicationImage": {
+    "id": "sha256:a2bce4407facb0589b8860b6d2df85eee78b96b97e96b1199b88f61b115cc8c7",
+    "architecture": "arm64"
+  },
+  "broMark": [
+    {
+      "name": "com.jay.test.domain.strategy.AliasMethodAlgorithmTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        "shouldRejectZeroTotalRate",
+        "shouldSelectPrimaryAndAliasAwardsFromTheSameColumn",
+        "shouldAlwaysSelectTheOnlyAward"
+      ]
+    },
+    {
+      "name": "com.jay.test.v2.BuildBaselineV2Test",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        "runtimeAndApplicationBytecodeUseJava25"
+      ]
+    },
+    {
+      "name": "com.jay.test.v2.DatabaseBudgetV2Test",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        "controlledVirtualWorkerRejectsOverflowAndStops",
+        "runnerAcquiresBeforeConnectionAndReleasesAfterRollback",
+        "independentClassesTimeoutReleaseAndShutdown"
+      ]
+    },
+    {
+      "name": "com.jay.test.v2.Java25RouterIntegrationTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        "controlDaoUsesConfiguredControlDatabase",
+        "actualCreditDaoRollsBackAcrossEveryShard"
+      ]
+    },
+    {
+      "name": "com.jay.test.v2.MiddlewareSmokeV2Test",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        "configuredRedissonAndSerializationWorkOnJava25",
+        "rabbitRoundTripUsesIsolatedQueue"
+      ]
+    },
+    {
+      "name": "com.jay.test.v2.RoutingTransactionV2Test",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        "reusesThreadRollsBackAndScansEverySlot"
+      ]
+    },
+    {
+      "name": "com.jay.test.v2.V2FoundationWiringTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        "virtualWorkerUsesBudgetAndContextShutdownDrainsClosesPools",
+        "rejectsBudgetsThatCanExhaustAConcentratedLogicalPool"
+      ]
+    },
+    {
+      "name": "com.jay.test.v2.V2IdentityV2Test",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        "disabledV2DoesNotExposeIdentity",
+        "missingAuthConfigurationPreventsV2Startup",
+        "verifiesRealSignaturesClaimsAndNeverTrustsRequestUserId"
+      ]
+    }
+  ],
+  "router": [
+    {
+      "name": "audit.RouterAcceptanceTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        "activeTransactionRejectsChangingRoute",
+        "managerAndTemplateUseSameBean",
+        "nestedDaoRestoresCallerRoute",
+        "nullRouteValueIsRejected",
+        "virtualThreadsExecuteRealMapperOnEveryDbAndTable",
+        "autoConfigurationIsDiscovered",
+        "unknownDatabaseDoesNotFallback",
+        "driverMayBeInferredWhenNotConfigured"
+      ]
+    },
+    {
+      "name": "audit.RouterLifecycleTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        "closesUniquePoolOnceEvenWhenDefaultAliasesDb00",
+        "poolPropertiesConvertAndContextCloses",
+        "partialInitializationClosesEarlierAndFailingPool"
+      ]
+    },
+    {
+      "name": "audit.RouterMySqlIntegrationTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        "virtualThreadsCommitRollbackAndStayWithinPoolLimit"
+      ]
+    },
+    {
+      "name": "audit.RouterSqlBoundaryTest",
+      "tests": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        "rejectsSubqueriesInEveryClause(String)[1]",
+        "rejectsSubqueriesInEveryClause(String)[2]",
+        "rejectsSubqueriesInEveryClause(String)[3]",
+        "rejectsSubqueriesInEveryClause(String)[4]",
+        "rejectsSubqueriesInEveryClause(String)[5]",
+        "rejectsSubqueriesInEveryClause(String)[6]",
+        "rejectsSubqueriesInEveryClause(String)[7]",
+        "aliasesQuotesLiteralsAndDmlUseOnlyPhysicalTable",
+        "completeBroMarkShardedSqlInventoryIsSupported",
+        "rewritesQualifiedWildcardOrderingGroupingAndNullPredicates",
+        "unsupportedQueriesFailBeforeExecution"
+      ]
+    },
+    {
+      "name": "audit.RouterTransactionContractTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        "proxyRoutesBeforeTransactionAndRestoresOnFailure",
+        "strategyRejectsDatabaseChangeAtomically",
+        "invalidLayoutsRejected",
+        "strategyRejectsTableChangeAtomically",
+        "originalMappingPreserved"
+      ]
+    }
+  ],
+  "totals": {
+    "broMark": 17,
+    "router": 28
+  },
+  "bytecode": {
+    "bm-api": {
+      "classes": 24,
+      "majorVersions": [
+        69
+      ]
+    },
+    "bm-types": {
+      "classes": 8,
+      "majorVersions": [
+        69
+      ]
+    },
+    "bm-trigger": {
+      "classes": 20,
+      "majorVersions": [
+        69
+      ]
+    },
+    "bm-app": {
+      "classes": 15,
+      "majorVersions": [
+        69
+      ]
+    },
+    "bm-infrastructure": {
+      "classes": 65,
+      "majorVersions": [
+        69
+      ]
+    },
+    "bm-domain": {
+      "classes": 216,
+      "majorVersions": [
+        69
+      ]
+    }
+  },
+  "imageSmoke": [
+    {
+      "path": "/actuator/health",
+      "status": 200,
+      "body": "{\"status\":\"UP\"}"
+    },
+    {
+      "path": "/api/v2/identity",
+      "status": 401,
+      "body": "{\"code\":\"401\",\"info\":\"Unauthorized\"}"
+    },
+    {
+      "path": "/api/v2/identity",
+      "status": 200,
+      "body": "smoke-user"
+    },
+    {
+      "path": "/actuator/prometheus",
+      "status": 403,
+      "body": "{\"code\":\"403\",\"info\":\"Forbidden\"}"
+    },
+    {
+      "path": "/api/v1/raffle/activity/armory?activityId=100301",
+      "status": 200,
+      "body": "{\"code\":\"200\",\"info\":\"成功\",\"data\":true}"
+    }
+  ],
+  "legacyFullSuite": {
+    "passed": false,
+    "timeoutSeconds": 45,
+    "blockedTest": "RaffleActivityControllerTest.test_draw_blacklist",
+    "cause": "Unbounded CountDownLatch.await at line 61",
+    "unexecutedTests": "Remaining legacy tests cannot be claimed as verified"
+  },
+  "deferredMinor": "V2IntegrationTestConfig is unused and not a standalone runnable harness; existing tests use databaseContext() and explicit Foundation configuration",
+  "license": "Router original artifact license unresolved; local install only, no redistribution or deploy"
+}

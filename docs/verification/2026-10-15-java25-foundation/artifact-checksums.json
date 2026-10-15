@@ -1,0 +1,18 @@
+{
+  "docs/verification/2026-10-15-java25-foundation/effective-pom.xml.gz": {
+    "sha256": "0718f8c7f39a0e74aa9495bc86890ffe209c78268dca15cb6db56aa7ff9e9afa",
+    "bytes": 131653
+  },
+  "docs/verification/2026-10-15-java25-foundation/dependency-tree.txt": {
+    "sha256": "3a1cbcfc6dc3f6d2a9c67da4b689b280558f8929f47c8e28d04584a5592bdc79",
+    "bytes": 10653
+  },
+  "bm-app/target/bm-app.jar": {
+    "sha256": "80aad9e000189646b913d3a67569a88e667af7412a3f2cb93d5583d48095eff9",
+    "bytes": 78889015
+  },
+  "../db-router-spring-boot-starter/target/db-router-spring-boot-starter-2.0.0-SNAPSHOT.jar": {
+    "sha256": "dba0b2f65d412620004b15d0cbe2f4f1ebeffa67bd327afcef8122ed094b5e9c",
+    "bytes": 29708
+  }
+}
