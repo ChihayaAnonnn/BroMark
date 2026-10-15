@@ -29,6 +29,10 @@ PY
 chmod +x "$test_bin/mysql"
 PATH="$test_bin:$PATH" MYSQL_PWD="$V2_MYSQL_PASSWORD" \
   python3 "$project_root/docs/dev-ops/mysql/tests/test_migrations.py"
+if [ -n "${V2_MIGRATION_THROUGH:-}" ]; then
+  PATH="$test_bin:$PATH" MYSQL_PWD="$V2_MYSQL_PASSWORD" V2_MIGRATION_ALLOW=isolated-router-test-only \
+    python3 "$project_root/docs/dev-ops/mysql/apply_migrations.py" --env v2-it --through "$V2_MIGRATION_THROUGH"
+fi
 docker network inspect bromark-assets-cluster-it >/dev/null 2>&1 || docker network create bromark-assets-cluster-it >/dev/null
 docker compose -f "$project_root/docs/dev-ops/docker-compose-v2-redis-cluster.yml" up -d
 for n in 1 2 3; do

@@ -86,7 +86,7 @@ public class V2WorkerConfig {
       }
 
       public int getPhase() {
-        return Integer.MAX_VALUE;
+        return Integer.MAX_VALUE - 100;
       }
 
       public void stop() {

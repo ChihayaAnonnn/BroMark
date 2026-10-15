@@ -18,6 +18,7 @@ import java.util.concurrent.ThreadPoolExecutor;
  */
 @Slf4j
 @Component
+@org.springframework.boot.autoconfigure.condition.ConditionalOnExpression("'${bm.v2.asset-write-mode:LEGACY}' != 'V2'")
 public class SendMessageTaskJob {
 
     @Resource

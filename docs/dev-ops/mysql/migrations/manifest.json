@@ -36,7 +36,7 @@
       "file": "003_messaging_recovery.sql",
       "scope": "all",
       "shards": 1,
-      "sha256": "e49ee54761f2b53c71c54914acae7c488fb5fb12a02e4c7d5a7aaf0b660a09c7"
+      "sha256": "c7a92c380de1129110a255e048cbda0410f6ea84c6b4fdb50cfe3fa3d432ccf0"
     }
   ]
 }

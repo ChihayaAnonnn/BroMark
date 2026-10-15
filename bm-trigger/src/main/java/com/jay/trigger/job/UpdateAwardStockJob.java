@@ -15,6 +15,7 @@ import jakarta.annotation.Resource;
  */
 @Slf4j
 @Component
+@org.springframework.boot.autoconfigure.condition.ConditionalOnExpression("'${bm.v2.asset-write-mode:LEGACY}' != 'V2'")
 public class UpdateAwardStockJob {
     @Resource
     private IRaffleStock raffleStock;
