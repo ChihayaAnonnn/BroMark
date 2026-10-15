@@ -60,14 +60,25 @@ public class Java25RouterIntegrationTest {
 
   @Test
   public void controlDaoUsesConfiguredControlDatabase() {
-    databaseContext().run(c -> {
-      assertThat(c).hasNotFailed();
-      JdbcTemplate jdbc = new JdbcTemplate(c.getBean(DataSource.class));
-      jdbc.execute("create table if not exists raffle_activity(activity_id bigint primary key,activity_name varchar(64),activity_desc varchar(64),begin_date_time datetime,end_date_time datetime,strategy_id bigint,state varchar(16)) ENGINE=InnoDB");
-      jdbc.update("delete from raffle_activity where activity_id=987654321");
-      jdbc.update("insert into raffle_activity(activity_id,strategy_id) values(987654321,123456789)");
-      assertThat(c.getBean(com.jay.infrastructure.dao.IRaffleActivityDao.class).queryStrategyIdByActivityId(987654321L)).isEqualTo(123456789L);
-    });
+    databaseContext()
+        .run(
+            c -> {
+              assertThat(c).hasNotFailed();
+              JdbcTemplate jdbc = new JdbcTemplate(c.getBean(DataSource.class));
+              jdbc.execute(
+                  "create table if not exists raffle_activity(activity_id bigint primary"
+                      + " key,activity_name varchar(64),activity_desc varchar(64),begin_date_time"
+                      + " datetime,end_date_time datetime,strategy_id bigint,state varchar(16))"
+                      + " ENGINE=InnoDB");
+              jdbc.update("delete from raffle_activity where activity_id=987654321");
+              jdbc.update(
+                  "insert into raffle_activity(activity_id,strategy_id)"
+                      + " values(987654321,123456789)");
+              assertThat(
+                      c.getBean(com.jay.infrastructure.dao.IRaffleActivityDao.class)
+                          .queryStrategyIdByActivityId(987654321L))
+                  .isEqualTo(123456789L);
+            });
   }
 
   @Test

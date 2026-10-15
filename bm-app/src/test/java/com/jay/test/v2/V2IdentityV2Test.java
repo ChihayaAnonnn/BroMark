@@ -166,6 +166,20 @@ public class V2IdentityV2Test {
               mvc.perform(post("/api/v2/activities/1")).andExpect(status().isUnauthorized());
               mvc.perform(get("/api/v2/orders/1")).andExpect(status().isUnauthorized());
               mvc.perform(get("/actuator/prometheus")).andExpect(status().isForbidden());
+              for (String path :
+                  List.of(
+                      "/api/v2/test/typed",
+                      "/api/v2/test/typed?value=invalid",
+                      "/api/v2/test/path/invalid"))
+                mvc.perform(get(path).header("Authorization", "Bearer " + good))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("400"));
+              mvc.perform(
+                      get("/api/v2/test/typed?value=42").header("Authorization", "Bearer " + good))
+                  .andExpect(status().isOk())
+                  .andExpect(content().string("42"));
+              mvc.perform(get("/api/v2/does-not-exist").header("Authorization", "Bearer " + good))
+                  .andExpect(status().isNotFound());
               for (int code : new int[] {400, 403, 409, 429, 503})
                 mvc.perform(
                         get("/api/v2/test/error/" + code).header("Authorization", "Bearer " + good))

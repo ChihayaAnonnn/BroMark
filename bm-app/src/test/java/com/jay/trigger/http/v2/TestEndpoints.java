@@ -13,6 +13,16 @@ public class TestEndpoints {
     return input.value();
   }
 
+  @GetMapping("/api/v2/test/typed")
+  public String typed(@RequestParam Long value) {
+    return value.toString();
+  }
+
+  @GetMapping("/api/v2/test/path/{value}")
+  public String path(@PathVariable Long value) {
+    return value.toString();
+  }
+
   @GetMapping("/api/v2/activities/{id}")
   public String activity() {
     return "public";

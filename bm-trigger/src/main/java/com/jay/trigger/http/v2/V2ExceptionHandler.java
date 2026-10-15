@@ -36,6 +36,16 @@ public class V2ExceptionHandler {
     return error(400, "Invalid request");
   }
 
+  @ExceptionHandler({
+    org.springframework.web.bind.ServletRequestBindingException.class,
+    org.springframework.beans.TypeMismatchException.class,
+    org.springframework.validation.BindException.class,
+    jakarta.validation.ConstraintViolationException.class
+  })
+  public ResponseEntity<ApiError> binding() {
+    return error(400, "Invalid request");
+  }
+
   @ExceptionHandler(AssetConflictException.class)
   public ResponseEntity<ApiError> conflict() {
     return error(409, "Request conflicts with an existing operation");
@@ -52,7 +62,10 @@ public class V2ExceptionHandler {
   }
 
   @ExceptionHandler(Exception.class)
-  public ResponseEntity<ApiError> technical() {
+  public ResponseEntity<ApiError> technical(Exception exception) {
+    if (exception instanceof org.springframework.web.ErrorResponse response
+        && response.getStatusCode().is4xxClientError())
+      return error(response.getStatusCode().value(), "Invalid request");
     return error(503, "Service unavailable");
   }
 }
