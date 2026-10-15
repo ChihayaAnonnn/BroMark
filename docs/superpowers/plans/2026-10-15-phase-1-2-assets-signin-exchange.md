@@ -1,6 +1,6 @@
 # BroMark 阶段1—2 资产签到兑换 Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** 交付有审计流水和稳定回执的资产内核与同库原子签到、兑换。
 
@@ -18,7 +18,7 @@
 - 首版积分使用 BigDecimal 与数据库定点小数，拒绝超过两位的小数或溢出，不使用 float、double，不在写入时静默舍入。
 - 首版次数 SKU 不限库存，积分兑换在同一用户分库事务内完成扣积分与增加次数；签到奖励统一使用新资产内核。
 - 首版奖品只支持积分与无权益结果；Redis 不保存唯一余额或库存事实，账户事务不调用 MQ、支付渠道或远程发货。
-- 本文所有代码、SQL、测试和命令都是待执行任务；当前交付只包含实施文档，不代表实现完成。
+- 本阶段已完成隔离开发与验收；实际测试、实现调整和完整旧套件限制见[验收记录](../../verification/2026-10-15-assets-signin-exchange/README.md)，不代表生产迁移或切换完成。
 - 路径相对 BroMark 仓库根目录；先读[实施总览](2026-10-15-credit-payment-raffle-implementation-index.md)的共享契约、测试环境和迁移规则。依赖：[阶段0全部任务](2026-10-15-phase-0-foundation.md)。
 
 ## Review Focus
@@ -53,7 +53,7 @@ domain/asset管理余额、周期与身份；exchange及签到只编排事务。
 - Consumes: 0.2隔离数据库与全部分片列表。
 - Produces: 账户、周期桶、两类流水、用户请求回执；AssetAccountDao.lock(String):AssetAccountRow、QuotaAccountDao.lock(String,long):QuotaAccountRow。
 
-- [ ] **Step 1 — 写失败测试。** 在 `AssetSchemaV2Test` 中全新库应用001，另准备重复账户及期初冲突的升级样本，以JdbcTemplate检查约束，断言如下；示例是测试方法中的关键断言，命令与服务变量由该测试的 `@Before` 创建。
+- [x] **Step 1 — 写失败测试。** 在 `AssetSchemaV2Test` 中全新库应用001，另准备重复账户及期初冲突的升级样本，以JdbcTemplate检查约束，断言如下；示例是测试方法中的关键断言，命令与服务变量由该测试的 `@Before` 创建。
 
 ```java
 assertEquals(1, accountRowsForUser);
@@ -61,10 +61,10 @@ assertEquals(new BigDecimal("100.00"), openingBalance);
 assertThrows(DataIntegrityViolationException.class, negativeBalanceWrite);
 ```
 
-- [ ] **Step 2 — 验证失败。** 运行 `mvn -pl bm-app -am -DskipTests=false -Dsurefire.failIfNoSpecifiedTests=false -Dtest=AssetSchemaV2Test test`。预期相关行为断言失败；新接口尚不存在时编译失败也属于本步红灯，但不能以依赖不可用或测试被跳过代替行为失败。
-- [ ] **Step 3 — 实现最小行为。** 对现有账户和周期表只新增字段，新建流水和回执，不自动SUM重复余额，不覆盖旧available_amount。保存opening_balance及总次数/周期额度/计数的审计来源。001同时包含db00号段表id_block。manifest区分全新建库与存量升级：全新表直接带目标唯一/非负约束，升级只兼容新增，旧数据约束最终收紧归006。测试全新库检查完整约束，升级重复样本只生成拒绝切换的precheck证据，不提前依赖006。执行器提供--env v2-it --through 001 --dry-run与执行模式，保存checksum及逐脚本进度；失败DDL不DROP回滚。
-- [ ] **Step 4 — 验证通过。** 重跑同一命令，要求目标测试实际执行、failures=0、errors=0、skipped=0，并核对 `bm-app/target/surefire-reports` 中该类计数；集成测试依赖不可用时记录未完成，不能改成 mock 后声称并发或恢复已验收。执行器必须拒绝无测试环境白名单的实际执行；生产仅生成清单。
-- [ ] **Step 5 — 提交本任务。** 检查 `git diff --check`，只暂存本任务 Files 中的变更，执行 `git commit -m "feat: add audited asset schema and migration runner"`；不提交本地配置、凭据或原始用户数据。
+- [x] **Step 2 — 验证失败。** 运行 `mvn -pl bm-app -am -DskipTests=false -Dsurefire.failIfNoSpecifiedTests=false -Dtest=AssetSchemaV2Test test`。预期相关行为断言失败；新接口尚不存在时编译失败也属于本步红灯，但不能以依赖不可用或测试被跳过代替行为失败。
+- [x] **Step 3 — 实现最小行为。** 对现有账户和周期表只新增字段，新建流水和回执，不自动SUM重复余额，不覆盖旧available_amount。保存opening_balance及总次数/周期额度/计数的审计来源。001同时包含db00号段表id_block。manifest区分全新建库与存量升级：全新表直接带目标唯一/非负约束，升级只兼容新增，旧数据约束最终收紧归006。测试全新库检查完整约束，升级重复样本只生成拒绝切换的precheck证据，不提前依赖006。执行器提供--env v2-it --through 001 --dry-run与执行模式，保存checksum及逐脚本进度；失败DDL不DROP回滚。
+- [x] **Step 4 — 验证通过。** 重跑同一命令，要求目标测试实际执行、failures=0、errors=0、skipped=0，并核对 `bm-app/target/surefire-reports` 中该类计数；集成测试依赖不可用时记录未完成，不能改成 mock 后声称并发或恢复已验收。执行器必须拒绝无测试环境白名单的实际执行；生产仅生成清单。
+- [x] **Step 5 — 提交本任务。** 检查 `git diff --check`，只暂存本任务 Files 中的变更，执行 `git commit -m "feat: add audited asset schema and migration runner"`；不提交本地配置、凭据或原始用户数据。
 
 ### Task 1.2: 请求身份、金额与积分内核
 
@@ -92,7 +92,7 @@ assertThrows(DataIntegrityViolationException.class, negativeBalanceWrite);
 - Consumes: 1.1结构；0.2事务及数据库时钟。
 - Produces: AssetKernel.lockAccounts(String,List<Long>):BusinessTime、credit(String,BusinessId,BigDecimal):AssetReceipt、debit(String,BusinessId,BigDecimal):Optional<AssetReceipt>；RequestHasher.hash(String,Map<String,String>):String；RouteCodec.newOrderId(String,String):String、newEventId():String；OrderIdGenerator.next(String,RouteSlot):String、prefetch():void。
 
-- [ ] **Step 1 — 写失败测试。** 在 `CreditKernelV2Test` 中建立100.00余额，两笔不同业务并发消费80.00，同一充值业务并发100次，断言如下；示例是测试方法中的关键断言，命令与服务变量由该测试的 `@Before` 创建。
+- [x] **Step 1 — 写失败测试。** 在 `CreditKernelV2Test` 中建立100.00余额，两笔不同业务并发消费80.00，同一充值业务并发100次，断言如下；示例是测试方法中的关键断言，命令与服务变量由该测试的 `@Before` 创建。
 
 ```java
 assertEquals(1L, receipts.stream().filter(Optional::isPresent).count());
@@ -101,10 +101,10 @@ assertEquals(1L, committedLedgerCountForBiz);
 assertThrows(AssetConflictException.class, changedHashCall);
 ```
 
-- [ ] **Step 2 — 验证失败。** 运行 `mvn -pl bm-app -am -DskipTests=false -Dsurefire.failIfNoSpecifiedTests=false -Dtest=CreditKernelV2Test test`。预期相关行为断言失败；新接口尚不存在时编译失败也属于本步红灯，但不能以依赖不可用或测试被跳过代替行为失败。
-- [ ] **Step 3 — 实现最小行为。** 金额只接受正值、最多两位及DECIMAL(18,2)范围；不足返回Optional.empty，技术异常抛出。内核必须在现存用户事务中使用；唯一键建零余额锚点并锁积分账户，再排序锁活动账户，之后才锁请求/订单/桶。唯一流水保存delta与balance_after，重复返回原回执。摘要固定字段顺序、版本和小数格式。订单/事件ID按总览的持久号段方案：控制库锁id_block原子分配1000个序号，确认提交后本地发号，号段不复用，不在用户事务内补号段；生成与解码共享固定槽映射。未确认提交、耗尽或溢出先技术失败，不猜测号码是否可用。
-- [ ] **Step 4 — 验证通过。** 重跑同一命令，要求目标测试实际执行、failures=0、errors=0、skipped=0，并核对 `bm-app/target/surefire-reports` 中该类计数；集成测试依赖不可用时记录未完成，不能改成 mock 后声称并发或恢复已验收。再测首次建账、账户禁用、1.001、负数、零与溢出；原回执不依赖当前配置。两发号器并发、宕机废弃余号段和分配提交未知均不得重复ID，编码槽必须等于用户路由槽。
-- [ ] **Step 5 — 提交本任务。** 检查 `git diff --check`，只暂存本任务 Files 中的变更，执行 `git commit -m "feat: implement idempotent credit transactions"`；不提交本地配置、凭据或原始用户数据。
+- [x] **Step 2 — 验证失败。** 运行 `mvn -pl bm-app -am -DskipTests=false -Dsurefire.failIfNoSpecifiedTests=false -Dtest=CreditKernelV2Test test`。预期相关行为断言失败；新接口尚不存在时编译失败也属于本步红灯，但不能以依赖不可用或测试被跳过代替行为失败。
+- [x] **Step 3 — 实现最小行为。** 金额只接受正值、最多两位及DECIMAL(18,2)范围；不足返回Optional.empty，技术异常抛出。内核必须在现存用户事务中使用；唯一键建零余额锚点并锁积分账户，再排序锁活动账户，之后才锁请求/订单/桶。唯一流水保存delta与balance_after，重复返回原回执。摘要固定字段顺序、版本和小数格式。订单/事件ID按总览的持久号段方案：控制库锁id_block原子分配1000个序号，确认提交后本地发号，号段不复用，不在用户事务内补号段；生成与解码共享固定槽映射。未确认提交、耗尽或溢出先技术失败，不猜测号码是否可用。
+- [x] **Step 4 — 验证通过。** 重跑同一命令，要求目标测试实际执行、failures=0、errors=0、skipped=0，并核对 `bm-app/target/surefire-reports` 中该类计数；集成测试依赖不可用时记录未完成，不能改成 mock 后声称并发或恢复已验收。再测首次建账、账户禁用、1.001、负数、零与溢出；原回执不依赖当前配置。两发号器并发、宕机废弃余号段和分配提交未知均不得重复ID，编码槽必须等于用户路由槽。
+- [x] **Step 5 — 提交本任务。** 检查 `git diff --check`，只暂存本任务 Files 中的变更，执行 `git commit -m "feat: implement idempotent credit transactions"`；不提交本地配置、凭据或原始用户数据。
 
 ### Task 1.3: 周期额度增发、消费与原桶退还
 
@@ -121,7 +121,7 @@ assertThrows(AssetConflictException.class, changedHashCall);
 - Consumes: 1.2锁顺序与BusinessId；1.1周期桶。
 - Produces: QuotaKernel.grant(String,long,BusinessId,QuotaDelta,BusinessTime):QuotaReceipt；consume(String,long,BusinessId,BusinessTime):Optional<QuotaReceipt>；refund(String,long,BusinessId,BusinessTime):QuotaReceipt。
 
-- [ ] **Step 1 — 写失败测试。** 在 `QuotaKernelV2Test` 中建立总剩余10、日上限2已用1、月上限5已用2，再增额(5,1,2)，断言如下；示例是测试方法中的关键断言，命令与服务变量由该测试的 `@Before` 创建。
+- [x] **Step 1 — 写失败测试。** 在 `QuotaKernelV2Test` 中建立总剩余10、日上限2已用1、月上限5已用2，再增额(5,1,2)，断言如下；示例是测试方法中的关键断言，命令与服务变量由该测试的 `@Before` 创建。
 
 ```java
 assertEquals(15L, afterGrant.getTotalRemaining());
@@ -131,10 +131,10 @@ assertEquals(3L, nextDay.getDayRemaining());
 assertEquals(7L, nextMonth.getMonthRemaining());
 ```
 
-- [ ] **Step 2 — 验证失败。** 运行 `mvn -pl bm-app -am -DskipTests=false -Dsurefire.failIfNoSpecifiedTests=false -Dtest=QuotaKernelV2Test test`。预期相关行为断言失败；新接口尚不存在时编译失败也属于本步红灯，但不能以依赖不可用或测试被跳过代替行为失败。
-- [ ] **Step 3 — 实现最小行为。** 非负long增量检查累加溢出；按增额前上限建桶，再累加账户上限和当前桶剩余。consume总/月/日remaining>0条件扣减，检查影响行数，任一步失败全回滚；增加总与当日effective_draw_count。refund核验原消费身份，以唯一退款流水退总次数和原桶、减少有效计数，不改新桶或购买上限；原事实不匹配抛核查异常，由阶段3处理。
-- [ ] **Step 4 — 验证通过。** 重跑同一命令，要求目标测试实际执行、failures=0、errors=0、skipped=0，并核对 `bm-app/target/surefire-reports` 中该类计数；集成测试依赖不可用时记录未完成，不能改成 mock 后声称并发或恢复已验收。覆盖首次增额建桶、两个实例建桶、午夜/跨月、同取消100次和总额足够但日月不足；用可控时钟与栅栏。
-- [ ] **Step 5 — 提交本任务。** 检查 `git diff --check`，只暂存本任务 Files 中的变更，执行 `git commit -m "feat: enforce quota periods and idempotent refunds"`；不提交本地配置、凭据或原始用户数据。
+- [x] **Step 2 — 验证失败。** 运行 `mvn -pl bm-app -am -DskipTests=false -Dsurefire.failIfNoSpecifiedTests=false -Dtest=QuotaKernelV2Test test`。预期相关行为断言失败；新接口尚不存在时编译失败也属于本步红灯，但不能以依赖不可用或测试被跳过代替行为失败。
+- [x] **Step 3 — 实现最小行为。** 非负long增量检查累加溢出；按增额前上限建桶，再累加账户上限和当前桶剩余。consume总/月/日remaining>0条件扣减，检查影响行数，任一步失败全回滚；增加总与当日effective_draw_count。refund核验原消费身份，以唯一退款流水退总次数和原桶、减少有效计数，不改新桶或购买上限；原事实不匹配抛核查异常，由阶段3处理。
+- [x] **Step 4 — 验证通过。** 重跑同一命令，要求目标测试实际执行、failures=0、errors=0、skipped=0，并核对 `bm-app/target/surefire-reports` 中该类计数；集成测试依赖不可用时记录未完成，不能改成 mock 后声称并发或恢复已验收。覆盖首次增额建桶、两个实例建桶、午夜/跨月、同取消100次和总额足够但日月不足；用可控时钟与栅栏。
+- [x] **Step 5 — 提交本任务。** 检查 `git diff --check`，只暂存本任务 Files 中的变更，执行 `git commit -m "feat: enforce quota periods and idempotent refunds"`；不提交本地配置、凭据或原始用户数据。
 
 ### Task 1.4: 事务内Outbox写入
 
@@ -152,7 +152,7 @@ assertEquals(7L, nextMonth.getMonthRemaining());
 - Consumes: 1.1迁移器；1.2资产。
 - Produces: 总览EventEnvelope；OutboxWriter.append(EventEnvelope):void，仅允许已开启的业务事务，写当前连接所在库Outbox，不能根据目的routeSlot切库。
 
-- [ ] **Step 1 — 写失败测试。** 在 `OutboxAtomicV2Test` 中同时写资产与Outbox，在提交前注入异常；另验证成功提交但尚未发布，断言如下；示例是测试方法中的关键断言，命令与服务变量由该测试的 `@Before` 创建。
+- [x] **Step 1 — 写失败测试。** 在 `OutboxAtomicV2Test` 中同时写资产与Outbox，在提交前注入异常；另验证成功提交但尚未发布，断言如下；示例是测试方法中的关键断言，命令与服务变量由该测试的 `@Before` 创建。
 
 ```java
 assertEquals(0L, rolledBackLedgerRows);
@@ -160,10 +160,10 @@ assertEquals(0L, rolledBackOutboxRows);
 assertEquals(1L, committedPendingRows);
 ```
 
-- [ ] **Step 2 — 验证失败。** 运行 `mvn -pl bm-app -am -DskipTests=false -Dsurefire.failIfNoSpecifiedTests=false -Dtest=OutboxAtomicV2Test test`。预期相关行为断言失败；新接口尚不存在时编译失败也属于本步红灯，但不能以依赖不可用或测试被跳过代替行为失败。
-- [ ] **Step 3 — 实现最小行为。** 001_outbox_base随001执行，每库一张；event_id主键，待发送与租约过期索引。持久化完整权益快照、稳定bizId与schemaVersion=1，重复eventId不同payload冲突。同事务写事件，禁止业务直接RabbitTemplate发送；日志只记摘要。此任务不实现发布器。
-- [ ] **Step 4 — 验证通过。** 重跑同一命令，要求目标测试实际执行、failures=0、errors=0、skipped=0，并核对 `bm-app/target/surefire-reports` 中该类计数；集成测试依赖不可用时记录未完成，不能改成 mock 后声称并发或恢复已验收。
-- [ ] **Step 5 — 提交本任务。** 检查 `git diff --check`，只暂存本任务 Files 中的变更，执行 `git commit -m "feat: persist business events atomically"`；不提交本地配置、凭据或原始用户数据。
+- [x] **Step 2 — 验证失败。** 运行 `mvn -pl bm-app -am -DskipTests=false -Dsurefire.failIfNoSpecifiedTests=false -Dtest=OutboxAtomicV2Test test`。预期相关行为断言失败；新接口尚不存在时编译失败也属于本步红灯，但不能以依赖不可用或测试被跳过代替行为失败。
+- [x] **Step 3 — 实现最小行为。** 001_outbox_base随001执行，每库一张；event_id主键，待发送与租约过期索引。持久化完整权益快照、稳定bizId与schemaVersion=1，重复eventId不同payload冲突。同事务写事件，禁止业务直接RabbitTemplate发送；日志只记摘要。此任务不实现发布器。
+- [x] **Step 4 — 验证通过。** 重跑同一命令，要求目标测试实际执行、failures=0、errors=0、skipped=0，并核对 `bm-app/target/surefire-reports` 中该类计数；集成测试依赖不可用时记录未完成，不能改成 mock 后声称并发或恢复已验收。
+- [x] **Step 5 — 提交本任务。** 检查 `git diff --check`，只暂存本任务 Files 中的变更，执行 `git commit -m "feat: persist business events atomically"`；不提交本地配置、凭据或原始用户数据。
 
 ### Task 2.1: 准入配置与原子兑换
 
@@ -186,7 +186,7 @@ assertEquals(1L, committedPendingRows);
 - Consumes: 1.2—1.4资产与Outbox。
 - Produces: AdmissionService.forExchange(String,long,String,Deadline):AdmissionSnapshot；ExchangeService.exchange(ExchangeCommand):ExchangeResult；Command(userId,requestId,sku,configVersion,deadline)，Result(orderId,state,AssetReceipt,QuotaReceipt)。
 
-- [ ] **Step 1 — 写失败测试。** 在 `ExchangeAtomicV2Test` 中同键并发100次，在扣积分后注入失败，拒绝后充值再用原键，断言如下；示例是测试方法中的关键断言，命令与服务变量由该测试的 `@Before` 创建。
+- [x] **Step 1 — 写失败测试。** 在 `ExchangeAtomicV2Test` 中同键并发100次，在扣积分后注入失败，拒绝后充值再用原键，断言如下；示例是测试方法中的关键断言，命令与服务变量由该测试的 `@Before` 创建。
 
 ```java
 assertEquals(1L, exchangeOrderCount);
@@ -195,11 +195,11 @@ assertEquals(initialBalance, balanceAfterInjectedRollback);
 assertEquals("REJECTED", sameRequestAfterRecharge.getState());
 ```
 
-- [ ] **Step 2 — 验证失败。** 运行 `mvn -pl bm-app -am -DskipTests=false -Dsurefire.failIfNoSpecifiedTests=false -Dtest=ExchangeAtomicV2Test test`。预期相关行为断言失败；新接口尚不存在时编译失败也属于本步红灯，但不能以依赖不可用或测试被跳过代替行为失败。
-- [ ] **Step 3 — 实现最小行为。** 先查用户回执，未命中才读db00主库准入；用户事务再次查身份并核验快照与business_at。余额不足正常提交REJECTED；成功同时扣积分、增次、写两类流水/DELIVERED订单/回执/ExchangeCompleted。v2不调用SKU库存链、不发GrantQuota；所有仓储不另开事务。准入快照仅当前调用短deadline有效。
-- [ ] **Step 3a — 固定关闭与拒绝边界。** AdmissionSnapshot包含activityState；活动关闭等业务拒绝作为快照判定传入用户事务持久化REJECTED，不能在读配置后直接抛技术异常丢失拒绝回执。配置数据库不可用是技术失败，不占请求身份。普通关闭允许此前在途快照在deadline内完成；严格关闭由6.1运维流程暂停全体入口新受理、确认所有实例在途事务排空后再记录关闭完成，未确认实例不能视为成功。
-- [ ] **Step 4 — 验证通过。** 重跑同一命令，要求目标测试实际执行、failures=0、errors=0、skipped=0，并核对 `bm-app/target/surefire-reports` 中该类计数；集成测试依赖不可用时记录未完成，不能改成 mock 后声称并发或恢复已验收。重复命中时db00与Redis不可用仍回放；验证旧库存dispatch和RabbitTemplate均未调用。
-- [ ] **Step 5 — 提交本任务。** 检查 `git diff --check`，只暂存本任务 Files 中的变更，执行 `git commit -m "feat: exchange credits and quota in one transaction"`；不提交本地配置、凭据或原始用户数据。
+- [x] **Step 2 — 验证失败。** 运行 `mvn -pl bm-app -am -DskipTests=false -Dsurefire.failIfNoSpecifiedTests=false -Dtest=ExchangeAtomicV2Test test`。预期相关行为断言失败；新接口尚不存在时编译失败也属于本步红灯，但不能以依赖不可用或测试被跳过代替行为失败。
+- [x] **Step 3 — 实现最小行为。** 先查用户回执，未命中才读db00主库准入；用户事务再次查身份并核验快照与business_at。余额不足正常提交REJECTED；成功同时扣积分、增次、写两类流水/DELIVERED订单/回执/ExchangeCompleted。v2不调用SKU库存链、不发GrantQuota；所有仓储不另开事务。准入快照仅当前调用短deadline有效。
+- [x] **Step 3a — 固定关闭与拒绝边界。** AdmissionSnapshot包含activityState；活动关闭等业务拒绝作为快照判定传入用户事务持久化REJECTED，不能在读配置后直接抛技术异常丢失拒绝回执。配置数据库不可用是技术失败，不占请求身份。普通关闭允许此前在途快照在deadline内完成；严格关闭由6.1运维流程暂停全体入口新受理、确认所有实例在途事务排空后再记录关闭完成，未确认实例不能视为成功。
+- [x] **Step 4 — 验证通过。** 重跑同一命令，要求目标测试实际执行、failures=0、errors=0、skipped=0，并核对 `bm-app/target/surefire-reports` 中该类计数；集成测试依赖不可用时记录未完成，不能改成 mock 后声称并发或恢复已验收。重复命中时db00与Redis不可用仍回放；验证旧库存dispatch和RabbitTemplate均未调用。
+- [x] **Step 5 — 提交本任务。** 检查 `git diff --check`，只暂存本任务 Files 中的变更，执行 `git commit -m "feat: exchange credits and quota in one transaction"`；不提交本地配置、凭据或原始用户数据。
 
 ### Task 2.2: 每日唯一签到与整单奖励
 
@@ -219,7 +219,7 @@ assertEquals("REJECTED", sameRequestAfterRecharge.getState());
 - Consumes: 2.1准入与1.2、1.3资产。
 - Produces: SignInService.signIn(SignInCommand):SignInResult；Command(userId,requestId,targetDate,deadline)，Result(orderId,businessDate,state,奖励项原回执列表)；AdmissionService.forSignIn(String,LocalDate,Deadline):AdmissionSnapshot。
 
-- [ ] **Step 1 — 写失败测试。** 在 `SignInAtomicV2Test` 中100个不同请求同日领取积分及次数，第二项失败及次日原日期重试，断言如下；示例是测试方法中的关键断言，命令与服务变量由该测试的 `@Before` 创建。
+- [x] **Step 1 — 写失败测试。** 在 `SignInAtomicV2Test` 中100个不同请求同日领取积分及次数，第二项失败及次日原日期重试，断言如下；示例是测试方法中的关键断言，命令与服务变量由该测试的 `@Before` 创建。
 
 ```java
 assertEquals(1L, successfulSignInOrderCount);
@@ -228,10 +228,10 @@ assertEquals(1L, quotaRewardLedgerCount);
 assertEquals(originalOrderId, nextDayRetry.getOrderId());
 ```
 
-- [ ] **Step 2 — 验证失败。** 运行 `mvn -pl bm-app -am -DskipTests=false -Dsurefire.failIfNoSpecifiedTests=false -Dtest=SignInAtomicV2Test test`。预期相关行为断言失败；新接口尚不存在时编译失败也属于本步红灯，但不能以依赖不可用或测试被跳过代替行为失败。
-- [ ] **Step 3 — 实现最小行为。** 成功签到唯一(userId,businessDate)，奖励唯一signOrderId+rewardItemId。先查原请求/日期记录再读取新配置；已有签到只关联新请求，不重新计算。新targetDate等于锁账户后数据库业务日；拒绝只写请求回执，不占签到日。按activityId一次锁全部相关账户，同事务完成所有奖励、明细、流水、回执与SignInCompleted。无奖励配置或任一奖励活动过期整单拒绝，技术失败全回滚。
-- [ ] **Step 4 — 验证通过。** 重跑同一命令，要求目标测试实际执行、failures=0、errors=0、skipped=0，并核对 `bm-app/target/surefire-reports` 中该类计数；集成测试依赖不可用时记录未完成，不能改成 mock 后声称并发或恢复已验收。测未来/历史日期、原键换日期、同日换键、部分发放故障；原命中不依赖当前配置。
-- [ ] **Step 5 — 提交本任务。** 检查 `git diff --check`，只暂存本任务 Files 中的变更，执行 `git commit -m "feat: grant daily sign-in rewards atomically"`；不提交本地配置、凭据或原始用户数据。
+- [x] **Step 2 — 验证失败。** 运行 `mvn -pl bm-app -am -DskipTests=false -Dsurefire.failIfNoSpecifiedTests=false -Dtest=SignInAtomicV2Test test`。预期相关行为断言失败；新接口尚不存在时编译失败也属于本步红灯，但不能以依赖不可用或测试被跳过代替行为失败。
+- [x] **Step 3 — 实现最小行为。** 成功签到唯一(userId,businessDate)，奖励唯一signOrderId+rewardItemId。先查原请求/日期记录再读取新配置；已有签到只关联新请求，不重新计算。新targetDate等于锁账户后数据库业务日；拒绝只写请求回执，不占签到日。按activityId一次锁全部相关账户，同事务完成所有奖励、明细、流水、回执与SignInCompleted。无奖励配置或任一奖励活动过期整单拒绝，技术失败全回滚。
+- [x] **Step 4 — 验证通过。** 重跑同一命令，要求目标测试实际执行、failures=0、errors=0、skipped=0，并核对 `bm-app/target/surefire-reports` 中该类计数；集成测试依赖不可用时记录未完成，不能改成 mock 后声称并发或恢复已验收。测未来/历史日期、原键换日期、同日换键、部分发放故障；原命中不依赖当前配置。
+- [x] **Step 5 — 提交本任务。** 检查 `git diff --check`，只暂存本任务 Files 中的变更，执行 `git commit -m "feat: grant daily sign-in rewards atomically"`；不提交本地配置、凭据或原始用户数据。
 
 ### Task 2.3: v2接口、订单归属与旧写门
 
@@ -260,7 +260,7 @@ assertEquals(originalOrderId, nextDayRetry.getOrderId());
 - Consumes: 0.4身份与2.1、2.2业务。
 - Produces: 设计的exchange/sign-ins POST/GET；AssetWriteGate.check(String entry):void；RequestAdmission.enter(String userId,Deadline):Permit、checkActivity(String activityKey,Deadline):void；ExchangeService.get(String userId,String orderId):ExchangeResult、SignInService.get(String userId,LocalDate date):SignInResult；查询同时校验归属并读取原回执及当前状态。
 
-- [ ] **Step 1 — 写失败测试。** 在 `AssetApiV2Test` 中用MockMvc调用认证接口、跨用户查询与body伪造身份；切换写门后重投旧消息，断言如下；示例是测试方法中的关键断言，命令与服务变量由该测试的 `@Before` 创建。
+- [x] **Step 1 — 写失败测试。** 在 `AssetApiV2Test` 中用MockMvc调用认证接口、跨用户查询与body伪造身份；切换写门后重投旧消息，断言如下；示例是测试方法中的关键断言，命令与服务变量由该测试的 `@Before` 创建。
 
 ```java
 assertEquals(403, crossUserQueryResponse.getStatus());
@@ -270,12 +270,21 @@ assertEquals(429, rateLimitedResponse.getStatus());
 assertEquals(0L, receiptsCreatedByEntryRejection);
 ```
 
-- [ ] **Step 2 — 验证失败。** 运行 `mvn -pl bm-app -am -DskipTests=false -Dsurefire.failIfNoSpecifiedTests=false -Dtest=AssetApiV2Test test`。预期相关行为断言失败；新接口尚不存在时编译失败也属于本步红灯，但不能以依赖不可用或测试被跳过代替行为失败。
-- [ ] **Step 3 — 实现最小行为。** 只用CurrentUser.sub，DTO不接受userId。成功200，持久化拒绝明确业务码，冲突409、未认证401、过载429/503；GET核对归属。v2-enabled及asset-write-mode=LEGACY/V2控制入口，V2禁止旧DAO直接写余额；无稳定身份的v1交易停止受理。旧消费者切换后停用或迁移适配，不因活动隔离允许旧积分奖品直接写共享账户。缺少迁移身份不得推断成功或Ack丢弃。
-- [ ] **Step 3a — 实现入口准入。** RequestAdmission.enter在配置读取前限制用户频率及实例最大在途，返回Permit并在HTTP调用finally释放；AdmissionService读取权威配置后、进入用户事务前按活动限速。Redis Lua原子维护分布式额度，不能在账户锁内访问Redis；user-rps、activity-rps、max-in-flight与local-fallback-rps必须在部署配置显式给出并验证。Redis不可用时仅采用经验证的保守本地预算，否则拒绝新交易；结果查询独立配额，支付通知使用独立接收预算。入口拒绝不占业务身份；同键重试仍能查原回执。测试Redis中断、请求突发、超时释放及普通流量不能借用查询/回调预留额度。
-- [ ] **Step 4 — 验证通过。** 重跑同一命令，要求目标测试实际执行、failures=0、errors=0、skipped=0，并核对 `bm-app/target/surefire-reports` 中该类计数；集成测试依赖不可用时记录未完成，不能改成 mock 后声称并发或恢复已验收。
-- [ ] **Step 5 — 提交本任务。** 检查 `git diff --check`，只暂存本任务 Files 中的变更，执行 `git commit -m "feat: expose v2 asset APIs and fence legacy writes"`；不提交本地配置、凭据或原始用户数据。
+- [x] **Step 2 — 验证失败。** 运行 `mvn -pl bm-app -am -DskipTests=false -Dsurefire.failIfNoSpecifiedTests=false -Dtest=AssetApiV2Test test`。预期相关行为断言失败；新接口尚不存在时编译失败也属于本步红灯，但不能以依赖不可用或测试被跳过代替行为失败。
+- [x] **Step 3 — 实现最小行为。** 只用CurrentUser.sub，DTO不接受userId。成功200，持久化拒绝明确业务码，冲突409、未认证401、过载429/503；GET核对归属。v2-enabled及asset-write-mode=LEGACY/V2控制入口，V2禁止旧DAO直接写余额；无稳定身份的v1交易停止受理。旧消费者切换后停用或迁移适配，不因活动隔离允许旧积分奖品直接写共享账户。缺少迁移身份不得推断成功或Ack丢弃。
+- [x] **Step 3a — 实现入口准入。** RequestAdmission.enter在配置读取前限制用户频率及实例最大在途，返回Permit并在HTTP调用finally释放；AdmissionService读取权威配置后、进入用户事务前按活动限速。Redis Lua原子维护分布式额度，不能在账户锁内访问Redis；user-rps、activity-rps、max-in-flight与local-fallback-rps必须在部署配置显式给出并验证。Redis不可用时仅采用经验证的保守本地预算，否则拒绝新交易；结果查询独立配额，支付通知使用独立接收预算。入口拒绝不占业务身份；同键重试仍能查原回执。测试Redis中断、请求突发、超时释放及普通流量不能借用查询/回调预留额度。
+- [x] **Step 4 — 验证通过。** 重跑同一命令，要求目标测试实际执行、failures=0、errors=0、skipped=0，并核对 `bm-app/target/surefire-reports` 中该类计数；集成测试依赖不可用时记录未完成，不能改成 mock 后声称并发或恢复已验收。
+- [x] **Step 5 — 提交本任务。** 检查 `git diff --check`，只暂存本任务 Files 中的变更，执行 `git commit -m "feat: expose v2 asset APIs and fence legacy writes"`；不提交本地配置、凭据或原始用户数据。
 
 ## 阶段退出条件
 
 全部任务绿灯，期初加流水等于余额；签到100个不同键不多领，兑换无DEBITED。仅隔离验收，可靠消息和迁移完成前不开放真实混写。
+
+
+## 执行记录（2026-10-15）
+
+继续使用feat/java25-foundation。积分与次数内核使用同一Spring路由事务绑定的JdbcTemplate，未为每条v2 SQL重复创建DAO/mapper；保留账户MyBatis接口。金额回执以十进制字符串保存，QuotaReceipt额外冻结granted增量用于同业务身份内容校验。相关接口/仓储改动以可编译的组合提交代替逐示例文件提交。
+
+准入读取使用TRADE预算，GET独享QUERY；Redis Lua只操作传入键，异步等待最多200ms且不超过调用deadline。迁移器在任何业务DDL之前持久化checksum、step=0。三节点Redis Cluster与慢故障实测覆盖独立审查发现的问题。
+
+本阶段仅持久化Outbox，不发布、不消费；真实历史账户审计及最终约束仍由阶段6完成。操作和重现命令见[运行说明](../../operations/assets-v2.md)。

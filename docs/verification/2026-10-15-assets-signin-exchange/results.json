@@ -1,0 +1,441 @@
+{
+  "java": "Temurin 25.0.4.1+1",
+  "maven": "3.9.16",
+  "spring_boot": "3.5.16",
+  "database": "MySQL 8.0.46 InnoDB READ COMMITTED",
+  "redis": "7.4.11 standalone + isolated 3-master cluster",
+  "test_groups": {
+    "bm-router": {
+      "suites": [
+        {
+          "name": "audit.RouterAcceptanceTest",
+          "tests": 8,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "cases": [
+            "activeTransactionRejectsChangingRoute",
+            "managerAndTemplateUseSameBean",
+            "nestedDaoRestoresCallerRoute",
+            "nullRouteValueIsRejected",
+            "virtualThreadsExecuteRealMapperOnEveryDbAndTable",
+            "autoConfigurationIsDiscovered",
+            "unknownDatabaseDoesNotFallback",
+            "driverMayBeInferredWhenNotConfigured"
+          ]
+        },
+        {
+          "name": "audit.RouterLifecycleTest",
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "cases": [
+            "closesUniquePoolOnceEvenWhenDefaultAliasesDb00",
+            "poolPropertiesConvertAndContextCloses",
+            "partialInitializationClosesEarlierAndFailingPool"
+          ]
+        },
+        {
+          "name": "audit.RouterMySqlIntegrationTest",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "cases": [
+            "virtualThreadsCommitRollbackAndStayWithinPoolLimit"
+          ]
+        },
+        {
+          "name": "audit.RouterSqlBoundaryTest",
+          "tests": 11,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "cases": [
+            "rejectsSubqueriesInEveryClause(String)[1]",
+            "rejectsSubqueriesInEveryClause(String)[2]",
+            "rejectsSubqueriesInEveryClause(String)[3]",
+            "rejectsSubqueriesInEveryClause(String)[4]",
+            "rejectsSubqueriesInEveryClause(String)[5]",
+            "rejectsSubqueriesInEveryClause(String)[6]",
+            "rejectsSubqueriesInEveryClause(String)[7]",
+            "aliasesQuotesLiteralsAndDmlUseOnlyPhysicalTable",
+            "completeBroMarkShardedSqlInventoryIsSupported",
+            "rewritesQualifiedWildcardOrderingGroupingAndNullPredicates",
+            "unsupportedQueriesFailBeforeExecution"
+          ]
+        },
+        {
+          "name": "audit.RouterTransactionContractTest",
+          "tests": 5,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "cases": [
+            "proxyRoutesBeforeTransactionAndRestoresOnFailure",
+            "strategyRejectsDatabaseChangeAtomically",
+            "invalidLayoutsRejected",
+            "strategyRejectsTableChangeAtomically",
+            "originalMappingPreserved"
+          ]
+        }
+      ],
+      "tests": 28,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "bm-app": {
+      "suites": [
+        {
+          "name": "com.jay.test.domain.strategy.AliasMethodAlgorithmTest",
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "cases": [
+            "shouldRejectZeroTotalRate",
+            "shouldSelectPrimaryAndAliasAwardsFromTheSameColumn",
+            "shouldAlwaysSelectTheOnlyAward"
+          ]
+        },
+        {
+          "name": "com.jay.test.v2.AdmissionDeadlineV2Test",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "cases": [
+            "slowRedisReleasesInFlightWithinDeadline"
+          ]
+        },
+        {
+          "name": "com.jay.test.v2.AdmissionSnapshotV2Test",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "cases": [
+            "authoritativeConfigChecksUserBlacklistAndEveryRewardActivity"
+          ]
+        },
+        {
+          "name": "com.jay.test.v2.AssetApiV2Test",
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "cases": [
+            "entryRejectionsCreateNoReceiptAndFinallyReleasesCapacity",
+            "endpointsUseVerifiedSubjectAndFenceAllLegacyConsumers"
+          ]
+        },
+        {
+          "name": "com.jay.test.v2.AssetApplicationV2Test",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "cases": [
+            "fullApplicationWiresAssetsAndAuthenticatedApis"
+          ]
+        },
+        {
+          "name": "com.jay.test.v2.AssetBoundaryV2Test",
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "cases": [
+            "quotaIdentityCannotChangeGrantOrOriginalRefundTime",
+            "disabledAccountCannotCommitAndHasherIsUnambiguous"
+          ]
+        },
+        {
+          "name": "com.jay.test.v2.AssetSchemaV2Test",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "cases": [
+            "freshSchemaEnforcesAccountUniquenessAndNonnegativeBalance"
+          ]
+        },
+        {
+          "name": "com.jay.test.v2.BuildBaselineV2Test",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "cases": [
+            "runtimeAndApplicationBytecodeUseJava25"
+          ]
+        },
+        {
+          "name": "com.jay.test.v2.CreditKernelV2Test",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "cases": [
+            "serializesConcurrentDebitsAndReplaysOriginalCredits"
+          ]
+        },
+        {
+          "name": "com.jay.test.v2.DatabaseBudgetV2Test",
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "cases": [
+            "controlledVirtualWorkerRejectsOverflowAndStops",
+            "runnerAcquiresBeforeConnectionAndReleasesAfterRollback",
+            "independentClassesTimeoutReleaseAndShutdown"
+          ]
+        },
+        {
+          "name": "com.jay.test.v2.ExchangeAtomicV2Test",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "cases": [
+            "retriesRejectsAndRollbackAreAtomic"
+          ]
+        },
+        {
+          "name": "com.jay.test.v2.IdCommitUnknownV2Test",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "cases": [
+            "unknownCommitNeverPublishesAllocatedNumbers"
+          ]
+        },
+        {
+          "name": "com.jay.test.v2.Java25RouterIntegrationTest",
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "cases": [
+            "controlDaoUsesConfiguredControlDatabase",
+            "actualCreditDaoRollsBackAcrossEveryShard"
+          ]
+        },
+        {
+          "name": "com.jay.test.v2.LegacyAssetGateV2Test",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "cases": [
+            "directOldDaoCannotBypassFence"
+          ]
+        },
+        {
+          "name": "com.jay.test.v2.MiddlewareSmokeV2Test",
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "cases": [
+            "configuredRedissonAndSerializationWorkOnJava25",
+            "rabbitRoundTripUsesIsolatedQueue"
+          ]
+        },
+        {
+          "name": "com.jay.test.v2.OrderIdV2Test",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "cases": [
+            "committedBlocksAreUniqueAcrossInstancesAndRestart"
+          ]
+        },
+        {
+          "name": "com.jay.test.v2.OutboxAtomicV2Test",
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "cases": [
+            "commitsWithAssetAndRollsBackOnFailure",
+            "concurrentAppendsConvergeAndChangedPayloadConflicts"
+          ]
+        },
+        {
+          "name": "com.jay.test.v2.QuotaConcurrencyV2Test",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "cases": [
+            "independentInstancesConvergeFirstAccountsAndBucketsAndRespectPeriodLimits"
+          ]
+        },
+        {
+          "name": "com.jay.test.v2.QuotaKernelV2Test",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "cases": [
+            "grantsPeriodsAndRefundsOriginalBucketsExactlyOnce"
+          ]
+        },
+        {
+          "name": "com.jay.test.v2.RedisAdmissionIntegrationV2Test",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "cases": [
+            "distributedLuaEnforcesSharedLimitsAndShutdownFallsBackConservatively"
+          ]
+        },
+        {
+          "name": "com.jay.test.v2.RedisClusterAdmissionIT",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "cases": [
+            "healthyClusterActuallyUsesDistributedBudgetRatherThanFallback"
+          ]
+        },
+        {
+          "name": "com.jay.test.v2.RequestAdmissionV2Test",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "cases": [
+            "separatesQueryCapacityAndReleasesPermitsOnFailure"
+          ]
+        },
+        {
+          "name": "com.jay.test.v2.RoutingTransactionV2Test",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "cases": [
+            "reusesThreadRollsBackAndScansEverySlot"
+          ]
+        },
+        {
+          "name": "com.jay.test.v2.SignInAtomicV2Test",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "cases": [
+            "differentKeysCannotMultiplyRewardsAndFailureRollsBackAll"
+          ]
+        },
+        {
+          "name": "com.jay.test.v2.TradeBudgetIsolationV2Test",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "cases": [
+            "postPreflightAndConfigCannotBorrowReservedQueryCapacity"
+          ]
+        },
+        {
+          "name": "com.jay.test.v2.V2FoundationWiringTest",
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "cases": [
+            "virtualWorkerUsesBudgetAndContextShutdownDrainsClosesPools",
+            "rejectsBudgetsThatCanExhaustAConcentratedLogicalPool"
+          ]
+        },
+        {
+          "name": "com.jay.test.v2.V2IdentityV2Test",
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "cases": [
+            "disabledV2DoesNotExposeIdentity",
+            "missingAuthConfigurationPreventsV2Startup",
+            "verifiesRealSignaturesClaimsAndNeverTrustsRequestUserId"
+          ]
+        }
+      ],
+      "tests": 39,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "migrations": {
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "legacy_full_suite": {
+    "status": "timeout",
+    "fork_timeout_seconds": 40,
+    "blocking_test": "com.jay.test.trigger.RaffleActivityControllerTest.test_draw_blacklist",
+    "blocking_line": 61,
+    "cause": "CountDownLatch.await without countdown"
+  },
+  "production_cutover": false,
+  "app_jar_sha256": "522ce28a7cf6fd1fe45e1323ce60cfd706c2d4bb29bcd37148a6ea491857c0ac",
+  "image_id": "sha256:6dec932788335364e2fe2e902ea30c3cef900c76f6357394bf91c3672f6de51b",
+  "source_commit": "6fdcf96",
+  "compiled_main_classes": {
+    "bm-router": {
+      "count": 16,
+      "major": [
+        69
+      ]
+    },
+    "bm-api": {
+      "count": 26,
+      "major": [
+        69
+      ]
+    },
+    "bm-types": {
+      "count": 8,
+      "major": [
+        69
+      ]
+    },
+    "bm-domain": {
+      "count": 248,
+      "major": [
+        69
+      ]
+    },
+    "bm-infrastructure": {
+      "count": 81,
+      "major": [
+        69
+      ]
+    },
+    "bm-trigger": {
+      "count": 22,
+      "major": [
+        69
+      ]
+    },
+    "bm-app": {
+      "count": 18,
+      "major": [
+        69
+      ]
+    }
+  }
+}

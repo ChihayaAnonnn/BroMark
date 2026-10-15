@@ -1,0 +1,21 @@
+{
+  "metric": "mismatching_rows",
+  "databases": {
+    "router_one": {
+      "credit_balance": 0,
+      "quota_total": 0,
+      "quota_day": 0,
+      "quota_month": 0,
+      "quota_limits": 0,
+      "effective_draw_count": 0
+    },
+    "router_two": {
+      "credit_balance": 0,
+      "quota_total": 0,
+      "quota_day": 0,
+      "quota_month": 0,
+      "quota_limits": 0,
+      "effective_draw_count": 0
+    }
+  }
+}
