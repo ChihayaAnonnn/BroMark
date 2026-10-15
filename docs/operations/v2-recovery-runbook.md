@@ -2,7 +2,7 @@
 
 ## 开启与验收
 
-先显式执行 `001`—`003` 迁移；应用启动不执行 DDL。仅隔离环境允许迁移脚本实际执行，真实环境采用阶段6维护窗口与审计流程。设置 `bm.v2.enabled=true`、`bm.v2.asset-write-mode=V2`、`bm.v2.messaging.enabled=true` 后开启新链路。消息开关默认关闭。
+先显式执行 `001`—`003` 迁移，包括追加的 `003_recovery_guard.sql`；应用启动不执行 DDL。仅隔离环境允许迁移脚本实际执行，真实环境采用阶段6维护窗口与审计流程。设置 `bm.v2.enabled=true`、`bm.v2.asset-write-mode=V2`、`bm.v2.messaging.enabled=true` 后开启新链路。消息开关默认关闭。
 
 `bm.v2.messaging.prefix` 默认 `bromark.v2`，声明持久 direct exchange `<prefix>.events` 与独立持久队列 `<prefix>.workflow`、`<prefix>.notifications`。`queue-type` 默认 `quorum`，隔离实验可显式选择 `classic`；改变既有队列类型必须换队列名并走迁移。当前实验只有单节点，不能据此声称副本/磁盘故障容灾；生产需要至少三个独立节点、磁盘与副本故障验收。连接信息来自 `spring.rabbitmq`，新发布器内部独立连接，不替换 Boot 的旧 RabbitTemplate。
 
@@ -28,6 +28,10 @@ mandatory + correlated confirms + persistent message；Return、broker Nack、�
 未知schema/type、伪造目的槽、非法头和超大消息先保存原始字节至db00.message_quarantine，并建立RAW_MESSAGE核查单，提交后Ack。不执行payload。原始证据仅限审计读取，普通日志不输出正文。短暂失败先在目的库独立短事务持久化retry_job，再Ack；数据库不可用或持久化失败则不Ack，暂停对应消费者。容器停止时broker可重新入队，5秒后退避重启；不会立即无限requeue。
 
 ## 暂停、恢复与扩展
+
+recovery_guard 提供稳定的协调身份锁，pause、消费、resume 和剩余事实扫描共用。UNBOUND 核查版本跨 case 递增，首次创建 guard 从既有 case 最大版本接续。锁顺序为领域对象、协调身份、retry 行。
+
+重试按运输代次幂等记录失败。旧代副本由已有 retry_job 接管，不创建成功 Inbox、不执行处理器、不递增计数或推迟 next_attempt；真正到期认领后的新代消息才能执行，12 轮失败才耗尽。已延期事件出现相同身份的不同内容副本时，保留首次事实，冲突原文另存 raw quarantine 并建立核查记录，成功持久化后才 Ack。
 
 `recovery_status` 与业务 `state` 分离。REVIEW/WAITING_FIX/RETRY_EXHAUSTED均停止自动业务推进；晚到事实写deferred_fact，无成功Inbox、资产变化或成功响应。每对象最多一个active_key非空核查单，关闭时置空，保留审计历史。DEAD是任务状态，不代表业务回滚。
 

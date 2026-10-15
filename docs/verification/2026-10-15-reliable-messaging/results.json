@@ -1,0 +1,568 @@
+{
+  "source_commit": "1e33b55fbee4a051571fb0147dae5b7545cd2374",
+  "branch": "feat/phase3-reliable-messaging",
+  "verified_at_utc": "2026-10-15T11:50:02.218938+00:00",
+  "test_command": "docs/operations/verify-messaging.sh; final formatting build: docs/operations/verify-java25.sh with Router/v2/RedisCluster selectors",
+  "modules": {
+    "bm-router": {
+      "totals": {
+        "tests": 28,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "suites": [
+        {
+          "class": "audit.RouterAcceptanceTest",
+          "methods": [
+            "activeTransactionRejectsChangingRoute",
+            "managerAndTemplateUseSameBean",
+            "nestedDaoRestoresCallerRoute",
+            "nullRouteValueIsRejected",
+            "virtualThreadsExecuteRealMapperOnEveryDbAndTable",
+            "autoConfigurationIsDiscovered",
+            "unknownDatabaseDoesNotFallback",
+            "driverMayBeInferredWhenNotConfigured"
+          ],
+          "tests": 8,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "audit.RouterLifecycleTest",
+          "methods": [
+            "closesUniquePoolOnceEvenWhenDefaultAliasesDb00",
+            "poolPropertiesConvertAndContextCloses",
+            "partialInitializationClosesEarlierAndFailingPool"
+          ],
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "audit.RouterMySqlIntegrationTest",
+          "methods": [
+            "virtualThreadsCommitRollbackAndStayWithinPoolLimit"
+          ],
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "audit.RouterSqlBoundaryTest",
+          "methods": [
+            "rejectsSubqueriesInEveryClause(String)[1]",
+            "rejectsSubqueriesInEveryClause(String)[2]",
+            "rejectsSubqueriesInEveryClause(String)[3]",
+            "rejectsSubqueriesInEveryClause(String)[4]",
+            "rejectsSubqueriesInEveryClause(String)[5]",
+            "rejectsSubqueriesInEveryClause(String)[6]",
+            "rejectsSubqueriesInEveryClause(String)[7]",
+            "aliasesQuotesLiteralsAndDmlUseOnlyPhysicalTable",
+            "completeBroMarkShardedSqlInventoryIsSupported",
+            "rewritesQualifiedWildcardOrderingGroupingAndNullPredicates",
+            "unsupportedQueriesFailBeforeExecution"
+          ],
+          "tests": 11,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "audit.RouterTransactionContractTest",
+          "methods": [
+            "proxyRoutesBeforeTransactionAndRestoresOnFailure",
+            "strategyRejectsDatabaseChangeAtomically",
+            "invalidLayoutsRejected",
+            "strategyRejectsTableChangeAtomically",
+            "originalMappingPreserved"
+          ],
+          "tests": 5,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        }
+      ]
+    },
+    "bm-app": {
+      "totals": {
+        "tests": 67,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "suites": [
+        {
+          "class": "com.jay.test.domain.strategy.AliasMethodAlgorithmTest",
+          "methods": [
+            "shouldRejectZeroTotalRate",
+            "shouldSelectPrimaryAndAliasAwardsFromTheSameColumn",
+            "shouldAlwaysSelectTheOnlyAward"
+          ],
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "com.jay.test.v2.AdmissionDeadlineV2Test",
+          "methods": [
+            "slowRedisReleasesInFlightWithinDeadline"
+          ],
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "com.jay.test.v2.AdmissionSnapshotV2Test",
+          "methods": [
+            "authoritativeConfigChecksUserBlacklistAndEveryRewardActivity"
+          ],
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "com.jay.test.v2.AssetApiV2Test",
+          "methods": [
+            "entryRejectionsCreateNoReceiptAndFinallyReleasesCapacity",
+            "endpointsUseVerifiedSubjectAndFenceAllLegacyConsumers"
+          ],
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "com.jay.test.v2.AssetApplicationV2Test",
+          "methods": [
+            "fullApplicationWiresAssetsAndAuthenticatedApis"
+          ],
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "com.jay.test.v2.AssetBoundaryV2Test",
+          "methods": [
+            "quotaIdentityCannotChangeGrantOrOriginalRefundTime",
+            "disabledAccountCannotCommitAndHasherIsUnambiguous"
+          ],
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "com.jay.test.v2.AssetSchemaV2Test",
+          "methods": [
+            "freshSchemaEnforcesAccountUniquenessAndNonnegativeBalance"
+          ],
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "com.jay.test.v2.BuildBaselineV2Test",
+          "methods": [
+            "runtimeAndApplicationBytecodeUseJava25"
+          ],
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "com.jay.test.v2.ConsumerInboxV2Test",
+          "methods": [
+            "durableRetryKeepsFailureCountAndFencesLeases",
+            "twoInstancesSerializeDifferentEventsForSameBusinessReceipt",
+            "atomicallyDeduplicatesTransportAndBusinessAndReplaysOriginalResponse",
+            "retryPublicationExhaustionCannotBeBypassedByNewEventId"
+          ],
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "com.jay.test.v2.CreditKernelV2Test",
+          "methods": [
+            "serializesConcurrentDebitsAndReplaysOriginalCredits"
+          ],
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "com.jay.test.v2.DatabaseBudgetV2Test",
+          "methods": [
+            "controlledVirtualWorkerRejectsOverflowAndStops",
+            "runnerAcquiresBeforeConnectionAndReleasesAfterRollback",
+            "independentClassesTimeoutReleaseAndShutdown"
+          ],
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "com.jay.test.v2.ExchangeAtomicV2Test",
+          "methods": [
+            "retriesRejectsAndRollbackAreAtomic"
+          ],
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "com.jay.test.v2.IdCommitUnknownV2Test",
+          "methods": [
+            "unknownCommitNeverPublishesAllocatedNumbers"
+          ],
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "com.jay.test.v2.Java25RouterIntegrationTest",
+          "methods": [
+            "controlDaoUsesConfiguredControlDatabase",
+            "actualCreditDaoRollsBackAcrossEveryShard"
+          ],
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "com.jay.test.v2.LegacyAssetGateV2Test",
+          "methods": [
+            "directOldDaoCannotBypassFence"
+          ],
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "com.jay.test.v2.MessageListenerV2Test",
+          "methods": [
+            "retriesPersistBeforeAckAndExhaustionBlocksNewTransportIdentity",
+            "failedRetryHandoffLeavesBrokerDeliveryUnackedAndStopsConsumer",
+            "quarantinesUnknownSchemaWithoutExecutingPayload",
+            "actualClosedDatabasePoolCannotAckOrCreateSuccessfulInbox"
+          ],
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "com.jay.test.v2.MessagingApplicationV2Test",
+          "methods": [
+            "applicationCloseKeepsDatabaseOpenUntilConfirmedOutboxUpdateDrains",
+            "bootsDedicatedTopologyAndCommitsNotificationBeforeAck"
+          ],
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "com.jay.test.v2.MessagingReviewRegressionV2Test",
+          "methods": [
+            "conflictingDeferredCopyIsQuarantinedWithoutOverwritingFirstFact",
+            "unboundPauseSerializesWithInFlightConsumer",
+            "unboundCaseGenerationRejectsPreviousCycleResume",
+            "guardUpgradeSeedsGenerationFromExistingHistoricalCases",
+            "unboundPauseSerializesWithRemainingFactScannerAcrossInstances",
+            "staleCopiesShareOneRetryGenerationAndDoNotSkipBackoff"
+          ],
+          "tests": 6,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "com.jay.test.v2.MessagingShutdownV2Test",
+          "methods": [
+            "drainWaitsForConfirmedSourceUpdateWithoutHoldingDatabasePermit"
+          ],
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "com.jay.test.v2.MiddlewareSmokeV2Test",
+          "methods": [
+            "configuredRedissonAndSerializationWorkOnJava25",
+            "rabbitRoundTripUsesIsolatedQueue"
+          ],
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "com.jay.test.v2.OrderIdV2Test",
+          "methods": [
+            "committedBlocksAreUniqueAcrossInstancesAndRestart"
+          ],
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "com.jay.test.v2.OutboxAtomicV2Test",
+          "methods": [
+            "commitsWithAssetAndRollsBackOnFailure",
+            "concurrentAppendsConvergeAndChangedPayloadConflicts"
+          ],
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "com.jay.test.v2.OutboxLeaseV2Test",
+          "methods": [
+            "retryAndLeaseInstantsRemainUtcWithShanghaiJvmTimezone",
+            "claimsEachSourceOnceAndFencesExpiredOwner",
+            "futureClassesCannotStarveDueBusinessClass",
+            "lockedTaskDoesNotBlockClaimOfAnotherTask",
+            "exhaustsIntoAuditedDeadTask"
+          ],
+          "tests": 5,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "com.jay.test.v2.PublisherConfirmV2Test",
+          "methods": [
+            "lostConfirmConnectionIsUnknownEvenWhenBrokerAcceptedMessage",
+            "requiresConfirmWithoutReturnAndRetriesUnknownCommit"
+          ],
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "com.jay.test.v2.QuotaConcurrencyV2Test",
+          "methods": [
+            "independentInstancesConvergeFirstAccountsAndBucketsAndRespectPeriodLimits"
+          ],
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "com.jay.test.v2.QuotaKernelV2Test",
+          "methods": [
+            "grantsPeriodsAndRefundsOriginalBucketsExactlyOnce"
+          ],
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "com.jay.test.v2.RecoveryCaseV2Test",
+          "methods": [
+            "largeDeferredBacklogContinuesInBoundedScannerAfterAuditedResume",
+            "pausePreservesStageAndResumeReplaysLateFactsWithVersionFence",
+            "unknownAggregateBindsTaskWithoutInventingBusinessState",
+            "terminalResumeClosesCaseWithoutRewindingStageOrCreatingCommands"
+          ],
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "com.jay.test.v2.RedisAdmissionIntegrationV2Test",
+          "methods": [
+            "distributedLuaEnforcesSharedLimitsAndShutdownFallsBackConservatively"
+          ],
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "com.jay.test.v2.RedisClusterAdmissionIT",
+          "methods": [
+            "healthyClusterActuallyUsesDistributedBudgetRatherThanFallback"
+          ],
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "com.jay.test.v2.RequestAdmissionV2Test",
+          "methods": [
+            "separatesQueryCapacityAndReleasesPermitsOnFailure"
+          ],
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "com.jay.test.v2.RoutingTransactionV2Test",
+          "methods": [
+            "reusesThreadRollsBackAndScansEverySlot"
+          ],
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "com.jay.test.v2.SignInAtomicV2Test",
+          "methods": [
+            "differentKeysCannotMultiplyRewardsAndFailureRollsBackAll"
+          ],
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "com.jay.test.v2.TradeBudgetIsolationV2Test",
+          "methods": [
+            "postPreflightAndConfigCannotBorrowReservedQueryCapacity"
+          ],
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "com.jay.test.v2.V2FoundationWiringTest",
+          "methods": [
+            "virtualWorkerUsesBudgetAndContextShutdownDrainsClosesPools",
+            "rejectsBudgetsThatCanExhaustAConcentratedLogicalPool"
+          ],
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "com.jay.test.v2.V2IdentityV2Test",
+          "methods": [
+            "disabledV2DoesNotExposeIdentity",
+            "missingAuthConfigurationPreventsV2Startup",
+            "verifiesRealSignaturesClaimsAndNeverTrustsRequestUserId"
+          ],
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        }
+      ]
+    }
+  },
+  "migration_tests": {
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "full_legacy_suite": {
+    "passed": false,
+    "fork_timeout_seconds": 40,
+    "elapsed_seconds": 45.38,
+    "blocked_test": "com.jay.test.trigger.RaffleActivityControllerTest.test_draw_blacklist",
+    "source_line": 61,
+    "cause": "CountDownLatch.await without countdown",
+    "remaining_tests": "unverified",
+    "log": "/tmp/phase3-full-legacy.log"
+  },
+  "review": {
+    "base": "9f7a639",
+    "head": "bc14918",
+    "critical": 0,
+    "important": 4,
+    "minor": 0,
+    "fixed": 4,
+    "fix_commit": "1e33b55",
+    "red_log": "/tmp/phase3-review-red.log",
+    "regression_suite": "MessagingReviewRegressionV2Test",
+    "regression_tests": 6,
+    "additional_upgrade_red_log": "/tmp/phase3-guard-upgrade-red.log"
+  },
+  "limitations": [
+    "single broker; no multi-node HA or throughput claim",
+    "phase4/5 domain adapters not implemented",
+    "source Outbox task ownership audited as OUTBOX_TASK/eventId",
+    "legacy queue and task migration remains phase6",
+    "unknown raw payload repair requires audited validation/redelivery"
+  ],
+  "artifacts": {
+    "jar_sha256": "41830d2361f102824145627d47898676601a1636fe1fe12772c19cce5cc13b36",
+    "main_classes": 454,
+    "class_major_counts": {
+      "69": 454
+    },
+    "image_id": "sha256:146b09b81f6ac373720d6bb313b0fb82a65d19d707966d6cb046225abb1bb6a9",
+    "java": "Temurin 25.0.4.1+1",
+    "boot": "3.5.16",
+    "spring_amqp": "3.2.12"
+  },
+  "migrations": {
+    "router_control": [
+      {
+        "script": "fresh:003_messaging_recovery.sql:000",
+        "checksum": "c7a92c380de1129110a255e048cbda0410f6ea84c6b4fdb50cfe3fa3d432ccf0",
+        "step": "7"
+      },
+      {
+        "script": "fresh:003_recovery_guard.sql:000",
+        "checksum": "59dadb1c06484cae72f642299ea27dbf9193fbbc70d44098ed59bddefbaeb983",
+        "step": "1"
+      }
+    ],
+    "router_one": [
+      {
+        "script": "fresh:003_messaging_recovery.sql:000",
+        "checksum": "c7a92c380de1129110a255e048cbda0410f6ea84c6b4fdb50cfe3fa3d432ccf0",
+        "step": "7"
+      },
+      {
+        "script": "fresh:003_recovery_guard.sql:000",
+        "checksum": "59dadb1c06484cae72f642299ea27dbf9193fbbc70d44098ed59bddefbaeb983",
+        "step": "1"
+      }
+    ],
+    "router_two": [
+      {
+        "script": "fresh:003_messaging_recovery.sql:000",
+        "checksum": "c7a92c380de1129110a255e048cbda0410f6ea84c6b4fdb50cfe3fa3d432ccf0",
+        "step": "7"
+      },
+      {
+        "script": "fresh:003_recovery_guard.sql:000",
+        "checksum": "59dadb1c06484cae72f642299ea27dbf9193fbbc70d44098ed59bddefbaeb983",
+        "step": "1"
+      }
+    ]
+  }
+}
