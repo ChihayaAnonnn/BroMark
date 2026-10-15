@@ -1,0 +1,37 @@
+{
+  "user_credit_account": {
+    "balance": "decimal(18,2)",
+    "opening_balance": "decimal(18,2)",
+    "status": "varchar(16)",
+    "version": "bigint",
+    "audit_source": "varchar(255)"
+  },
+  "raffle_activity_account": {
+    "total_remaining": "bigint",
+    "day_limit": "bigint",
+    "month_limit": "bigint",
+    "effective_draw_count": "bigint",
+    "version": "bigint",
+    "opening_total": "bigint",
+    "opening_day_limit": "bigint",
+    "opening_month_limit": "bigint",
+    "opening_effective_count": "bigint",
+    "audit_source": "varchar(255)"
+  },
+  "raffle_activity_account_month": {
+    "business_month": "char(7)",
+    "quota_limit": "bigint",
+    "remaining": "bigint",
+    "opening_quota": "bigint",
+    "audit_source": "varchar(255)"
+  },
+  "raffle_activity_account_day": {
+    "business_date": "date",
+    "quota_limit": "bigint",
+    "remaining": "bigint",
+    "opening_quota": "bigint",
+    "effective_draw_count": "bigint",
+    "opening_effective_count": "bigint",
+    "audit_source": "varchar(255)"
+  }
+}

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jay.infrastructure.dao.v2.QuotaAccountDao">
+<insert id="ensure">INSERT INTO raffle_activity_account(user_id,activity_id) VALUES(#{userId},#{activityId}) ON DUPLICATE KEY UPDATE user_id=user_id</insert>
+<select id="lock" resultType="com.jay.infrastructure.dao.v2.po.QuotaAccountRow">SELECT user_id,activity_id,total_remaining,day_limit,month_limit,effective_draw_count,version FROM raffle_activity_account WHERE user_id=#{userId} AND activity_id=#{activityId} FOR UPDATE</select>
+</mapper>
