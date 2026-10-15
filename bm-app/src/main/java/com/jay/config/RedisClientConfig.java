@@ -33,7 +33,7 @@ import java.util.stream.Collectors;
 @EnableConfigurationProperties(RedisClientConfigProperties.class)
 public class RedisClientConfig {
 
-    @Bean("redissonClient")
+    @Bean(value="redissonClient",destroyMethod="shutdown")
     public RedissonClient redissonClient(ConfigurableApplicationContext applicationContext, RedisClientConfigProperties properties) {
         Config config = new Config();
         // 根据需要可以设定编解码器；https://github.com/redisson/redisson/wiki/4.-%E6%95%B0%E6%8D%AE%E5%BA%8F%E5%88%97%E5%8C%96
@@ -51,6 +51,17 @@ public class RedisClientConfig {
         //         .setPingConnectionInterval(properties.getPingInterval())
         //         .setKeepAlive(properties.isKeepAlive());
 
+        // 显式节点继续使用集群；独立测试/单节点配置走单机，不扫描远程节点。
+        if(properties.getNodes()==null||properties.getNodes().length==0){
+            if(properties.getHost()==null||properties.getHost().isBlank())throw new IllegalArgumentException("Redis host or cluster nodes are required");
+            var single=config.useSingleServer().setAddress("redis://"+properties.getHost()+":"+properties.getPort())
+                .setConnectionPoolSize(properties.getPoolSize()).setConnectionMinimumIdleSize(properties.getMinIdleSize())
+                .setIdleConnectionTimeout(properties.getIdleTimeout()).setConnectTimeout(properties.getConnectTimeout())
+                .setRetryAttempts(properties.getRetryAttempts()).setRetryInterval(properties.getRetryInterval())
+                .setPingConnectionInterval(properties.getPingInterval()).setKeepAlive(properties.isKeepAlive());
+            if(properties.getPassword()!=null&&!properties.getPassword().isBlank())single.setPassword(properties.getPassword());
+            return Redisson.create(config);
+        }
         String[] addressArr = Arrays.stream(properties.getNodes())
                 .map(node -> {
                     return "redis://" + node;

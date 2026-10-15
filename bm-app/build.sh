@@ -1,5 +1,7 @@
-# 普通镜像构建，随系统版本构建 amd/arm
-docker build -t jay/bromark -f ./Dockerfile .
-
-# 兼容 amd、arm 构建镜像
-# docker buildx build --load --platform liunx/amd64,linux/arm64 -t xiaofuge/xfg-frame-archetype-app:1.0 -f ./Dockerfile . --push
+#!/usr/bin/env sh
+set -eu
+cd "$(dirname "$0")"
+IMAGE=${IMAGE:-bromark-v2:java25-it}
+PLATFORM=${PLATFORM:-linux/arm64}
+docker build --platform "$PLATFORM" -t "$IMAGE" .
+docker image inspect "$IMAGE" --format '{{.Id}} {{.Architecture}} {{json .RepoDigests}}'

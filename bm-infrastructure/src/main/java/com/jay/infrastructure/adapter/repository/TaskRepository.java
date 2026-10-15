@@ -9,7 +9,7 @@ import com.jay.infrastructure.dao.po.Task;
 import com.jay.infrastructure.event.EventPublisher;
 import org.springframework.stereotype.Repository;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.util.List;
 import java.util.stream.Collectors;
 

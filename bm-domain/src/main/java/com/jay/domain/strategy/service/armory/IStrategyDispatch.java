@@ -1,6 +1,5 @@
 package com.jay.domain.strategy.service.armory;
 
-import com.sun.org.apache.xpath.internal.operations.Bool;
 
 /**
  * @author Jay

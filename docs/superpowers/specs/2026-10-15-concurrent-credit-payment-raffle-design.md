@@ -93,9 +93,9 @@ vivix-billing 可复用的设计原则包括：用户级事务串行化、请求
 
 ### 技术基线与兼容性
 
-当前 POM 配置 Java 8、Spring Boot 2.7.12，同时显式管理 AMQP starter 3.2.0、Redis 与 Actuator starter 3.4.5、Micrometer 1.14.6，不能直接视作已验证兼容组合。阶段0将编译、测试、应用运行和容器统一升级为 Java 17，字节码目标 release=17；保留 Boot 2.7.12 框架基线，移除 starter 跨大版本覆盖，由统一 Boot BOM 管理 Spring、AMQP、Redis 与监控依赖。Java 17处于Boot 2.7.12官方兼容范围，但Redisson、MyBatis、DB Router、Lombok及序列化组件仍须在本项目验证并锁定解析结果。
+目标及实施基线为 Java 25 LTS、Spring Boot 3.5.16、MyBatis Starter 3.0.5；release=25、应用字节码major=69，Jakarta EE API迁移，保留javax.sql。框架依赖由Boot BOM管理，Lombok显式配置注解处理器；旧JUnit4通过Vintage实际执行。DB Router采用独立内部坐标com.jay.middleware:db-router-spring-boot-starter:2.0.0-SNAPSHOT，本地验收前不发布。
 
-阶段0必须产出有效POM、依赖树、JDK 17具体补丁与供应商、字节码版本、容器digest、启动与数据库路由冒烟结果。升级JDK时仍使用Spring Framework 5与javax体系，检查强封装、移除模块、注解处理和动态代理兼容性；Boot 3及javax/jakarta迁移另立变更，不与本次JDK升级或交易协议切换绑定。保留Boot 2.7是控制本次范围的决定，正式部署前仍需确认框架维护要求。
+升级验证包括原子库表路由、切面先于事务取连接、嵌套恢复、未知路由拒绝、受限单表SQL解析和连接池关闭。Java25虚拟线程必须在执行线程内建立路由，数据库许可先于连接获取；不传播事务，不以虚拟线程数量替代连接预算。具体版本、镜像digest、测试和未解决项见[升级记录](../../operations/java25-upgrade-checklist.md)。
 
 ## 四 逻辑架构与数据归属
 

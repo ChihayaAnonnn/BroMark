@@ -6,13 +6,13 @@
 
 **Architecture:** 支付事实留db00，用户资产留用户分片；下单/查单均在事务外，通过稳定商户号恢复未知结果。用户分库写积分与CreditGranted回执Outbox，支付域确认原回执后才DELIVERED。
 
-**Tech Stack:** Java 17、Spring Boot 2.7.12 兼容基线、MyBatis、MySQL 8.0 InnoDB、Redis、RabbitMQ、JUnit 4、Maven。
+**Tech Stack:** Java 25、Spring Boot 3.5.16、MyBatis、MySQL 8.0 InnoDB、Redis、RabbitMQ、JUnit 5＋Vintage（兼容JUnit 4）、Maven。
 
 **Spec:** [高并发积分支付与抽奖设计](../specs/2026-10-15-concurrent-credit-payment-raffle-design.md)。
 
 ## Global Constraints
 
-- 阶段0完成后编译、测试、应用与容器统一Java 17，release=17；继续使用Boot 2.7.12及javax体系，Boot 3迁移另立变更。
+- 阶段0完成后编译、测试、应用与容器统一Java 25，release=25；使用Boot 3.5.16及Jakarta体系，保留javax.sql等JDK API。
 - 执行环境采用 MySQL 8.0 InnoDB，业务短事务使用 READ COMMITTED，关键读取显式加锁。
 - 业务时区固定为 Asia/Shanghai。
 - 首版积分使用 BigDecimal 与数据库定点小数，拒绝超过两位的小数或溢出，不使用 float、double，不在写入时静默舍入。

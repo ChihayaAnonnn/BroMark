@@ -6,20 +6,20 @@
 
 **Architecture:** 保留现有六个 Maven 模块与用户两库四表布局。用户资产操作使用同库短事务，支付与库存跨库通过 Outbox、Inbox、固定业务身份和状态机推进。按阶段0→1/2→3→4→5→6执行，不同时改造其他仓库。
 
-**Tech Stack:** Java 17、Spring Boot 2.7.12 兼容基线、MySQL 8.0 InnoDB、MyBatis、Redis、RabbitMQ、JUnit 4、Maven。
+**Tech Stack:** Java 25、Spring Boot 3.5.16、MySQL 8.0 InnoDB、MyBatis、Redis、RabbitMQ、JUnit 5＋Vintage（兼容JUnit 4）、Maven。
 
 **Spec:** [设计文档](../specs/2026-10-15-concurrent-credit-payment-raffle-design.md)，2026-10-15 评审修订版；设计中的性能数字均为实验目标。
 
 ## Global Constraints
 
-- 阶段0完成后编译、测试、应用与容器统一Java 17，release=17；继续使用Boot 2.7.12及javax体系，Boot 3迁移另立变更。
+- 阶段0完成后编译、测试、应用与容器统一Java 25，release=25；使用Boot 3.5.16及Jakarta体系，保留javax.sql等JDK API。
 - 执行环境采用 MySQL 8.0 InnoDB，业务短事务使用 READ COMMITTED，关键读取显式加锁。
 - 业务时区固定为 Asia/Shanghai。
 - 积分使用 DECIMAL(18,2) 与 BigDecimal；拒绝超精度或溢出，不静默舍入。
 - 次数 SKU 不限库存；兑换扣款和增次同事务；签到全部奖励同事务。
 - 首版奖品只支持积分权益与无权益兜底；策略版本与 stockPoolId 分离。
 - 所有交易身份、拒绝回执、取消墓碑和已处理付款事实在其幂等保留期内保留；首版不实现归档、在线重分片或自动资产退款。
-- 本轮交付只包含实施文档；任务复选框保持未执行，不启动服务、不执行迁移、不提交代码。后续开始实施时，再按各任务运行测试、更新状态并提交对应代码。
+- 实施状态以任务复选框和验证报告为准；仅针对隔离环境执行测试，不变更生产数据库或自动部署。
 
 ## Review Focus
 
@@ -33,7 +33,7 @@
 
 | 顺序 | 实施计划 | 核心交付 | 依赖 |
 | --- | --- | --- | --- |
-| 阶段0：技术基线 | [阅读计划](2026-10-15-phase-0-foundation.md) | Java 17升级、构建测试、路由、资源许可、身份入口 | 无 |
+| 阶段0：技术基线 | [阅读计划](2026-10-15-phase-0-foundation.md) | Java 25升级、构建测试、路由、资源许可、身份入口 | 无 |
 | 阶段1—2：资产、签到与兑换 | [阅读计划](2026-10-15-phase-1-2-assets-signin-exchange.md) | 资产内核、周期额度、原子业务接口 | 阶段0 |
 | 阶段3：可靠消息 | [阅读计划](2026-10-15-phase-3-reliable-messaging.md) | 租约、发布确认、消费幂等、核查恢复 | 阶段1—2 |
 | 阶段4：抽奖与库存 | [阅读计划](2026-10-15-phase-4-raffle-stock.md) | 策略发布、库存池、抽奖与取消协议 | 阶段3 |
@@ -44,7 +44,7 @@
 
 ## 共享类型与模块边界
 
-以下是拟新增契约，不是当前已有类。DTO 放入 `bm-domain/src/main/java/com/jay/domain/<域>/model/`，每个类型独立文件、不可变字段、显式构造或 builder；统一使用Java 17及以下API，不使用Java 21虚拟线程，也不为升级批量重写现有模型为record。HTTP DTO 放 `bm-api`，不能将登录 userId 从请求 DTO 传入内核。
+以下是拟新增契约，不是当前已有类。DTO 放入 `bm-domain/src/main/java/com/jay/domain/<域>/model/`，每个类型独立文件、不可变字段、显式构造或 builder；统一使用Java 25 API；虚拟线程仅在许可边界后显式启用，也不为升级批量重写现有模型为record。HTTP DTO 放 `bm-api`，不能将登录 userId 从请求 DTO 传入内核。
 
 | 契约 | 所属任务 | 字段或签名 |
 | --- | --- | --- |
