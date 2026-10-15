@@ -13,6 +13,14 @@ public final class ReceiptJson {
 
   private ReceiptJson() {}
 
+  public static <T> T read(String json, Class<T> type) {
+    try {
+      return MAPPER.readValue(json, type);
+    } catch (Exception e) {
+      throw new IllegalArgumentException("Invalid payload", e);
+    }
+  }
+
   public static String write(Object value) {
     try {
       return MAPPER.writeValueAsString(value);

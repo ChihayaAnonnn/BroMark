@@ -55,6 +55,23 @@ public final class MySqlAdmissionRepository implements AdmissionRepository {
         s.rewards());
   }
 
+  public AdmissionSnapshot draw(String user, long activity, Deadline deadline) {
+    var f = new MySqlStrategyVersionRepository(j.getDataSource()).admit(user, activity, deadline);
+    var s = f.strategy();
+    return new AdmissionSnapshot(
+        activity,
+        s.state(),
+        s.version(),
+        s.beginsAt(),
+        s.endsAt(),
+        Instant.now(),
+        f.expiresAt(),
+        f.blacklisted(),
+        null,
+        null,
+        java.util.List.of());
+  }
+
   public AdmissionSnapshot exchange(String user, long sku, String version, Deadline deadline) {
     return blacklist(user, load("EXCHANGE", Long.toString(sku), deadline));
   }

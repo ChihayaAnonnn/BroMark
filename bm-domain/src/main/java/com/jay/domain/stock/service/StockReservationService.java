@@ -1,14 +1,142 @@
 package com.jay.domain.stock.service;
-import com.jay.domain.stock.model.*;import com.jay.domain.stock.repository.*;import com.jay.domain.strategy.model.*;import com.jay.domain.strategy.repository.*;import com.jay.domain.asset.model.*;import com.jay.domain.asset.service.*;import java.util.*;
+
+import com.jay.domain.asset.model.*;
+import com.jay.domain.asset.service.*;
+import com.jay.domain.stock.model.*;
+import com.jay.domain.stock.repository.*;
+import com.jay.domain.strategy.model.*;
+import com.jay.domain.strategy.repository.*;
+import java.util.*;
+
 /** Caller owns the db00 consumer transaction. */
 public final class StockReservationService {
- private final StockRepository repo;private final StrategyVersionRepository strategies;
- public StockReservationService(StockRepository r,StrategyVersionRepository s){repo=r;strategies=s;}
- public ReservationResult reserve(ReserveCommand c){var old=repo.lockOrCreate(new CancelCommand(c.drawOrderId(),c.userId(),c.identityHash(),c.requestHash()));if(!old.state().equals("NEW")){if(old.finalSnapshot()!=null&&!old.state().equals("CANCELLED"))validate(c);return old;}
- validate(c);var award=c.candidate();if(award.quantity()==1&&!repo.hold(award.stockPoolId(),c.drawOrderId()))award=c.fallback();var r=new ReservationResult(c.drawOrderId(),c.userId(),c.identityHash(),c.requestHash(),"HELD",award,award.quantity());repo.save(r);return r;}
- private void validate(ReserveCommand c){var f=strategies.load(c.strategyId(),c.version());validateAward(f,c.candidate(),false);validateAward(f,c.fallback(),true);}
- private static void validateAward(FrozenStrategy f,AwardSnapshot a,boolean fallback){var p=fallback?f.fallback():f.prizes().stream().filter(x->x.awardId()==a.awardId()).findFirst().orElseGet(()->{if(f.fallback().awardId()==a.awardId())return f.fallback();throw new AssetConflictException("Unknown award");});if(!p.type().equals(a.type())||!Objects.equals(p.stockPoolId(),a.stockPoolId())||a.quantity()!=(p.stockPoolId()==null?0:1)||a.amount()!=null&&(a.amount().compareTo(p.minAmount())<0||a.amount().compareTo(p.maxAmount())>0))throw new AssetConflictException("Award binding changed");String h=new RequestHasher().hash("AWARD",Map.of("version",f.version(),"award",Integer.toString(a.awardId()),"type",a.type(),"amount",a.amount()==null?"":a.amount().toPlainString(),"pool",a.stockPoolId()==null?"":a.stockPoolId()));if(!h.equals(a.configHash()))throw new AssetConflictException("Award digest changed");}
- public ReservationResult confirm(ConfirmCommand c){var old=repo.lockOrCreate(new CancelCommand(c.drawOrderId(),c.userId(),c.identityHash(),c.requestHash()));if(old.state().equals("NEW")||old.state().equals("CANCELLED")||!old.finalSnapshot().configHash().equals(c.finalHash()))throw new AssetConflictException("Invalid confirmation");if(old.state().equals("CONFIRMED"))return old;if(old.quantity()==1)repo.move(old.finalSnapshot().stockPoolId(),c.drawOrderId(),"CONFIRM");var r=new ReservationResult(old.drawOrderId(),old.userId(),old.identityHash(),old.requestHash(),"CONFIRMED",old.finalSnapshot(),old.quantity());repo.save(r);return r;}
- public ReservationResult cancel(CancelCommand c){var old=repo.lockOrCreate(c);if(old.state().equals("CONFIRMED"))throw new AssetConflictException("Already confirmed");if(old.state().equals("CANCELLED"))return old;if(old.quantity()==1)repo.move(old.finalSnapshot().stockPoolId(),c.drawOrderId(),"CANCEL");var r=new ReservationResult(c.drawOrderId(),c.userId(),c.identityHash(),c.requestHash(),"CANCELLED",old.finalSnapshot(),old.quantity());repo.save(r);return r;}
- public void addStock(String pool,String biz,long delta,String reason){repo.addStock(pool,biz,delta,reason);}
+  private final StockRepository repo;
+  private final StrategyVersionRepository strategies;
+
+  public StockReservationService(StockRepository r, StrategyVersionRepository s) {
+    repo = r;
+    strategies = s;
+  }
+
+  public ReservationResult reserve(ReserveCommand c) {
+    var old =
+        repo.lockOrCreate(
+            new CancelCommand(c.drawOrderId(), c.userId(), c.identityHash(), c.requestHash()));
+    if (!old.state().equals("CANCELLED"))
+      repo.bindRequest(
+          c.drawOrderId(),
+          new RequestHasher().hash("RESERVE", Map.of("command", ReceiptJson.write(c))));
+    if (!old.state().equals("NEW")) {
+      if (old.finalSnapshot() != null && !old.state().equals("CANCELLED")) validate(c);
+      return old;
+    }
+    validate(c);
+    var award = c.candidate();
+    if (award.quantity() == 1 && !repo.hold(award.stockPoolId(), c.drawOrderId()))
+      award = c.fallback();
+    var r =
+        new ReservationResult(
+            c.drawOrderId(),
+            c.userId(),
+            c.identityHash(),
+            c.requestHash(),
+            "HELD",
+            award,
+            award.quantity());
+    repo.save(r);
+    return r;
+  }
+
+  private void validate(ReserveCommand c) {
+    var f = strategies.load(c.strategyId(), c.version());
+    validateAward(f, c.candidate(), false);
+    validateAward(f, c.fallback(), true);
+  }
+
+  private static void validateAward(FrozenStrategy f, AwardSnapshot a, boolean fallback) {
+    var p =
+        fallback
+            ? f.fallback()
+            : f.prizes().stream()
+                .filter(x -> x.awardId() == a.awardId())
+                .findFirst()
+                .orElseGet(
+                    () -> {
+                      if (f.fallback().awardId() == a.awardId()) return f.fallback();
+                      throw new AssetConflictException("Unknown award");
+                    });
+    if (!p.type().equals(a.type())
+        || !Objects.equals(p.stockPoolId(), a.stockPoolId())
+        || a.quantity() != (p.stockPoolId() == null ? 0 : 1)
+        || a.amount() != null
+            && (a.amount().compareTo(p.minAmount()) < 0 || a.amount().compareTo(p.maxAmount()) > 0))
+      throw new AssetConflictException("Award binding changed");
+    String h =
+        new RequestHasher()
+            .hash(
+                "AWARD",
+                Map.of(
+                    "version",
+                    f.version(),
+                    "award",
+                    Integer.toString(a.awardId()),
+                    "type",
+                    a.type(),
+                    "amount",
+                    a.amount() == null ? "" : a.amount().toPlainString(),
+                    "pool",
+                    a.stockPoolId() == null ? "" : a.stockPoolId()));
+    if (!h.equals(a.configHash())) throw new AssetConflictException("Award digest changed");
+  }
+
+  public ReservationResult confirm(ConfirmCommand c) {
+    var old =
+        repo.lockOrCreate(
+            new CancelCommand(c.drawOrderId(), c.userId(), c.identityHash(), c.requestHash()));
+    if (old.state().equals("NEW")
+        || old.state().equals("CANCELLED")
+        || !old.finalSnapshot().configHash().equals(c.finalHash()))
+      throw new AssetConflictException("Invalid confirmation");
+    if (old.state().equals("CONFIRMED")) return old;
+    if (old.quantity() == 1)
+      repo.move(old.finalSnapshot().stockPoolId(), c.drawOrderId(), "CONFIRM");
+    var r =
+        new ReservationResult(
+            old.drawOrderId(),
+            old.userId(),
+            old.identityHash(),
+            old.requestHash(),
+            "CONFIRMED",
+            old.finalSnapshot(),
+            old.quantity());
+    repo.save(r);
+    return r;
+  }
+
+  public ReservationResult cancel(CancelCommand c) {
+    var old = repo.lockOrCreate(c);
+    if (old.state().equals("CONFIRMED")) throw new AssetConflictException("Already confirmed");
+    if (old.state().equals("CANCELLED")) return old;
+    if (old.quantity() == 1)
+      repo.move(old.finalSnapshot().stockPoolId(), c.drawOrderId(), "CANCEL");
+    var r =
+        new ReservationResult(
+            c.drawOrderId(),
+            c.userId(),
+            c.identityHash(),
+            c.requestHash(),
+            "CANCELLED",
+            old.finalSnapshot(),
+            old.quantity());
+    repo.save(r);
+    return r;
+  }
+
+  public void createPool(String pool, String biz, long total, String reason) {
+    repo.createPool(pool, biz, total, reason);
+  }
+
+  public void addStock(String pool, String biz, long delta, String reason) {
+    repo.addStock(pool, biz, delta, reason);
+  }
 }

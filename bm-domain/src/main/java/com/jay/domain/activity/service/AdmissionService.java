@@ -19,6 +19,12 @@ public final class AdmissionService {
     this.limiter = limiter;
   }
 
+  public AdmissionSnapshot forDraw(String user, long activity, Deadline deadline) {
+    var s = tx.inControl(WorkClass.TRADE, deadline, () -> repo.draw(user, activity, deadline));
+    limiter.checkActivity(Long.toString(activity), deadline);
+    return s;
+  }
+
   public AdmissionSnapshot forExchange(String user, long sku, String version, Deadline deadline) {
     var s =
         tx.inControl(WorkClass.TRADE, deadline, () -> repo.exchange(user, sku, version, deadline));

@@ -86,6 +86,18 @@ public final class V2MessageListener {
       if (handler == null) {
         defer(consumer, event, slot, RecoveryStatus.WAITING_FIX, "Missing event handler");
       } else uow.applyAttempt(consumer, event, headerFailures, retries, () -> handler.apply(event));
+    } catch (WaitingFixException unsupported) {
+      try {
+        defer(
+            consumer,
+            event,
+            slot,
+            RecoveryStatus.WAITING_FIX,
+            "Unsupported historical award or configuration");
+      } catch (RuntimeException persistence) {
+        delivery.pause();
+        return;
+      }
     } catch (AssetConflictException conflict) {
       try {
         defer(

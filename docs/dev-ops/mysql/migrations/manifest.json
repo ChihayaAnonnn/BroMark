@@ -43,6 +43,18 @@
       "scope": "all",
       "shards": 1,
       "sha256": "59dadb1c06484cae72f642299ea27dbf9193fbbc70d44098ed59bddefbaeb983"
+    },
+    {
+      "file": "004_strategy_stock_draw.sql",
+      "scope": "control",
+      "shards": 1,
+      "sha256": "3eca77fdc78fb9d7c02c7427cf692c00cc2213368cfa3d8330275ee873d16adb"
+    },
+    {
+      "file": "004_user_draw.sql",
+      "scope": "user",
+      "shards": 4,
+      "sha256": "65ea8d5bf6c7f0d71dad50db212a5d73d4dfbb2d3217661de3e002f90ab89030"
     }
   ]
 }
