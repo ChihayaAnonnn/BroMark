@@ -1,0 +1,32 @@
+{
+  "metric": "mismatching_rows",
+  "databases": {
+    "router_one": {
+      "credit_balance": 0,
+      "quota_total": 0,
+      "quota_day": 0,
+      "quota_month": 0,
+      "quota_limits": 0,
+      "effective_draw_count": 0
+    },
+    "router_two": {
+      "credit_balance": 0,
+      "quota_total": 0,
+      "quota_day": 0,
+      "quota_month": 0,
+      "quota_limits": 0,
+      "effective_draw_count": 0
+    },
+    "router_control": {
+      "stock_conservation": 0,
+      "stock_reservation_counters": 0,
+      "stock_log_counters": 0
+    }
+  },
+  "boundaries": [
+    "same-database facts and ledgers",
+    "payment not checked",
+    "sign-in checked by previous phase tests, not this raffle report",
+    "cross-domain authority checked by recovery and protocol tests, not a distributed snapshot"
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "router_control": [
+    "fresh:004_strategy_stock_draw.sql:000\t3eca77fdc78fb9d7c02c7427cf692c00cc2213368cfa3d8330275ee873d16adb\t9"
+  ],
+  "router_one": [
+    "fresh:004_user_draw.sql:000\t65ea8d5bf6c7f0d71dad50db212a5d73d4dfbb2d3217661de3e002f90ab89030\t5",
+    "fresh:004_user_draw.sql:001\t65ea8d5bf6c7f0d71dad50db212a5d73d4dfbb2d3217661de3e002f90ab89030\t5",
+    "fresh:004_user_draw.sql:002\t65ea8d5bf6c7f0d71dad50db212a5d73d4dfbb2d3217661de3e002f90ab89030\t5",
+    "fresh:004_user_draw.sql:003\t65ea8d5bf6c7f0d71dad50db212a5d73d4dfbb2d3217661de3e002f90ab89030\t5"
+  ],
+  "router_two": [
+    "fresh:004_user_draw.sql:000\t65ea8d5bf6c7f0d71dad50db212a5d73d4dfbb2d3217661de3e002f90ab89030\t5",
+    "fresh:004_user_draw.sql:001\t65ea8d5bf6c7f0d71dad50db212a5d73d4dfbb2d3217661de3e002f90ab89030\t5",
+    "fresh:004_user_draw.sql:002\t65ea8d5bf6c7f0d71dad50db212a5d73d4dfbb2d3217661de3e002f90ab89030\t5",
+    "fresh:004_user_draw.sql:003\t65ea8d5bf6c7f0d71dad50db212a5d73d4dfbb2d3217661de3e002f90ab89030\t5"
+  ]
+}

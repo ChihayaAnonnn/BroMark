@@ -1,0 +1,342 @@
+{
+  "metric": "first_committed_stage_utc",
+  "synthetic_samples": [
+    {
+      "order": "DR-01.001-app-309002",
+      "stage": "ACCEPTED",
+      "at": "2026-10-15T17:48:27.532516Z",
+      "source": "router_one"
+    },
+    {
+      "order": "DR-01.001-app-309002",
+      "stage": "CANDIDATE_FIXED",
+      "at": "2026-10-15T17:48:34.184104Z",
+      "source": "router_one"
+    },
+    {
+      "order": "DR-01.001-app-309002",
+      "stage": "RESULT_RECORDED",
+      "at": "2026-10-15T17:48:36.596254Z",
+      "source": "router_one"
+    },
+    {
+      "order": "DR-01.001-app-309002",
+      "stage": "COMMITTED",
+      "at": "2026-10-15T17:48:38.823871Z",
+      "source": "router_one"
+    },
+    {
+      "order": "DR-01.001-app-309002",
+      "stage": "DELIVERED",
+      "at": "2026-10-15T17:48:40.001195Z",
+      "source": "router_one"
+    },
+    {
+      "order": "DR-01.001-app-309090",
+      "stage": "ACCEPTED",
+      "at": "2026-10-15T17:48:40.107284Z",
+      "source": "router_one"
+    },
+    {
+      "order": "DR-01.001-app-309090",
+      "stage": "CANDIDATE_FIXED",
+      "at": "2026-10-15T17:48:41.160320Z",
+      "source": "router_one"
+    },
+    {
+      "order": "DR-01.001-app-309090",
+      "stage": "RESULT_RECORDED",
+      "at": "2026-10-15T17:48:43.370733Z",
+      "source": "router_one"
+    },
+    {
+      "order": "DR-01.001-app-309090",
+      "stage": "COMMITTED",
+      "at": "2026-10-15T17:48:45.886304Z",
+      "source": "router_one"
+    },
+    {
+      "order": "DR-01.001-app-309090",
+      "stage": "DELIVERED",
+      "at": "2026-10-15T17:48:46.983843Z",
+      "source": "router_one"
+    },
+    {
+      "order": "DR-01.003-app-396002",
+      "stage": "ACCEPTED",
+      "at": "2026-10-15T17:55:31.101670Z",
+      "source": "router_one"
+    },
+    {
+      "order": "DR-01.003-app-396002",
+      "stage": "CANDIDATE_FIXED",
+      "at": "2026-10-15T17:55:35.846308Z",
+      "source": "router_one"
+    },
+    {
+      "order": "DR-01.003-app-396002",
+      "stage": "RESULT_RECORDED",
+      "at": "2026-10-15T17:55:38.071394Z",
+      "source": "router_one"
+    },
+    {
+      "order": "DR-01.003-app-396002",
+      "stage": "COMMITTED",
+      "at": "2026-10-15T17:55:39.243581Z",
+      "source": "router_one"
+    },
+    {
+      "order": "DR-01.003-app-396002",
+      "stage": "DELIVERED",
+      "at": "2026-10-15T17:55:39.347341Z",
+      "source": "router_one"
+    },
+    {
+      "order": "DR-01.003-app-396092",
+      "stage": "ACCEPTED",
+      "at": "2026-10-15T17:55:39.486447Z",
+      "source": "router_one"
+    },
+    {
+      "order": "DR-01.003-app-396092",
+      "stage": "CANDIDATE_FIXED",
+      "at": "2026-10-15T17:55:40.454617Z",
+      "source": "router_one"
+    },
+    {
+      "order": "DR-01.003-app-396092",
+      "stage": "RESULT_RECORDED",
+      "at": "2026-10-15T17:55:42.648325Z",
+      "source": "router_one"
+    },
+    {
+      "order": "DR-01.003-app-396092",
+      "stage": "COMMITTED",
+      "at": "2026-10-15T17:55:44.903432Z",
+      "source": "router_one"
+    },
+    {
+      "order": "DR-01.003-app-396092",
+      "stage": "DELIVERED",
+      "at": "2026-10-15T17:55:46.062285Z",
+      "source": "router_one"
+    },
+    {
+      "order": "DR-01.001-app-452002",
+      "stage": "ACCEPTED",
+      "at": "2026-10-15T18:15:45.654873Z",
+      "source": "router_one"
+    },
+    {
+      "order": "DR-01.001-app-452002",
+      "stage": "CANDIDATE_FIXED",
+      "at": "2026-10-15T18:15:55.427036Z",
+      "source": "router_one"
+    },
+    {
+      "order": "DR-01.001-app-452002",
+      "stage": "RESULT_RECORDED",
+      "at": "2026-10-15T18:15:58.748273Z",
+      "source": "router_one"
+    },
+    {
+      "order": "DR-01.001-app-452002",
+      "stage": "COMMITTED",
+      "at": "2026-10-15T18:16:00.977324Z",
+      "source": "router_one"
+    },
+    {
+      "order": "DR-01.001-app-452002",
+      "stage": "DELIVERED",
+      "at": "2026-10-15T18:16:01.025585Z",
+      "source": "router_one"
+    },
+    {
+      "order": "DR-01.001-app-452132",
+      "stage": "ACCEPTED",
+      "at": "2026-10-15T18:16:01.136402Z",
+      "source": "router_one"
+    },
+    {
+      "order": "DR-01.001-app-452132",
+      "stage": "CANDIDATE_FIXED",
+      "at": "2026-10-15T18:16:02.106487Z",
+      "source": "router_one"
+    },
+    {
+      "order": "DR-01.001-app-452132",
+      "stage": "RESULT_RECORDED",
+      "at": "2026-10-15T18:16:04.301350Z",
+      "source": "router_one"
+    },
+    {
+      "order": "DR-01.001-app-452132",
+      "stage": "COMMITTED",
+      "at": "2026-10-15T18:16:06.498322Z",
+      "source": "router_one"
+    },
+    {
+      "order": "DR-01.001-app-452132",
+      "stage": "DELIVERED",
+      "at": "2026-10-15T18:16:07.623590Z",
+      "source": "router_one"
+    },
+    {
+      "order": "DR-02.000-app-350002",
+      "stage": "ACCEPTED",
+      "at": "2026-10-15T17:50:37.609002Z",
+      "source": "router_two"
+    },
+    {
+      "order": "DR-02.000-app-350002",
+      "stage": "CANDIDATE_FIXED",
+      "at": "2026-10-15T17:50:43.414278Z",
+      "source": "router_two"
+    },
+    {
+      "order": "DR-02.000-app-350002",
+      "stage": "RESULT_RECORDED",
+      "at": "2026-10-15T17:50:45.646584Z",
+      "source": "router_two"
+    },
+    {
+      "order": "DR-02.000-app-350002",
+      "stage": "COMMITTED",
+      "at": "2026-10-15T17:50:46.774738Z",
+      "source": "router_two"
+    },
+    {
+      "order": "DR-02.000-app-350002",
+      "stage": "DELIVERED",
+      "at": "2026-10-15T17:50:46.884958Z",
+      "source": "router_two"
+    },
+    {
+      "order": "DR-02.000-app-350083",
+      "stage": "ACCEPTED",
+      "at": "2026-10-15T17:50:46.943358Z",
+      "source": "router_two"
+    },
+    {
+      "order": "DR-02.000-app-350083",
+      "stage": "CANDIDATE_FIXED",
+      "at": "2026-10-15T17:50:47.959983Z",
+      "source": "router_two"
+    },
+    {
+      "order": "DR-02.000-app-350083",
+      "stage": "RESULT_RECORDED",
+      "at": "2026-10-15T17:50:50.165461Z",
+      "source": "router_two"
+    },
+    {
+      "order": "DR-02.000-app-350083",
+      "stage": "COMMITTED",
+      "at": "2026-10-15T17:50:51.317303Z",
+      "source": "router_two"
+    },
+    {
+      "order": "DR-02.000-app-350083",
+      "stage": "DELIVERED",
+      "at": "2026-10-15T17:50:51.395514Z",
+      "source": "router_two"
+    },
+    {
+      "order": "DR-01.001-app-309002",
+      "stage": "HELD",
+      "at": "2026-10-15T17:48:35.387959Z",
+      "source": "router_control"
+    },
+    {
+      "order": "DR-01.001-app-309002",
+      "stage": "CONFIRMED",
+      "at": "2026-10-15T17:48:37.701004Z",
+      "source": "router_control"
+    },
+    {
+      "order": "DR-01.001-app-309090",
+      "stage": "HELD",
+      "at": "2026-10-15T17:48:42.257354Z",
+      "source": "router_control"
+    },
+    {
+      "order": "DR-01.001-app-309090",
+      "stage": "CONFIRMED",
+      "at": "2026-10-15T17:48:44.606692Z",
+      "source": "router_control"
+    },
+    {
+      "order": "DR-02.000-app-350002",
+      "stage": "HELD",
+      "at": "2026-10-15T17:50:44.592550Z",
+      "source": "router_control"
+    },
+    {
+      "order": "DR-02.000-app-350002",
+      "stage": "CONFIRMED",
+      "at": "2026-10-15T17:50:45.718963Z",
+      "source": "router_control"
+    },
+    {
+      "order": "DR-02.000-app-350083",
+      "stage": "HELD",
+      "at": "2026-10-15T17:50:49.101571Z",
+      "source": "router_control"
+    },
+    {
+      "order": "DR-02.000-app-350083",
+      "stage": "CONFIRMED",
+      "at": "2026-10-15T17:50:50.235896Z",
+      "source": "router_control"
+    },
+    {
+      "order": "DR-01.003-app-396002",
+      "stage": "HELD",
+      "at": "2026-10-15T17:55:36.997821Z",
+      "source": "router_control"
+    },
+    {
+      "order": "DR-01.003-app-396002",
+      "stage": "CONFIRMED",
+      "at": "2026-10-15T17:55:38.165131Z",
+      "source": "router_control"
+    },
+    {
+      "order": "DR-01.003-app-396092",
+      "stage": "HELD",
+      "at": "2026-10-15T17:55:41.538501Z",
+      "source": "router_control"
+    },
+    {
+      "order": "DR-01.003-app-396092",
+      "stage": "CONFIRMED",
+      "at": "2026-10-15T17:55:43.792996Z",
+      "source": "router_control"
+    },
+    {
+      "order": "DR-01.001-app-452002",
+      "stage": "HELD",
+      "at": "2026-10-15T18:15:57.666093Z",
+      "source": "router_control"
+    },
+    {
+      "order": "DR-01.001-app-452002",
+      "stage": "CONFIRMED",
+      "at": "2026-10-15T18:15:59.908147Z",
+      "source": "router_control"
+    },
+    {
+      "order": "DR-01.001-app-452132",
+      "stage": "HELD",
+      "at": "2026-10-15T18:16:03.206187Z",
+      "source": "router_control"
+    },
+    {
+      "order": "DR-01.001-app-452132",
+      "stage": "CONFIRMED",
+      "at": "2026-10-15T18:16:05.437802Z",
+      "source": "router_control"
+    }
+  ],
+  "not_a_capacity_or_percentile_report": true
+}

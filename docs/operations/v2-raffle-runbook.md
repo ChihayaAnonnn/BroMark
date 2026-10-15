@@ -2,7 +2,7 @@
 
 004 通过 `apply_migrations.py --env v2-it --through 004` 显式执行，禁止应用启动自动 DDL。`verify-raffle.sh` 只使用隔离测试容器，沿用环境变量凭据。生产迁移与切换仍属于阶段6。
 
-新抽奖同时要求 `bm.v2.enabled=true`、`bm.v2.messaging.enabled=true`、`bm.v2.raffle.enabled=true` 和 `asset-write-mode=V2`。默认不开启 raffle。现有旧写围栏仍生效，不能混用旧抽奖或 Redis 库存同步。
+新抽奖同时要求 `bm.v2.enabled=true`、`bm.v2.messaging.enabled=true`、`bm.v2.raffle.enabled=true` 和 `asset-write-mode=V2`。默认不开启 raffle。启用时必须明确配置 `bm.v2.cancel-rps` 与 `bm.v2.cancel-max-in-flight`，并重算实例物理连接预算；取消使用独立入口速率/在途许可及既有 RECOVERY 数据库预算，不借用创建交易 TRADE 或查询 QUERY 预算。现有旧写围栏仍生效，不能混用旧抽奖或 Redis 库存同步。
 
 策略通过 StrategyPublicationService 发布；库存预算通过控制库短事务中的 StockReservationService.createPool 创建，addStock 以业务ID、增量和原因补货/核减。池、初始化日志一起提交；概率换版只换策略引用，不复制或重置池。不能用现有未审计池冒充新预算。
 
