@@ -32,7 +32,12 @@ public final class MySqlStockRepository implements StockRepository {
         id);
   }
 
-  private void requireControlTransaction(){if(!org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive()||!"00".equals(cn.bugstack.middleware.db.router.DBContextHolder.getDBKey()))throw new IllegalStateException("Stock requires owned control transaction");}
+  private void requireControlTransaction() {
+    if (!org.springframework.transaction.support.TransactionSynchronizationManager
+            .isActualTransactionActive()
+        || !"00".equals(cn.bugstack.middleware.db.router.DBContextHolder.getDBKey()))
+      throw new IllegalStateException("Stock requires owned control transaction");
+  }
 
   public ReservationResult fact(String id) {
     return j
@@ -184,9 +189,17 @@ public final class MySqlStockRepository implements StockRepository {
         || biz.isBlank()
         || reason == null
         || reason.isBlank()) throw new IllegalArgumentException("Pool budget required");
-    boolean created=true;
-    try {j.update("insert into award_stock(stock_pool_id,total,available,reserved,allocated) values(?,?,?,0,0)",p,total,total);}
-    catch(org.springframework.dao.DuplicateKeyException duplicate){created=false;}
+    boolean created = true;
+    try {
+      j.update(
+          "insert into award_stock(stock_pool_id,total,available,reserved,allocated)"
+              + " values(?,?,?,0,0)",
+          p,
+          total,
+          total);
+    } catch (org.springframework.dao.DuplicateKeyException duplicate) {
+      created = false;
+    }
     pool(p);
     var old =
         j.queryForList(

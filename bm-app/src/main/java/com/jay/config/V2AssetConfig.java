@@ -41,8 +41,14 @@ public class V2AssetConfig {
   }
 
   @Bean
-  public RequestAdmission requestAdmission(RedissonClient redis, V2FeatureProperties p) {
+  public RequestAdmission requestAdmission(
+      RedissonClient redis,
+      V2FeatureProperties p,
+      @org.springframework.beans.factory.annotation.Value("${bm.v2.raffle.enabled:false}")
+          boolean raffle) {
     p.validateAdmission();
+    if (raffle && (p.getCancelRps() == null || p.getCancelMaxInFlight() == null))
+      throw new IllegalArgumentException("Explicit raffle cancellation budgets required");
     return new RedisRequestAdmission(
         redis,
         p.getUserRps(),
@@ -50,7 +56,9 @@ public class V2AssetConfig {
         p.getMaxInFlight(),
         p.getLocalFallbackRps(),
         p.getQueryRps(),
-        p.getQueryMaxInFlight());
+        p.getQueryMaxInFlight(),
+        p.getCancelRps() == null ? p.getQueryRps() : p.getCancelRps(),
+        p.getCancelMaxInFlight() == null ? p.getQueryMaxInFlight() : p.getCancelMaxInFlight());
   }
 
   @Bean

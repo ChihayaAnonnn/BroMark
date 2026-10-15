@@ -9,6 +9,7 @@ public class V2FeatureProperties {
   private boolean enabled;
   private String assetWriteMode = "LEGACY";
   private Integer userRps, activityRps, maxInFlight, localFallbackRps, queryRps, queryMaxInFlight;
+  private Integer cancelRps, cancelMaxInFlight;
 
   public void validateAdmission() {
     if (userRps == null

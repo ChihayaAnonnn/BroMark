@@ -65,9 +65,11 @@ public class FrozenStrategyV2Test {
           var c = command(id, null);
           String v = pub.publish(c);
           c.prizes().clear();
-          String v2=pub.publish(command(id, null));
+          String v2 = pub.publish(command(id, null));
           var cache = new StrategyVersionCache(h.runner, repo, null, 1);
-          cache.load(id,v);cache.load(id,v2);var old = cache.load(id, v);
+          cache.load(id, v);
+          cache.load(id, v2);
+          var old = cache.load(id, v);
           assertThat(old.prizes()).hasSize(1);
           assertThat(old.prizes().getFirst().minAmount()).isEqualByComparingTo("1.00");
           assertThatThrownBy(() -> old.prizes().clear())

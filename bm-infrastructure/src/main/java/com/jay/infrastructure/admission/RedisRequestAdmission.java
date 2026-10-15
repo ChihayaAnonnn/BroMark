@@ -10,8 +10,8 @@ import org.redisson.client.codec.StringCodec;
 
 public final class RedisRequestAdmission implements RequestAdmission {
   private final RedissonClient redis;
-  private final int userRps, activityRps, localRps, queryRps;
-  private final Semaphore trades, queries;
+  private final int userRps, activityRps, localRps, queryRps, cancelRps;
+  private final Semaphore trades, queries, cancellations;
   private final String script;
   private final Map<String, long[]> local = new HashMap<>();
 
@@ -23,12 +23,37 @@ public final class RedisRequestAdmission implements RequestAdmission {
       int localRps,
       int queryRps,
       int queryInFlight) {
+    this(
+        redis,
+        userRps,
+        activityRps,
+        maxInFlight,
+        localRps,
+        queryRps,
+        queryInFlight,
+        queryRps,
+        queryInFlight);
+  }
+
+  public RedisRequestAdmission(
+      RedissonClient redis,
+      int userRps,
+      int activityRps,
+      int maxInFlight,
+      int localRps,
+      int queryRps,
+      int queryInFlight,
+      int cancelRps,
+      int cancelInFlight) {
     if (userRps <= 0
         || activityRps <= 0
         || maxInFlight <= 0
         || localRps <= 0
         || queryRps <= 0
         || queryInFlight <= 0
+        || cancelRps <= 0
+        || cancelInFlight <= 0
+        || localRps > cancelRps
         || localRps > Math.min(userRps, Math.min(activityRps, queryRps)))
       throw new IllegalArgumentException("Explicit conservative admission budgets required");
     this.redis = redis;
@@ -36,6 +61,8 @@ public final class RedisRequestAdmission implements RequestAdmission {
     this.activityRps = activityRps;
     this.localRps = localRps;
     this.queryRps = queryRps;
+    this.cancelRps = cancelRps;
+    cancellations = new Semaphore(cancelInFlight);
     trades = new Semaphore(maxInFlight);
     queries = new Semaphore(queryInFlight);
     try (var in = getClass().getResourceAsStream("/redis/v2_rate_admission.lua")) {
@@ -101,12 +128,11 @@ public final class RedisRequestAdmission implements RequestAdmission {
     if (!allowed) throw new BudgetExceededException("Request rate exceeded");
   }
 
-  private Permit enter(String user, Deadline d, boolean query) {
+  private Permit enter(String user, Deadline d, String category, Semaphore semaphore, int limit) {
     deadline(d);
-    Semaphore semaphore = query ? queries : trades;
     if (!semaphore.tryAcquire()) throw new BudgetExceededException("In-flight capacity exceeded");
     try {
-      rate(query ? "query" : "user", user, query ? queryRps : userRps, d);
+      rate(category, user, limit, d);
     } catch (RuntimeException e) {
       semaphore.release();
       throw e;
@@ -118,11 +144,15 @@ public final class RedisRequestAdmission implements RequestAdmission {
   }
 
   public Permit enter(String user, Deadline d) {
-    return enter(user, d, false);
+    return enter(user, d, "user", trades, userRps);
+  }
+
+  public Permit cancel(String user, Deadline d) {
+    return enter(user, d, "cancel", cancellations, cancelRps);
   }
 
   public Permit query(String user, Deadline d) {
-    return enter(user, d, true);
+    return enter(user, d, "query", queries, queryRps);
   }
 
   public void checkActivity(String key, Deadline d) {

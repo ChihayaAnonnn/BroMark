@@ -113,8 +113,10 @@ public final class MySqlRaffleReconciliation {
                   + " (json_unquote(json_extract(o.snapshot,'$.finalAward.type'))='CREDIT' and"
                   + " (c.biz_id is null or"
                   + " c.delta<>cast(json_unquote(json_extract(o.snapshot,'$.finalAward.amount')) as"
-                  + " decimal(18,2)))))) or (o.state<>'DELIVERED' and (d.order_id is not null or"
-                  + " c.biz_id is not null))"));
+                  + " decimal(18,2)))) or"
+                  + " (json_unquote(json_extract(o.snapshot,'$.finalAward.type'))='NONE' and"
+                  + " c.biz_id is not null))) or (o.state<>'DELIVERED' and (d.order_id is not null"
+                  + " or c.biz_id is not null))"));
     }
     var affected = new TreeSet<String>();
     affected.addAll(badCredit);

@@ -212,8 +212,38 @@ public class StockProtocolV2Test {
               });
         });
   }
- @Test public void refusesStockWritesOutsideOwnedTransaction(){AssetTestSupport.run(h->{FrozenStrategyV2Test.schema(h);assertThatThrownBy(()->service(h).createPool("unowned-"+UUID.randomUUID(),"initial",1,"budget")).isInstanceOf(IllegalStateException.class);});}
 
- @Test public void refusesUnloggedExistingBudgetAsNewPool(){AssetTestSupport.run(h->{FrozenStrategyV2Test.schema(h);control(h,()->{String pool="unlogged-"+UUID.randomUUID();h.j.update("insert into award_stock values(?,2,2,0,0,0,'ACTIVE')",pool);try{assertThatThrownBy(()->service(h).createPool(pool,"initial",2,"budget")).isInstanceOf(AssetConflictException.class);}finally{h.j.update("delete from stock_change_log where stock_pool_id=?",pool);h.j.update("delete from award_stock where stock_pool_id=?",pool);}return null;});});}
+  @Test
+  public void refusesStockWritesOutsideOwnedTransaction() {
+    AssetTestSupport.run(
+        h -> {
+          FrozenStrategyV2Test.schema(h);
+          assertThatThrownBy(
+                  () ->
+                      service(h).createPool("unowned-" + UUID.randomUUID(), "initial", 1, "budget"))
+              .isInstanceOf(IllegalStateException.class);
+        });
+  }
 
+  @Test
+  public void refusesUnloggedExistingBudgetAsNewPool() {
+    AssetTestSupport.run(
+        h -> {
+          FrozenStrategyV2Test.schema(h);
+          control(
+              h,
+              () -> {
+                String pool = "unlogged-" + UUID.randomUUID();
+                h.j.update("insert into award_stock values(?,2,2,0,0,0,'ACTIVE')", pool);
+                try {
+                  assertThatThrownBy(() -> service(h).createPool(pool, "initial", 2, "budget"))
+                      .isInstanceOf(AssetConflictException.class);
+                } finally {
+                  h.j.update("delete from stock_change_log where stock_pool_id=?", pool);
+                  h.j.update("delete from award_stock where stock_pool_id=?", pool);
+                }
+                return null;
+              });
+        });
+  }
 }

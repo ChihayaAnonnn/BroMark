@@ -86,7 +86,13 @@ public class StrategyCacheV2Test {
                           new Random())
                       .type())
               .isEqualTo("NONE");
-          assertThat(e.choose(f,new RuleInputSnapshot(java.time.Instant.now(),100,1,false,"b1"),new Random()).type()).isEqualTo("NONE");
+          assertThat(
+                  e.choose(
+                          f,
+                          new RuleInputSnapshot(java.time.Instant.now(), 100, 1, false, "b1"),
+                          new Random())
+                      .type())
+              .isEqualTo("NONE");
           assertThat(
                   e.choose(
                           f,

@@ -59,7 +59,7 @@ public final class DrawController {
   public ResponseEntity<DrawView> cancel(@PathVariable String order) {
     String u = user.requireUserId();
     gate.check("v2.draw.cancel");
-    try (var permit = admission.enter(u, deadline())) {
+    try (var permit = admission.cancel(u, deadline())) {
       var r = service.cancel(u, order);
       return ResponseEntity.status(r.state().equals("CANCELLED") ? 200 : 202).body(r);
     }

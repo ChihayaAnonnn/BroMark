@@ -157,11 +157,15 @@ public final class DrawService {
 
   public DrawView cancel(String user, String order) {
     if (!codec.routeOrder(order).equals(codec.routeUser(user))) throw new AssetOwnershipException();
-    get(user, order);
+    tx.inUser(
+        user,
+        WorkClass.RECOVERY,
+        new Deadline(Instant.now().plusSeconds(5)),
+        () -> repo.view(user, order));
     ids.prefetch();
     return tx.inUser(
         user,
-        WorkClass.TRADE,
+        WorkClass.RECOVERY,
         new Deadline(Instant.now().plusSeconds(5)),
         () -> {
           var read = repo.find(order, false);

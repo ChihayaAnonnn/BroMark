@@ -24,6 +24,8 @@ public class RaffleIntegrationV2Test {
     settings.put("bm.v2.asset-write-mode", "V2");
     settings.put("bm.v2.messaging.enabled", true);
     settings.put("bm.v2.raffle.enabled", true);
+    settings.put("bm.v2.cancel-rps", 100);
+    settings.put("bm.v2.cancel-max-in-flight", 4);
     settings.put("bm.v2.messaging.prefix", "bromark.it.raffle." + UUID.randomUUID());
     settings.put("bm.v2.auth.issuer", "https://issuer.test");
     settings.put("bm.v2.auth.audience", "bromark");
@@ -159,8 +161,15 @@ public class RaffleIntegrationV2Test {
                   .check(RouteSlot.control())
                   .stockMismatch())
           .isZero();
-System.out.println("PHASE4_CACHE heapUsedBytes="+java.lang.management.ManagementFactory.getMemoryMXBean().getHeapMemoryUsage().getUsed()+" versionEntries="+ctx.getBean(com.jay.infrastructure.cache.StrategyVersionCache.class).estimatedVersions());
-            String other =
+      System.out.println(
+          "PHASE4_CACHE heapUsedBytes="
+              + java.lang.management.ManagementFactory.getMemoryMXBean()
+                  .getHeapMemoryUsage()
+                  .getUsed()
+              + " versionEntries="
+              + ctx.getBean(com.jay.infrastructure.cache.StrategyVersionCache.class)
+                  .estimatedVersions());
+      String other =
           V2IdentityV2Test.token(
               V2IdentityV2Test.KEY,
               "https://issuer.test",

@@ -43,6 +43,13 @@ public final class StrategyPublicationService {
     validate(c.fallback());
     if (c.fallback().stockPoolId() != null || c.fallback().unlockAfter() != 0)
       throw new IllegalArgumentException("Fallback must be unlimited");
+    for (var prize : c.prizes())
+      if (prize.awardId() == c.fallback().awardId()
+          && (!prize.type().equals(c.fallback().type())
+              || !Objects.equals(prize.minAmount(), c.fallback().minAmount())
+              || !Objects.equals(prize.maxAmount(), c.fallback().maxAmount())
+              || !Objects.equals(prize.stockPoolId(), c.fallback().stockPoolId())))
+        throw new IllegalArgumentException("Fallback award identity conflicts with pool");
     if (c.blacklistAwardId() != null && !ids.contains(c.blacklistAwardId()))
       throw new IllegalArgumentException("Missing blacklist award");
     var tables = new HashMap<String, FrozenStrategy.Table>();

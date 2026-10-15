@@ -68,6 +68,7 @@ public final class DrawProgressService {
       throw new AssetConflictException("Receipt state mismatch");
     if (expected.equals("HELD")) {
       validateFinal(r, result.finalSnapshot());
+      if (r.state().equals("CANCELLED")) return List.of();
       if (r.state().equals("CANCELLING")) return List.of(cancelEvent(r, codec));
       if (Set.of("RESULT_RECORDED", "COMMITTED", "DELIVERED").contains(r.state())) {
         if (!Objects.equals(r.finalAward(), result.finalSnapshot()))
