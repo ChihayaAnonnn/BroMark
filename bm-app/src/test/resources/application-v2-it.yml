@@ -43,7 +43,7 @@ mini-db-router:
       db02:
         url: jdbc:mysql://${V2_MYSQL_HOST:host.docker.internal:13316}/${V2_DB02:router_two}?useSSL=false&allowPublicKeyRetrieval=true
 mybatis:
-  mapper-locations: classpath:/mybatis/mapper/*.xml
+  mapper-locations: classpath:/mybatis/mapper/**/*.xml
 redis:
   sdk:
     config:

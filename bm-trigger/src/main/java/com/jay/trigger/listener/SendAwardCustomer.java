@@ -23,6 +23,7 @@ import jakarta.annotation.Resource;
 @Slf4j
 @Component
 public class SendAwardCustomer {
+    @Resource private com.jay.domain.asset.service.AssetWriteGate assetWriteGate;
 
     @Resource
     private IAwardService awardService;
@@ -30,8 +31,9 @@ public class SendAwardCustomer {
     @Value("${spring.rabbitmq.topic.send_award}")
     private String topic;
 
-    @RabbitListener(queuesToDeclare = @Queue(value = "${spring.rabbitmq.topic.send_award}"))
+    @RabbitListener(autoStartup = "#{@assetWriteGate.legacyAllowed()}", queuesToDeclare = @Queue(value = "${spring.rabbitmq.topic.send_award}"))
     public void listener(String message) {
+        assetWriteGate.check("legacy.SendAwardCustomer");
         try {
             log.info("监听用户奖品发送消息 topic:{} message:{}", topic, message);
 

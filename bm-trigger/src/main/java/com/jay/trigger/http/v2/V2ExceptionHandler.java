@@ -46,6 +46,21 @@ public class V2ExceptionHandler {
     return error(400, "Invalid request");
   }
 
+  @ExceptionHandler(AssetOwnershipException.class)
+  public ResponseEntity<ApiError> ownership() {
+    return error(403, "Forbidden");
+  }
+
+  @ExceptionHandler(AssetNotFoundException.class)
+  public ResponseEntity<ApiError> missing() {
+    return error(404, "Not found");
+  }
+
+  @ExceptionHandler(LegacyWriteBlockedException.class)
+  public ResponseEntity<ApiError> fenced() {
+    return error(503, "Asset entry fenced");
+  }
+
   @ExceptionHandler(AssetConflictException.class)
   public ResponseEntity<ApiError> conflict() {
     return error(409, "Request conflicts with an existing operation");

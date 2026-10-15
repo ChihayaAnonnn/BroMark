@@ -55,6 +55,7 @@ public class RaffleActivityController implements IRaffleActivityService {
 
     private final SimpleDateFormat dateFormatDay = new SimpleDateFormat("yyyyMMdd");
 
+    @Resource private com.jay.domain.asset.service.AssetWriteGate assetWriteGate;
     @Resource
     private IActivityArmory activityArmory;
     @Resource
@@ -122,6 +123,7 @@ public class RaffleActivityController implements IRaffleActivityService {
     @Override
     @RequestMapping(value = "draw", method = RequestMethod.POST)
     public Response<ActivityDrawResponseDTO> draw(@RequestBody ActivityDrawRequestDTO request) {
+        assetWriteGate.check("legacy.draw");
         try {
             log.info("活动抽奖-开始 userId:{} activityId:{}", request.getUserId(), request.getActivityId());
             // 1.参数校验
@@ -179,6 +181,7 @@ public class RaffleActivityController implements IRaffleActivityService {
     @RequestMapping(value = "calendar_sign_rebate", method = RequestMethod.POST)
     @Override
     public Response<Boolean> calendarSignRebate(String userId) {
+        assetWriteGate.check("legacy.calendarSignRebate");
         try {
             log.info("日历签到返利开始 userId:{}", userId);
             BehaviorEntity behaviorEntity = new BehaviorEntity();
@@ -311,6 +314,7 @@ public class RaffleActivityController implements IRaffleActivityService {
     @RequestMapping(value = "credit_pay_exchange_sku", method = RequestMethod.POST)
     @Override
     public Response<Boolean> creditPayExchangeSku(@RequestBody SkuProductShopCartRequestDTO request) {
+        assetWriteGate.check("legacy.creditPayExchangeSku");
         try {
             log.info("积分兑换商品开始 userId:{} sku:{}", request.getUserId(), request.getSku());
             // 1. 创建兑换商品sku订单，outBusinessNo 每次创建出一个单号。
@@ -340,6 +344,7 @@ public class RaffleActivityController implements IRaffleActivityService {
     @RequestMapping(value = "createAccount", method = RequestMethod.POST)
     @Override
     public Response<?> createAccount(@RequestBody RaffleActivityAccountDTO request) {
+        assetWriteGate.check("legacy.createAccount");
         ActivityAccountEntity activityAccount = new ActivityAccountEntity();
         activityAccount.setUserId(request.getUserId());
         activityAccount.setActivityId(request.getActivityId());

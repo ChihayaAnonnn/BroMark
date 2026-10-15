@@ -5,7 +5,8 @@
       "scope": "user",
       "shards": 4,
       "upgrade_fields": "001_upgrade_fields.json",
-      "sha256": "7f2cf64b23ee6fe2d7a7ec7411781324852963d796dc02449c0d9f9a49571cef"
+      "sha256": "7f2cf64b23ee6fe2d7a7ec7411781324852963d796dc02449c0d9f9a49571cef",
+      "upgrade_fields_sha256": "cc65a683c8dec63e0099744dc480d3e28afbf95f29110d5d84466857eebc6ea6"
     },
     {
       "file": "001_id_block.sql",
@@ -29,7 +30,7 @@
       "file": "002_admission_config.sql",
       "scope": "control",
       "shards": 1,
-      "sha256": "13122b30f100f9522710d1dd1e206f60c24a39bfb56efa4c9217a7ef5e475dab"
+      "sha256": "01fa150a1af4c03ddaf6d29aabd99de9418caf6ad141877b3e611fff037d742b"
     }
   ]
 }

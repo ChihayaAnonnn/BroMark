@@ -35,6 +35,7 @@ import java.util.concurrent.TimeUnit;
 @Repository
 public class CreditRepository implements ICreditRepository {
 
+    @Resource private com.jay.domain.asset.service.AssetWriteGate assetWriteGate;
     @Resource
     private IRedisService redisService;
     @Resource
@@ -53,6 +54,7 @@ public class CreditRepository implements ICreditRepository {
 
     @Override
     public void saveUserCreditTradeOrder(TradeAggregate tradeAggregate) {
+        assetWriteGate.check("legacy.CreditRepository");
         String userId = tradeAggregate.getUserId();
         CreditAccountEntity creditAccountEntity = tradeAggregate.getCreditAccountEntity();
         CreditOrderEntity creditOrderEntity = tradeAggregate.getCreditOrderEntity();

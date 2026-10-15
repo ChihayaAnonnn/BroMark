@@ -25,14 +25,16 @@ import jakarta.annotation.Resource;
 @Slf4j
 @Component
 public class CreditAdjustSuccessCustomer {
+    @Resource private com.jay.domain.asset.service.AssetWriteGate assetWriteGate;
 
     @Value("${spring.rabbitmq.topic.credit_adjust_success}")
     private String topic;
     @Resource
     private IRaffleActivityAccountQuotaService raffleActivityAccountQuotaService;
 
-    @RabbitListener(queuesToDeclare = @Queue(value = "credit_adjust_success"))
+    @RabbitListener(autoStartup = "#{@assetWriteGate.legacyAllowed()}", queuesToDeclare = @Queue(value = "credit_adjust_success"))
     public void listener(String message) {
+        assetWriteGate.check("legacy.CreditAdjustSuccessCustomer");
         try {
             log.info("监听积分账户调整成功消息，进行交易商品发货 topic: {} message: {}", topic, message);
             BaseEvent.EventMessage<CreditAdjustSuccessMessageEvent.CreditAdjustSuccessMessage> eventMessage = JSON.parseObject(message, new TypeReference<BaseEvent.EventMessage<CreditAdjustSuccessMessageEvent.CreditAdjustSuccessMessage>>() {

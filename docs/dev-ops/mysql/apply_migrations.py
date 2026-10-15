@@ -26,11 +26,18 @@ def apply(env, through, dry_run, mode):
         source = (ROOT / item['file']).read_text()
         if hashlib.sha256(source.encode()).hexdigest() != item['sha256']:
             raise RuntimeError('checksum mismatch: ' + item['file'])
+        checksum = item['sha256']
+        if 'upgrade_fields' in item:
+            actual = hashlib.sha256((ROOT / item['upgrade_fields']).read_bytes()).hexdigest()
+            if actual != item['upgrade_fields_sha256']:
+                raise RuntimeError('upgrade fields checksum mismatch')
+            if mode == 'upgrade':
+                checksum = hashlib.sha256((checksum + actual).encode()).hexdigest()
         for database in DATABASES[item['scope']]:
             for suffix in range(item['shards']):
                 statements = [s.strip() for s in source.replace('{{suffix}}', f'{suffix:03d}').split(';') if s.strip()]
                 identity = f"{mode}:{item['file']}:{suffix:03d}"
-                print(json.dumps({'database': database, 'script': identity, 'sha256': item['sha256'], 'execute': not dry_run}))
+                print(json.dumps({'database': database, 'script': identity, 'sha256': checksum, 'execute': not dry_run}))
                 if dry_run:
                     continue
                 if env != 'v2-it' or os.environ.get('V2_MIGRATION_ALLOW') != 'isolated-router-test-only':
@@ -39,8 +46,8 @@ def apply(env, through, dry_run, mode):
                 old = mysql(database, f"SELECT CONCAT(checksum,':',step) FROM schema_migration WHERE script='{identity}'")
                 step = 0
                 if old:
-                    checksum, step = old.split(':')
-                    if checksum != item['sha256']:
+                    applied_checksum, step = old.split(':')
+                    if applied_checksum != checksum:
                         raise RuntimeError('applied checksum mismatch')
                     step = int(step)
                 if mode == 'upgrade' and 'upgrade_fields' in item:
@@ -72,7 +79,7 @@ def apply(env, through, dry_run, mode):
                         continue
                     # New objects use IF NOT EXISTS; interrupted step can be safely inspected/reentered.
                     mysql(database, statement)
-                    mysql(database, f"INSERT INTO schema_migration VALUES('{identity}','{item['sha256']}',{n}) ON DUPLICATE KEY UPDATE step={n}")
+                    mysql(database, f"INSERT INTO schema_migration VALUES('{identity}','{checksum}',{n}) ON DUPLICATE KEY UPDATE step={n}")
 
 
 if __name__ == '__main__':

@@ -1,2 +1,16 @@
 package com.jay.domain.asset.model;
-public record RequestIdentity(String userId,String operation,String requestId,String requestHash) { public RequestIdentity { if(userId==null||userId.isBlank()||operation==null||!operation.matches("[A-Z_]{1,32}")||requestId==null||!requestId.matches("[A-Za-z0-9_.:-]{1,128}")||requestHash==null||!requestHash.matches("[a-f0-9]{64}"))throw new IllegalArgumentException("Invalid request identity"); }}
+
+public record RequestIdentity(
+    String userId, String operation, String requestId, String requestHash) {
+  public RequestIdentity {
+    if (userId == null
+        || userId.isBlank()
+        || operation == null
+        || !operation.matches("[A-Z_]{1,32}")
+        || requestId == null
+        || !requestId.matches("[A-Za-z0-9_.:-]{1,128}")
+        || requestHash == null
+        || !requestHash.matches("[a-f0-9]{64}"))
+      throw new IllegalArgumentException("Invalid request identity");
+  }
+}

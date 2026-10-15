@@ -35,6 +35,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 @Repository
 public class AwardRepository implements IAwardRepository {
 
+    @Resource private com.jay.domain.asset.service.AssetWriteGate assetWriteGate;
     @Resource
     private IUserAwardRecordDao userAwardRecordDao;
     @Resource
@@ -127,6 +128,7 @@ public class AwardRepository implements IAwardRepository {
 
     @Override
     public void saveGiveOutPrizesAggregate(GiveOutPrizesAggregate giveOutPrizesAggregate) {
+        assetWriteGate.check("legacy.AwardRepository");
         String userId = giveOutPrizesAggregate.getUserId();
         UserCreditAwardEntity userCreditAwardEntity = giveOutPrizesAggregate.getUserCreditAwardEntity();
         UserAwardRecordEntity userAwardRecordEntity = giveOutPrizesAggregate.getUserAwardRecordEntity();

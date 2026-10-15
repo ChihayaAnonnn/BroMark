@@ -31,6 +31,7 @@ import java.math.BigDecimal;
 @Slf4j
 @Component
 public class RebateMessageCustomer {
+    @Resource private com.jay.domain.asset.service.AssetWriteGate assetWriteGate;
 
     @Value("${spring.rabbitmq.topic.send_rebate}")
     private String topic;
@@ -39,8 +40,9 @@ public class RebateMessageCustomer {
     @Resource
     private ICreditAdjustService creditAdjustService;
 
-    @RabbitListener(queuesToDeclare = @Queue(value = "${spring.rabbitmq.topic.send_rebate}"))
+    @RabbitListener(autoStartup = "#{@assetWriteGate.legacyAllowed()}", queuesToDeclare = @Queue(value = "${spring.rabbitmq.topic.send_rebate}"))
     public void listener(String message) {
+        assetWriteGate.check("legacy.RebateMessageCustomer");
         try {
             // log.info("监听用户行为返利消息 topic: {} message: {}", topic, message);
             // 1. 转换消息

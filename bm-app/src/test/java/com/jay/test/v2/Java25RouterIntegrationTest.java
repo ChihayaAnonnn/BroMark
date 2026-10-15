@@ -55,7 +55,7 @@ public class Java25RouterIntegrationTest {
             "mini-db-router.jdbc.datasource.db02.url=jdbc:mysql://"
                 + host
                 + "/router_two?useSSL=false&allowPublicKeyRetrieval=true",
-            "mybatis.mapper-locations=classpath:/mybatis/mapper/*.xml");
+            "mybatis.mapper-locations=classpath:/mybatis/mapper/**/*.xml");
   }
 
   @Test
