@@ -43,6 +43,23 @@ public final class ConsumerUnitOfWork {
 
   public ConsumeOutcome applyWithResponses(
       String consumer, EventEnvelope e, Supplier<List<EventEnvelope>> handler) {
+    return applyGuarded(consumer, e, () -> true, handler);
+  }
+
+  public ConsumeOutcome applyAttempt(
+      String consumer,
+      EventEnvelope e,
+      int generation,
+      RetryJobRepository retries,
+      Supplier<List<EventEnvelope>> handler) {
+    return applyGuarded(consumer, e, () -> retries.mayApply(consumer, e, generation), handler);
+  }
+
+  private ConsumeOutcome applyGuarded(
+      String consumer,
+      EventEnvelope e,
+      BooleanSupplier eligible,
+      Supplier<List<EventEnvelope>> handler) {
     if (consumer == null || !consumer.matches("[A-Za-z0-9_-]{1,64}"))
       throw new IllegalArgumentException("Consumer name");
     var slot = routing.route(e);
@@ -53,6 +70,7 @@ public final class ConsumerUnitOfWork {
         () -> {
           if (recovery != null && recovery.deferIfPaused(consumer, e))
             return ConsumeOutcome.DEFERRED;
+          if (!eligible.getAsBoolean()) return ConsumeOutcome.DEFERRED;
           if (!inbox.tryInsert(consumer, e)) return ConsumeOutcome.DUPLICATE;
           if (inbox.tryStartOperation(consumer, e)) {
             var responses = List.copyOf(handler.get());

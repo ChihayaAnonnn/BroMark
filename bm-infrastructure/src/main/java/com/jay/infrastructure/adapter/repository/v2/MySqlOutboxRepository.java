@@ -131,6 +131,7 @@ public class MySqlOutboxRepository implements OutboxRepository {
     return inSlot(
         lease.ownerSlot(),
         () -> {
+          beforeRetry(lease);
           boolean dead = lease.attempt() >= 12;
           int changed =
               j.update(
@@ -146,6 +147,8 @@ public class MySqlOutboxRepository implements OutboxRepository {
           return changed == 1;
         });
   }
+
+  protected void beforeRetry(OutboxLease lease) {}
 
   protected void exhausted(OutboxLease lease, String reason) {
     var recovery = new MySqlRecoveryRepository(j.getDataSource());

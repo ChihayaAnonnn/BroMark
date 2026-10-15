@@ -26,6 +26,7 @@ public final class MySqlRecoveryRepository implements RecoveryRepository {
 
   public Case active(String type, String id) {
     requireTx();
+    lockIdentity(type,id);
     return j
         .query(
             "select * from recovery_case where active_key=? for update",
@@ -43,22 +44,40 @@ public final class MySqlRecoveryRepository implements RecoveryRepository {
         .orElse(null);
   }
 
-  public void open(String type, RecoveryAggregate a, RecoveryStatus status, String evidence) {
+  private long lockIdentity(String type, String id) {
     requireTx();
     j.update(
-        "insert into"
-            + " recovery_case(case_id,aggregate_type,aggregate_id,business_state,recovery_status,object_version,active_key,evidence,created_at)"
-            + " values(?,?,?,?,?,?,?,?,UTC_TIMESTAMP(6)) ON DUPLICATE KEY UPDATE"
-            + " evidence=CONCAT(evidence,'\\n"
-            + "',VALUES(evidence))",
-        UUID.randomUUID().toString(),
-        type,
-        a.id(),
-        a.state(),
-        status.name(),
-        a.version(),
-        key(type, a.id()),
-        evidence);
+        "insert into recovery_guard(aggregate_type,aggregate_id,case_version)"
+            + " select ?,?,COALESCE(MAX(object_version),0) from recovery_case"
+            + " where aggregate_type=? and aggregate_id=?"
+            + " ON DUPLICATE KEY UPDATE case_version=case_version",
+        type, id, type, id);
+    return j.queryForObject(
+        "select case_version from recovery_guard"
+            + " where aggregate_type=? and aggregate_id=? for update",
+        Long.class, type, id);
+  }
+
+  public void open(String type, RecoveryAggregate a, RecoveryStatus status, String evidence) {
+    var current = active(type, a.id());
+    if (current != null) {
+      j.update(
+          "update recovery_case set evidence=CONCAT(evidence,CHAR(10),?) where case_id=?",
+          evidence, current.caseId());
+      return;
+    }
+    long previous = lockIdentity(type, a.id());
+    long version = a.state().equals("UNBOUND") ? Math.addExact(previous, 1) : a.version();
+    j.update(
+        "update recovery_guard set case_version=GREATEST(case_version,?)"
+            + " where aggregate_type=? and aggregate_id=?",
+        version, type, a.id());
+    j.update(
+        "insert into recovery_case(case_id,aggregate_type,aggregate_id,business_state,"
+            + "recovery_status,object_version,active_key,evidence,created_at)"
+            + " values(?,?,?,?,?,?,?,?,UTC_TIMESTAMP(6))",
+        UUID.randomUUID().toString(), type, a.id(), a.state(), status.name(), version,
+        key(type, a.id()), evidence);
   }
 
   public void close(Case c, String operator, String reason) {

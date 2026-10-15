@@ -10,6 +10,8 @@ public interface RetryJobRepository extends OutboxRepository {
 
   int failures(EventEnvelope event);
 
+  boolean mayApply(String consumer, EventEnvelope event, int generation);
+
   void schedule(String consumer, EventEnvelope event, int attempt, Instant next);
 
   void dead(String consumer, EventEnvelope event, int attempt);

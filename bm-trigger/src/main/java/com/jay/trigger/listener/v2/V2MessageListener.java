@@ -85,7 +85,7 @@ public final class V2MessageListener {
       var handler = handlers.get(event.eventType());
       if (handler == null) {
         defer(consumer, event, slot, RecoveryStatus.WAITING_FIX, "Missing event handler");
-      } else uow.applyWithResponses(consumer, event, () -> handler.apply(event));
+      } else uow.applyAttempt(consumer, event, headerFailures, retries, () -> handler.apply(event));
     } catch (AssetConflictException conflict) {
       try {
         defer(
@@ -94,6 +94,15 @@ public final class V2MessageListener {
             slot,
             RecoveryStatus.REVIEW,
             "Message or business digest/state conflict");
+      } catch (AssetConflictException deferredConflict) {
+        if (!quarantine(
+            consumer,
+            body,
+            "Conflicting deferred identity: "
+                + event.eventId()
+                + " aggregate="
+                + event.aggregateId(),
+            delivery)) return;
       } catch (RuntimeException persistence) {
         delivery.pause();
         return;
@@ -105,8 +114,9 @@ public final class V2MessageListener {
             WorkClass.RECOVERY,
             new Deadline(Instant.now().plusSeconds(10)),
             () -> {
+              if (recovery.deferIfPaused(consumer, event)) return null;
               faults.hit("consumer.before-retry-persist");
-              int failures = Math.max(headerFailures, retries.failures(event)) + 1;
+              int failures = Math.max(headerFailures + 1, retries.failures(event));
               if (failures >= RetryPolicy.MAX_ATTEMPTS) {
                 recovery.pause(
                     slot,
@@ -128,6 +138,23 @@ public final class V2MessageListener {
       }
     }
     ack(delivery);
+  }
+
+  private boolean quarantine(String consumer, byte[] body, String reason, Delivery delivery) {
+    try {
+      tx.inControl(
+          WorkClass.RECOVERY,
+          new Deadline(Instant.now().plusSeconds(10)),
+          () -> {
+            faults.hit("consumer.before-quarantine");
+            raw.quarantine(consumer, body, reason);
+            return null;
+          });
+      return true;
+    } catch (RuntimeException unavailable) {
+      delivery.pause();
+      return false;
+    }
   }
 
   private void defer(

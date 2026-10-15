@@ -37,6 +37,12 @@
       "scope": "all",
       "shards": 1,
       "sha256": "c7a92c380de1129110a255e048cbda0410f6ea84c6b4fdb50cfe3fa3d432ccf0"
+    },
+    {
+      "file": "003_recovery_guard.sql",
+      "scope": "all",
+      "shards": 1,
+      "sha256": "59dadb1c06484cae72f642299ea27dbf9193fbbc70d44098ed59bddefbaeb983"
     }
   ]
 }

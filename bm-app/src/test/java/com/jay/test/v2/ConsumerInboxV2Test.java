@@ -28,11 +28,11 @@ public class ConsumerInboxV2Test {
                     java.nio.file.Files.readString(
                             java.nio.file.Path.of("../docs/dev-ops/mysql/migrations/" + f))
                         .split(";")) if (!ddl.isBlank()) h.j.execute(ddl);
-              for (String s :
-                  java.nio.file.Files.readString(
-                          java.nio.file.Path.of(
-                              "../docs/dev-ops/mysql/migrations/003_messaging_recovery.sql"))
-                      .split(";")) if (!s.isBlank()) h.j.execute(s);
+              for (String file : List.of("003_messaging_recovery.sql", "003_recovery_guard.sql"))
+                for (String statement :
+                    java.nio.file.Files.readString(
+                            java.nio.file.Path.of("../docs/dev-ops/mysql/migrations/" + file))
+                        .split(";")) if (!statement.isBlank()) h.j.execute(statement);
             } catch (Exception e) {
               throw new IllegalStateException(e);
             }

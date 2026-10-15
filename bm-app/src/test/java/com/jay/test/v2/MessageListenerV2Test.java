@@ -169,12 +169,37 @@ public class MessageListenerV2Test {
                   throw new AssertionError("healthy handoff paused");
                 }
               };
-          for (int i = 0; i < 12; i++)
+          listener.handle(
+              "workflow-v2",
+              JsonStore.write(e).getBytes(java.nio.charset.StandardCharsets.UTF_8),
+              0,
+              delivery);
+          for (int generation = 1; generation < 12; generation++) {
+            h.runner.inSlot(
+                e.routeSlot(),
+                WorkClass.RECOVERY,
+                new Deadline(Instant.now().plusSeconds(10)),
+                () -> {
+                  h.j.update(
+                      "update retry_job set next_attempt_at=UTC_TIMESTAMP(6)-INTERVAL 1 SECOND"
+                          + " where event_id=?",
+                      e.eventId());
+                  return null;
+                });
+            var lease =
+                jobs.claim(e.routeSlot(), 128, Duration.ofSeconds(30)).stream()
+                    .filter(l -> l.event().eventId().equals(e.eventId()))
+                    .findFirst()
+                    .orElseThrow();
+            assertThat(jobs.failureCount(lease)).isEqualTo(generation);
             listener.handle(
                 "workflow-v2",
                 JsonStore.write(e).getBytes(java.nio.charset.StandardCharsets.UTF_8),
-                0,
+                generation,
                 delivery);
+            assertThat(jobs.complete(lease))
+                .isFalse(); // consumer may reschedule before publisher completion
+          }
           assertThat(acks.get()).isEqualTo(12);
           h.runner.inSlot(
               e.routeSlot(),

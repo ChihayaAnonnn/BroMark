@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS recovery_guard(aggregate_type varchar(64) NOT NULL,aggregate_id varchar(128) NOT NULL,case_version bigint NOT NULL DEFAULT 0 CHECK(case_version>=0),PRIMARY KEY(aggregate_type,aggregate_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;

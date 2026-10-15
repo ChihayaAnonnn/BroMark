@@ -79,6 +79,42 @@ public final class MySqlRetryJobRepository extends MySqlOutboxRepository
       throw new AssetConflictException("Retry identity changed");
   }
 
+  public boolean mayApply(String consumer, EventEnvelope e, int generation) {
+    if (!TransactionSynchronizationManager.isActualTransactionActive())
+      throw new IllegalStateException("Retry generation requires transaction");
+    var rows =
+        j.queryForList(
+            "select failure_count,state,payload_hash,consumer_name from retry_job where event_id=?"
+                + " for update",
+            e.eventId());
+    if (rows.isEmpty()) {
+      if (generation != 0) throw new AssetConflictException("Unknown retry generation");
+      return true;
+    }
+    var row = rows.getFirst();
+    if (!consumer.equals(row.get("consumer_name"))
+        || !MySqlConsumerInbox.digest(JsonStore.write(e)).equals(row.get("payload_hash")))
+      throw new AssetConflictException("Retry identity changed");
+    int current = ((Number) row.get("failure_count")).intValue();
+    if (generation > current) throw new AssetConflictException("Future retry generation");
+    return generation == current
+        && java.util.Set.of("PROCESSING", "PUBLISHED").contains(row.get("state"));
+  }
+
+  protected void beforeRetry(OutboxLease lease) {
+    String consumer =
+        j.queryForObject(
+            "select consumer_name from retry_job where event_id=?",
+            String.class,
+            lease.event().eventId());
+    if (recovery != null) recovery.deferIfPaused(consumer, lease.event());
+    else
+      new MySqlRecoveryRepository(j.getDataSource())
+          .active(
+              com.jay.domain.task.service.EventRouting.aggregateType(lease.event()),
+              lease.event().aggregateId());
+  }
+
   public int failures(EventEnvelope e) {
     if (!TransactionSynchronizationManager.isActualTransactionActive())
       throw new IllegalStateException("Retry count requires transaction");
