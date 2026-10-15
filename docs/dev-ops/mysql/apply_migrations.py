@@ -9,7 +9,7 @@ import re
 import subprocess
 
 ROOT = Path(__file__).parent / 'migrations'
-DATABASES = {'control': ['router_control'], 'user': ['router_one', 'router_two']}
+DATABASES = {'control': ['router_control'], 'user': ['router_one', 'router_two'], 'all': ['router_control', 'router_one', 'router_two']}
 
 
 def mysql(database, sql):
