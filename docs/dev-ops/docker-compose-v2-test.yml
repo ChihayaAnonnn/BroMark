@@ -1,0 +1,25 @@
+name: bromark-v2-test
+services:
+  mysql:
+    image: mysql:8.0@sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b
+    environment:
+      MYSQL_ROOT_PASSWORD: ${V2_MYSQL_PASSWORD:?set isolated test password}
+    ports: ["127.0.0.1:13316:3306"]
+    command: ["--max-connections=80"]
+    volumes: ["mysql-v2:/var/lib/mysql", "./mysql/v2-init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro"]
+  redis:
+    image: redis:7@sha256:c6eabf748fc7a61dbb5a705c78bcf3d6377b1127a97d0ce965c11c44ba46896f
+    ports: ["127.0.0.1:16386:6379"]
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes: ["redis-v2:/data"]
+  rabbitmq:
+    image: rabbitmq:3.13-alpine@sha256:d7af1c87c5f1eda13fcfca06db452bf3aeab6619fc3358b68535c0c02c4e52bc
+    environment:
+      RABBITMQ_DEFAULT_USER: bromark_it
+      RABBITMQ_DEFAULT_PASS: ${V2_RABBIT_PASSWORD:?set isolated test password}
+    ports: ["127.0.0.1:15686:5672"]
+    volumes: ["rabbit-v2:/var/lib/rabbitmq"]
+volumes:
+  mysql-v2:
+  redis-v2:
+  rabbit-v2:

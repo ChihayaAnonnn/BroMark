@@ -15,7 +15,7 @@ import java.util.concurrent.*;
 @EnableConfigurationProperties(ThreadPoolConfigProperties.class)
 public class ThreadPoolConfig {
 
-    @Bean
+    @Bean(destroyMethod="shutdown")
     @ConditionalOnMissingBean(ThreadPoolExecutor.class)
     public ThreadPoolExecutor threadPoolExecutor(ThreadPoolConfigProperties properties) throws ClassNotFoundException, InstantiationException, IllegalAccessException {
         // 实例化策略
@@ -25,11 +25,9 @@ public class ThreadPoolConfig {
                 handler = new ThreadPoolExecutor.AbortPolicy();
                 break;
             case "DiscardPolicy":
-                handler = new ThreadPoolExecutor.DiscardPolicy();
-                break;
+                throw new IllegalArgumentException("DiscardPolicy silently loses database work");
             case "DiscardOldestPolicy":
-                handler = new ThreadPoolExecutor.DiscardOldestPolicy();
-                break;
+                throw new IllegalArgumentException("DiscardOldestPolicy silently loses database work");
             case "CallerRunsPolicy":
                 handler = new ThreadPoolExecutor.CallerRunsPolicy();
                 break;

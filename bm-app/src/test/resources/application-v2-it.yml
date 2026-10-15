@@ -1,0 +1,61 @@
+server:
+  port: 0
+app:
+  config:
+    api-version: v1
+    cross-origin: http://localhost
+spring:
+  main:
+    allow-bean-definition-overriding: false
+  rabbitmq:
+    host: ${V2_RABBIT_HOST:host.docker.internal}
+    port: ${V2_RABBIT_PORT:15686}
+    username: bromark_it
+    password: ${V2_RABBIT_PASSWORD}
+    listener:
+      simple:
+        auto-startup: false
+    topic:
+      send_award: bromark.it.send_award
+      send_rebate: bromark.it.send_rebate
+      activity_sku_stock_zero: bromark.it.sku_stock_zero
+      credit_adjust_success: bromark.it.credit_success
+mini-db-router:
+  jdbc:
+    datasource:
+      dbCount: 2
+      tbCount: 4
+      routerKey: userId
+      default: db00
+      list: db01,db02
+      global:
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        username: root
+        password: ${V2_MYSQL_PASSWORD}
+        pool:
+          maximum-pool-size: 8
+          minimum-idle: 0
+          connection-timeout: 1000
+      db00:
+        url: jdbc:mysql://${V2_MYSQL_HOST:host.docker.internal:13316}/router_control?useSSL=false&allowPublicKeyRetrieval=true
+      db01:
+        url: jdbc:mysql://${V2_MYSQL_HOST:host.docker.internal:13316}/router_one?useSSL=false&allowPublicKeyRetrieval=true
+      db02:
+        url: jdbc:mysql://${V2_MYSQL_HOST:host.docker.internal:13316}/router_two?useSSL=false&allowPublicKeyRetrieval=true
+mybatis:
+  mapper-locations: classpath:/mybatis/mapper/*.xml
+redis:
+  sdk:
+    config:
+      host: ${V2_REDIS_HOST:host.docker.internal}
+      port: ${V2_REDIS_PORT:16386}
+      pool-size: 4
+      min-idle-size: 1
+bm:
+  v2:
+    enabled: false
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
