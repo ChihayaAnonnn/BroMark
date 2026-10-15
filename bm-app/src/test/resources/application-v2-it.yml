@@ -37,11 +37,11 @@ mini-db-router:
           minimum-idle: 0
           connection-timeout: 1000
       db00:
-        url: jdbc:mysql://${V2_MYSQL_HOST:host.docker.internal:13316}/router_control?useSSL=false&allowPublicKeyRetrieval=true
+        url: jdbc:mysql://${V2_MYSQL_HOST:host.docker.internal:13316}/${V2_DB00:router_control}?useSSL=false&allowPublicKeyRetrieval=true
       db01:
-        url: jdbc:mysql://${V2_MYSQL_HOST:host.docker.internal:13316}/router_one?useSSL=false&allowPublicKeyRetrieval=true
+        url: jdbc:mysql://${V2_MYSQL_HOST:host.docker.internal:13316}/${V2_DB01:router_one}?useSSL=false&allowPublicKeyRetrieval=true
       db02:
-        url: jdbc:mysql://${V2_MYSQL_HOST:host.docker.internal:13316}/router_two?useSSL=false&allowPublicKeyRetrieval=true
+        url: jdbc:mysql://${V2_MYSQL_HOST:host.docker.internal:13316}/${V2_DB02:router_two}?useSSL=false&allowPublicKeyRetrieval=true
 mybatis:
   mapper-locations: classpath:/mybatis/mapper/*.xml
 redis:

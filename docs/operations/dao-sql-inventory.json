@@ -1,0 +1,548 @@
+{
+  "statements": [
+    {
+      "mapper": "com.jay.infrastructure.dao.IAwardDao",
+      "statement": "queryAwardList",
+      "kind": "select",
+      "splitTable": false,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/award_mapper.xml",
+      "sqlSha256": "526b0a01d08698fa63fef44bfdf4d5001ac19552e474459333d44333bb9671b4",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IAwardDao",
+      "statement": "queryAwardConfigByAwardId",
+      "kind": "select",
+      "splitTable": false,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/award_mapper.xml",
+      "sqlSha256": "10ed8c3154acf7425b847420e571d48f6672671feb030e48ddfec4d522fb8233",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IAwardDao",
+      "statement": "queryAwardKey",
+      "kind": "select",
+      "splitTable": false,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/award_mapper.xml",
+      "sqlSha256": "4bc3d50b94fc485f7d73697e9ee2059430f9d346a6eac4a37000404d7e6e0883",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IDailyBehaviorRebateDao",
+      "statement": "queryDailyBehaviorRebateByBehaviorType",
+      "kind": "select",
+      "splitTable": false,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/daily_behavior_rebate_mapper.xml",
+      "sqlSha256": "41ce8ea2a2365f44ba229e513bea28f7087f76a6703c9f775cc0f35202334ce9",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IRaffleActivityAccountDayDao",
+      "statement": "insertActivityAccountDay",
+      "kind": "insert",
+      "splitTable": false,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/raffle_activity_account_day_mapper.xml",
+      "sqlSha256": "d652fc3d55db90b84895e2386e9e55114486bfa92e145eb3f9b2f844e6842984",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IRaffleActivityAccountDayDao",
+      "statement": "addAccountQuota",
+      "kind": "update",
+      "splitTable": false,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/raffle_activity_account_day_mapper.xml",
+      "sqlSha256": "bbbed48ad10252ebe5a3c1a09d7bea3f327c0a62c6a0a4a6a59cedbc6b66088e",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IRaffleActivityAccountDayDao",
+      "statement": "updateActivityAccountDaySubtractionQuota",
+      "kind": "update",
+      "splitTable": false,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/raffle_activity_account_day_mapper.xml",
+      "sqlSha256": "31b182dfdd21e2dad6811366de03608478dace27ab7fff60643c9026717c82f2",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IRaffleActivityAccountDayDao",
+      "statement": "queryActivityAccountDay",
+      "kind": "select",
+      "splitTable": false,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/raffle_activity_account_day_mapper.xml",
+      "sqlSha256": "e93a61080a5176eefb5e552e5f6b419f0e2d646bd854d502c92702685bc34f6e",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IRaffleActivityAccountDayDao",
+      "statement": "queryRaffleActivityAccountDayPartakeCount",
+      "kind": "select",
+      "splitTable": false,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/raffle_activity_account_day_mapper.xml",
+      "sqlSha256": "6651a2209c5b00b2bd686536b7588d4536075ec7dad76f0f574a69ce1e6c65ef",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IRaffleActivityAccountDao",
+      "statement": "insert",
+      "kind": "insert",
+      "splitTable": false,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/raffle_activity_account_mapper.xml",
+      "sqlSha256": "2959250893f2cd78956cd56d5ac1d7baaca78d9f8ab24d5a11f051eccb1afd55",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IRaffleActivityAccountDao",
+      "statement": "updateAccountQuota",
+      "kind": "update",
+      "splitTable": false,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/raffle_activity_account_mapper.xml",
+      "sqlSha256": "ba861305be25035f111fff9ddb164212f235b97b58c9b0478e0551f95e6735fb",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IRaffleActivityAccountDao",
+      "statement": "updateActivityAccountSubtractionQuota",
+      "kind": "update",
+      "splitTable": false,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/raffle_activity_account_mapper.xml",
+      "sqlSha256": "70c5c1cd38c8186f4d50302277a99406e595bffc027bcb946aa6054172d86dd7",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IRaffleActivityAccountDao",
+      "statement": "updateActivityAccountMonthSurplusImageQuota",
+      "kind": "update",
+      "splitTable": false,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/raffle_activity_account_mapper.xml",
+      "sqlSha256": "d93b4a6699d2d43208b8db28a23e0c4845d892ca2a4d411385636204da15ce21",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IRaffleActivityAccountDao",
+      "statement": "updateActivityAccountDaySurplusImageQuota",
+      "kind": "update",
+      "splitTable": false,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/raffle_activity_account_mapper.xml",
+      "sqlSha256": "9aee116fe8a792ba9c5126752e87433ce4ef85b7f84e33f6a0a4d74c7908e8e5",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IRaffleActivityAccountDao",
+      "statement": "queryActivityAccount",
+      "kind": "select",
+      "splitTable": false,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/raffle_activity_account_mapper.xml",
+      "sqlSha256": "0f984fccf84d6c407b357c03649eaebafd45fe72fe1ebecc56c23b552201f1ed",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IRaffleActivityAccountMonthDao",
+      "statement": "insertActivityAccountMonth",
+      "kind": "insert",
+      "splitTable": false,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/raffle_activity_account_month_mapper.xml",
+      "sqlSha256": "5a6ef6beceb5eee599d8c5e271425d34041ea9607bbafe878dee63b54bb19545",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IRaffleActivityAccountMonthDao",
+      "statement": "addAccountQuota",
+      "kind": "update",
+      "splitTable": false,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/raffle_activity_account_month_mapper.xml",
+      "sqlSha256": "08e56e682d8217c97c5d486dcaf2114180e664f0acbd33de6f5adae1de470cf2",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IRaffleActivityAccountMonthDao",
+      "statement": "queryActivityAccountMonth",
+      "kind": "select",
+      "splitTable": false,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/raffle_activity_account_month_mapper.xml",
+      "sqlSha256": "2eceeecd249713b2f6db21cdc6f45d34f28b136f3cc24dca3e0d6dc04ab5e672",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IRaffleActivityAccountMonthDao",
+      "statement": "queryActivityAccountMonthByUserId",
+      "kind": "select",
+      "splitTable": false,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/raffle_activity_account_month_mapper.xml",
+      "sqlSha256": "2eceeecd249713b2f6db21cdc6f45d34f28b136f3cc24dca3e0d6dc04ab5e672",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IRaffleActivityAccountMonthDao",
+      "statement": "updateActivityAccountMonthSubtractionQuota",
+      "kind": "update",
+      "splitTable": false,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/raffle_activity_account_month_mapper.xml",
+      "sqlSha256": "b81aeaf93acabd229c3daad006158b349554b2766f3aad497701c508f9c64c64",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IRaffleActivityCountDao",
+      "statement": "queryRaffleActivityCountByActivityCountId",
+      "kind": "select",
+      "splitTable": false,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/raffle_activity_count_mapper.xml",
+      "sqlSha256": "a9744d3d9fa45e585ad140089eba6fac8e56b8ae5246084754a6c6b69cb64c27",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IRaffleActivityDao",
+      "statement": "queryRaffleActivityByActivityId",
+      "kind": "select",
+      "splitTable": false,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/raffle_activity_mapper.xml",
+      "sqlSha256": "dfd04d37020b92675c65ab34ff5cc0423c9c7298f83765fd9cc9004fdf9faa53",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IRaffleActivityDao",
+      "statement": "queryStrategyIdByActivityId",
+      "kind": "select",
+      "splitTable": false,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/raffle_activity_mapper.xml",
+      "sqlSha256": "367c47feb084f73311b19694b0005e9ff4e92383d7ad4dae7eef6e62d5ae5e0d",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IRaffleActivityDao",
+      "statement": "queryActivityIdByStrategyId",
+      "kind": "select",
+      "splitTable": false,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/raffle_activity_mapper.xml",
+      "sqlSha256": "3c41c939d49b3225befc0e054d5d9985c4980f7066f3b59222215a8533de2d87",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IRaffleActivityOrderDao",
+      "statement": "insert",
+      "kind": "insert",
+      "splitTable": true,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/raffle_activity_order_mapper.xml",
+      "sqlSha256": "7c656b6f032e8089a992aad2ca4df6672a19bbcc8719cc8a3f4211c5b934da3e",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IRaffleActivityOrderDao",
+      "statement": "updateOrderCompleted",
+      "kind": "update",
+      "splitTable": true,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/raffle_activity_order_mapper.xml",
+      "sqlSha256": "5330898197443288d0b3d1f82c71dd0fd5ac91137afbbe5a3565af3461a6ada2",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IRaffleActivityOrderDao",
+      "statement": "queryRaffleActivityOrdersByUserId",
+      "kind": "select",
+      "splitTable": true,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/raffle_activity_order_mapper.xml",
+      "sqlSha256": "e908aa664097d93847737e67fdb11529870c6dfa874c17eb62d8802e9e1f22c3",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IRaffleActivityOrderDao",
+      "statement": "queryRaffleActivityOrder",
+      "kind": "select",
+      "splitTable": true,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/raffle_activity_order_mapper.xml",
+      "sqlSha256": "7d8c55b47e979147f33b08a1962ff96d49c92d05b0172946cb74caeb000bb782",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IRaffleActivityOrderDao",
+      "statement": "queryUnpaidActivityOrder",
+      "kind": "select",
+      "splitTable": true,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/raffle_activity_order_mapper.xml",
+      "sqlSha256": "e7eaba2014828e1e062a7c935f54795e31147794c57a463fb6f1df4a33a02998",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IRaffleActivitySkuDao",
+      "statement": "updateActivitySkuStock",
+      "kind": "update",
+      "splitTable": false,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/raffle_activity_sku_mapper.xml",
+      "sqlSha256": "7d2a43c105c087fd1ca586938e9dd331883d9c029abc37b65b1c485a23b2dcee",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IRaffleActivitySkuDao",
+      "statement": "clearActivitySkuStock",
+      "kind": "update",
+      "splitTable": false,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/raffle_activity_sku_mapper.xml",
+      "sqlSha256": "c3b627703ad492417a668b9dfa950e24c90e8c8d8ad6cea4770400a00e6b9535",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IRaffleActivitySkuDao",
+      "statement": "queryRaffleActivitySku",
+      "kind": "select",
+      "splitTable": false,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/raffle_activity_sku_mapper.xml",
+      "sqlSha256": "7bc05eb98e3ece6a5e238c5dac6b63a9dbb3fa90f9ba7d67a935df3a088501d3",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IRaffleActivitySkuDao",
+      "statement": "queryActivitySkuListByActivityId",
+      "kind": "select",
+      "splitTable": false,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/raffle_activity_sku_mapper.xml",
+      "sqlSha256": "d9b92a8c5808808e39153b046ec2b4f97033da41bc58731ff7bf6c03c934222d",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IRuleTreeDao",
+      "statement": "queryRuleTreeTreeId",
+      "kind": "select",
+      "splitTable": false,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/rule_tree_mapper.xml",
+      "sqlSha256": "3a4ee38fd8fdfe6e6d948ad2aba1fde7627a618f3b687e1eb33a4ae6efde8fb6",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IRuleTreeNodeLineDao",
+      "statement": "queryRuleTreeNodeLineListByTreeId",
+      "kind": "select",
+      "splitTable": false,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/rule_tree_node_line_mapper.xml",
+      "sqlSha256": "0e85577a30e0952a343213758939b4470436e09628256860a6f0486671ef938b",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IRuleTreeNodeDao",
+      "statement": "queryRuleTreeNodeListByTreeId",
+      "kind": "select",
+      "splitTable": false,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/rule_tree_node_mapper.xml",
+      "sqlSha256": "3c3656fae9aca557aa977fc6568bfea933c8c024f0a25e52ced14b5859c8ffea",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IRuleTreeNodeDao",
+      "statement": "queryRuleLocks",
+      "kind": "select",
+      "splitTable": false,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/rule_tree_node_mapper.xml",
+      "sqlSha256": "c8ed4eb89615dd0906d9ca7a1b7138d18df6edcbd61b4783cf20f4f642978429",
+      "dynamicTags": [
+        "foreach"
+      ]
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IStrategyAwardDao",
+      "statement": "updateStrategyAwardStock",
+      "kind": "update",
+      "splitTable": false,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/strategy_award_mapper.xml",
+      "sqlSha256": "868eb72aedf366ea3c4cd8f2d595974f54b71aa122c6a1710171e58378b8a413",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IStrategyAwardDao",
+      "statement": "queryStrategyAwardListByStrategyId",
+      "kind": "select",
+      "splitTable": false,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/strategy_award_mapper.xml",
+      "sqlSha256": "2d77f2acd084aae40aba896b49c76dde062b65bcf10c24716ce05e668a8e5d0d",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IStrategyAwardDao",
+      "statement": "queryStrategyAwardRuleModels",
+      "kind": "select",
+      "splitTable": false,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/strategy_award_mapper.xml",
+      "sqlSha256": "9e50021655770bd5da33d4d7510403555823f27aa949c1e4a777631fe63e08ae",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IStrategyAwardDao",
+      "statement": "queryStrategyAward",
+      "kind": "select",
+      "splitTable": false,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/strategy_award_mapper.xml",
+      "sqlSha256": "42faf009f1be232e3214ff1d168a7e663ba797203cadcf3c2b43678472ae5c2f",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IStrategyDao",
+      "statement": "queryStrategyByStrategyId",
+      "kind": "select",
+      "splitTable": false,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/strategy_mapper.xml",
+      "sqlSha256": "1bd1884ec455516139c0969914873415d5108c07376cef8b68d76ea435eb4b33",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IStrategyRuleDao",
+      "statement": "queryStrategyRule",
+      "kind": "select",
+      "splitTable": false,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/strategy_rule_mapper.xml",
+      "sqlSha256": "41276d47b1161d6f2e2a210682c011a38c1e6b71dba40e7ca413de42e20d8946",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IStrategyRuleDao",
+      "statement": "queryStrategyRuleValue",
+      "kind": "select",
+      "splitTable": false,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/strategy_rule_mapper.xml",
+      "sqlSha256": "1e0e91c2d9b95735381ae89eb6b79ff0105252c550902053d5860b5d9b6218d7",
+      "dynamicTags": [
+        "if"
+      ]
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.ITaskDao",
+      "statement": "insert",
+      "kind": "insert",
+      "splitTable": false,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/task_mapper.xml",
+      "sqlSha256": "625adabfa65ba39deac247a16a8c4a96a4e18b5329731a2ef68d3e01dfa34475",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.ITaskDao",
+      "statement": "updateTaskSendMessageFailed",
+      "kind": "update",
+      "splitTable": false,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/task_mapper.xml",
+      "sqlSha256": "b69326841dcc0be418e4d1369bce08613fb7ad8629566833a906eeec7c1733db",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.ITaskDao",
+      "statement": "updateTaskSendMessageCompleted",
+      "kind": "update",
+      "splitTable": false,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/task_mapper.xml",
+      "sqlSha256": "1ac9d62ed2b2d57a23838124181d3db681646028aaf4eac3d4aa456579872441",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.ITaskDao",
+      "statement": "updateTaskSendMessageFail",
+      "kind": "update",
+      "splitTable": false,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/task_mapper.xml",
+      "sqlSha256": "064f38014e6ababce123bac69fb55fa70892484af3c159ea2c6ea99a37472015",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.ITaskDao",
+      "statement": "queryNoSendMessageTaskList",
+      "kind": "select",
+      "splitTable": false,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/task_mapper.xml",
+      "sqlSha256": "024ba6550971a731c9a1512a5d7ced0e595950ee5a65deb4ed529ead81b7eeaf",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IUserAwardRecordDao",
+      "statement": "insert",
+      "kind": "insert",
+      "splitTable": true,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/user_award_record_mapper.xml",
+      "sqlSha256": "e9ee94e267e6afaecc770becbcd473efff9ddb142bb1afd8d53eab789b6ea135",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IUserAwardRecordDao",
+      "statement": "updateAwardRecordCompletedState",
+      "kind": "update",
+      "splitTable": true,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/user_award_record_mapper.xml",
+      "sqlSha256": "9fd3c3f137579a48a43bf2510b5f5082ff2f95808df66b571ea7ea8e262fa0ad",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IUserBehaviorRebateOrderDao",
+      "statement": "insert",
+      "kind": "insert",
+      "splitTable": true,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/user_behavior_rebate_order_mapper.xml",
+      "sqlSha256": "6a2e867688e21cc5a687c13bd5ac46770220d38419fdf368ab2bc5f8660ea8fe",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IUserBehaviorRebateOrderDao",
+      "statement": "queryOrderByOutBusinessNo",
+      "kind": "select",
+      "splitTable": true,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/user_behavior_rebate_order_mapper.xml",
+      "sqlSha256": "aa869fd0b298bdfbeed80f03450149b13e27ef15985fc4d78309cfaf1b43cb59",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IUserCreditAccountDao",
+      "statement": "updateAddAmount",
+      "kind": "update",
+      "splitTable": false,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/user_credit_account_mapper.xml",
+      "sqlSha256": "e206eb4577b37fcdfce0da7fd3c55015648eb1c1fb569bb41a1edc824cbc96d8",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IUserCreditAccountDao",
+      "statement": "queryUserCreditAccount",
+      "kind": "select",
+      "splitTable": false,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/user_credit_account_mapper.xml",
+      "sqlSha256": "1a8bf1a40d980fda14ce012861d427e6dd5798ce19acb31c953fdf66bf1df555",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IUserCreditAccountDao",
+      "statement": "insert",
+      "kind": "insert",
+      "splitTable": false,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/user_credit_account_mapper.xml",
+      "sqlSha256": "6b7d8c15a87e3c7a6cad718ae9989362ec4877b32a9cff4c906c5538f001ec95",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IUserCreditOrderDao",
+      "statement": "insert",
+      "kind": "insert",
+      "splitTable": true,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/user_credit_order_mapper.xml",
+      "sqlSha256": "eab6395135064fa299f23c0838a4d95bcbb5344db8ce55b06fed5e4050ad9104",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IUserRaffleOrderDao",
+      "statement": "insert",
+      "kind": "insert",
+      "splitTable": true,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/user_raffle_order_mapper.xml",
+      "sqlSha256": "21e88fd497f597ed598768924986ff4cb5c20e1715ac688eb33f5672c61830ac",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IUserRaffleOrderDao",
+      "statement": "updateUserRaffleOrderStateUsed",
+      "kind": "update",
+      "splitTable": true,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/user_raffle_order_mapper.xml",
+      "sqlSha256": "0697ce0690a485bc9720162746cf683abc19a3b54fc2dbbc1fb875a711ae56c7",
+      "dynamicTags": []
+    },
+    {
+      "mapper": "com.jay.infrastructure.dao.IUserRaffleOrderDao",
+      "statement": "queryNoUsedRaffleOrder",
+      "kind": "select",
+      "splitTable": true,
+      "xml": "bm-app/src/main/resources/mybatis/mapper/user_raffle_order_mapper.xml",
+      "sqlSha256": "5f699618ee21fc664e5c6b888a7e3b84ed559a7d4b121175f004fc5627b7068a",
+      "dynamicTags": []
+    }
+  ]
+}

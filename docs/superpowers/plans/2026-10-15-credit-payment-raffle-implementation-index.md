@@ -40,7 +40,7 @@
 | 阶段5：沙盒支付 | [阅读计划](2026-10-15-phase-5-sandbox-payment.md) | 渠道下单、通知事实、积分交付与查单 | 阶段3；按发布顺序在阶段4后 |
 | 阶段6：验收与切换 | [阅读计划](2026-10-15-phase-6-validation-rollout.md) | 迁移演练、故障矩阵、安全容量报告 | 前述全部 |
 
-阶段4与5共享消息和资产内核，允许独立开发分支，但本计划默认顺序执行；本轮没有派发子代理或实施代码。
+阶段4与5共享消息和资产内核，允许独立开发分支，但本计划默认顺序执行；执行状态见阶段0及升级验收记录。
 
 ## 共享类型与模块边界
 
@@ -101,6 +101,6 @@ MySQL DDL不是整批原子回滚；执行器保存每库每脚本进度，check
 
 ## 机制参考
 
-- [Boot 2.7.12依赖管理](https://docs.spring.io/spring-boot/docs/2.7.12/reference/html/dependency-versions.html)：用于统一框架依赖。
+- [Boot 3.5依赖管理](https://docs.spring.io/spring-boot/3.5/appendix/dependency-versions/coordinates.html)：用于统一框架依赖。
 - [RabbitMQ确认机制](https://www.rabbitmq.com/docs/confirms)：发布确认不等于消费成功，不可路由消息需要单独处理。
 - [k6固定到达率](https://grafana.com/docs/k6/latest/using-k6/scenarios/executors/constant-arrival-rate/)：到达率场景需要足够VU，迭代与实际请求数分别记录。

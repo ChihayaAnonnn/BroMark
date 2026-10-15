@@ -554,7 +554,7 @@ HELD 超时只触发核对，不自动释放。恢复任务查询权威用户订
 
 | 阶段 | 主要变化 | 完成条件 |
 | --- | --- | --- |
-| 0 技术基线 | Java 17编译/测试/运行及容器升级、依赖统一、有效POM与依赖树、事务路由及资源许可验证、基础监控 | 字节码major=61、镜像Java 17、真实测试及启动通过；事务前路由、线程清理和资源隔离冒烟通过 |
+| 0 技术基线 | Java 25编译/测试/运行及容器升级、依赖统一、有效POM与依赖树、事务路由及资源许可验证、基础监控 | 字节码major=69、镜像Java 25、真实测试及启动通过；事务前路由、线程清理和资源隔离冒烟通过 |
 | 1 资产内核 | 唯一账户、流水回执、用户请求身份、条件扣减、周期桶及上限、事务错误传播、最小Outbox结构 | 并发扣减、原回执回放、首次建桶和日期边界通过；期初与流水可解释余额 |
 | 2 签到与兑换闭环 | 同库签到奖励、原子兑换、不限库存SKU、旧写入口清点 | 每日唯一签到、整单回滚、增额与新周期初始化通过；所有入口明确切换方案 |
 | 3 可靠消息 | 每库Outbox与消费Inbox、租约、Confirm与Return、退避、核查暂停及人工恢复、关闭排空 | 多实例与中断实验通过；各物理分表可恢复，旧task与已发消息去重迁移验证通过 |
@@ -589,7 +589,7 @@ HELD 超时只触发核对，不自动释放。恢复任务查询权威用户订
 | 在线分片扩容 | 单分片容量达到规划边界 | 路由版本、迁移栅栏、增量追赶、切换和回退 |
 | 限量售卖次数SKU | 需要限制次数包总销售量 | 独立SKU库存预留、扣款与确认协议、取消和超时恢复 |
 | 外部奖品履约 | 需要券码或实物奖品 | 供应方幂等与查单契约、交付凭据、未知结果及人工核查 |
-| 后续平台升级 | 框架或更高JDK维护要求、组件兼容验证完成 | 在已升级Java 17基础上评估Boot 3与更高JDK、javax/jakarta改造、路由与事务兼容回归 |
+| 后续平台升级 | 框架或更高JDK维护要求、组件兼容验证完成 | 在Java25/Boot3.5基线上评估后续受支持版本，独立验证路由、事务和身份兼容性 |
 
 最终简历内容应对应可展示的成果：事务与状态图、数据约束、故障恢复记录、压测配置、原始结果、资源曲线和账实校验。只有完成实验后，才能填写成功吞吐、P99变化、排空耗时等数字；不得把请求发送量、受理量或累计用户数写成交易处理能力。
 
@@ -631,6 +631,6 @@ HELD 超时只触发核对，不自动释放。恢复任务查询权威用户订
 - [RabbitMQ发布确认与消费确认](https://www.rabbitmq.com/docs/confirms)：分别处理发布到broker与消费处理两个环节。
 - [RabbitMQ消费预取](https://www.rabbitmq.com/docs/consumer-prefetch)：限制未确认消息，需配合业务线程及数据库预算。
 - [Transactional Outbox](https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/transactional-outbox.html)：本地事务解决业务写入与事件记录双写，消费端仍需处理重复。
-- [Spring Boot 2.7.12依赖管理](https://docs.spring.io/spring-boot/docs/2.7.12/reference/html/dependency-versions.html)：本次兼容基线应统一解析版本，不能混用不同大版本starter。
-- [Spring Boot 2.7.12系统要求](https://docs.spring.io/spring-boot/docs/2.7.12/reference/html/getting-started.html)：Java 17处于其官方兼容范围；本项目的第三方组件仍需实测。
-- [Spring Boot 3.2系统要求](https://docs.spring.io/spring-boot/docs/3.2.0/reference/html/getting-started.html)：Java 17与Spring Framework 6是该系列基线，升级需独立验证。
+- [Spring Boot 3.5依赖管理](https://docs.spring.io/spring-boot/3.5/appendix/dependency-versions/coordinates.html)：使用统一BOM，不能混用不同大版本starter。
+- [Spring Boot 3.5系统要求](https://docs.spring.io/spring-boot/3.5/system-requirements.html)：Java25兼容要求；第三方组件已单独验收，证据见升级记录。
+- [Spring Boot 3迁移说明](https://github.com/spring-projects/spring-boot/wiki/Spring-Boot-3.0-Migration-Guide)：自动配置注册与Jakarta迁移依据。
