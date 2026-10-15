@@ -58,7 +58,7 @@ public final class ExchangeService {
 
   public ExchangeResult exchange(ExchangeCommand c) {
     var identity = identity(c);
-    var old = tx.inUser(c.userId(), WorkClass.QUERY, c.deadline(), () -> repo.request(identity));
+    var old = tx.inUser(c.userId(), WorkClass.TRADE, c.deadline(), () -> repo.request(identity));
     if (old.isPresent()) return old.get();
     var snapshot = admission.forExchange(c.userId(), c.sku(), c.configVersion(), c.deadline());
     ids.prefetch();

@@ -51,11 +51,11 @@ public final class SignInService {
             "SIGNIN",
             c.requestId(),
             new RequestHasher().hash("SIGNIN", Map.of("date", c.targetDate().toString())));
-    var replay = tx.inUser(c.userId(), WorkClass.QUERY, c.deadline(), () -> repo.request(identity));
+    var replay = tx.inUser(c.userId(), WorkClass.TRADE, c.deadline(), () -> repo.request(identity));
     if (replay.isPresent()) return replay.get();
     var sameDay =
         tx.inUser(
-            c.userId(), WorkClass.QUERY, c.deadline(), () -> repo.day(c.userId(), c.targetDate()));
+            c.userId(), WorkClass.TRADE, c.deadline(), () -> repo.day(c.userId(), c.targetDate()));
     if (sameDay.isPresent())
       return tx.inUser(
           c.userId(),

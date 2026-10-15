@@ -8,11 +8,13 @@ build_image=maven:3.9-eclipse-temurin-25@sha256:93b8a14ea2f412782e4e842651273b4d
 export ROUTER_MYSQL_PASSWORD="$V2_MYSQL_PASSWORD"
 export ROUTER_MYSQL_HOST=${ROUTER_MYSQL_HOST:-${V2_MYSQL_HOST:-host.docker.internal:13316}}
 mkdir -p "$cache_dir"
-docker run --rm -e ROUTER_MYSQL_PASSWORD -e ROUTER_MYSQL_HOST \
+if [ -n "${V2_TEST_DOCKER_NETWORK:-}" ]; then set -- --network "$V2_TEST_DOCKER_NETWORK"; else set --; fi
+test_selector=${V2_TEST_SELECTOR:-'Router*Test,*V2Test,Java25RouterIntegrationTest,V2FoundationWiringTest,AliasMethodAlgorithmTest'}
+docker run --rm "$@" -e V2_REDIS_CLUSTER_NODES -e ROUTER_MYSQL_PASSWORD -e ROUTER_MYSQL_HOST \
   -e V2_MYSQL_PASSWORD -e V2_MYSQL_HOST -e V2_RABBIT_PASSWORD \
   -e V2_RABBIT_HOST -e V2_RABBIT_PORT -e V2_REDIS_HOST -e V2_REDIS_PORT \
   -v "$project_root:/workspace" -v "$cache_dir:/m2" -w /workspace "$build_image" \
   mvn -B -ntp -Dmaven.repo.local=/m2 -pl bm-app -am -DskipTests=false \
-  -Dsurefire.failIfNoSpecifiedTests=false '-Dtest=Router*Test,*V2Test,Java25RouterIntegrationTest,V2FoundationWiringTest,AliasMethodAlgorithmTest' clean package
+  -Dsurefire.failIfNoSpecifiedTests=false "-Dtest=$test_selector" clean package
 docker build -t bromark-v2:java25-it "$project_root/bm-app"
 docker run --rm --entrypoint java bromark-v2:java25-it -version

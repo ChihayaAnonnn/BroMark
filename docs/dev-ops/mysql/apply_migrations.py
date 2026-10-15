@@ -43,6 +43,8 @@ def apply(env, through, dry_run, mode):
                 if env != 'v2-it' or os.environ.get('V2_MIGRATION_ALLOW') != 'isolated-router-test-only':
                     raise RuntimeError('actual execution requires v2-it and isolated test allowlist')
                 mysql(database, 'CREATE TABLE IF NOT EXISTS schema_migration(script varchar(255) PRIMARY KEY,checksum char(64) NOT NULL,step int NOT NULL) ENGINE=InnoDB;')
+                # Reserve immutable identity before ANY business DDL (including upgrade ALTER).
+                mysql(database, f"INSERT INTO schema_migration VALUES('{identity}','{checksum}',0) ON DUPLICATE KEY UPDATE script=script")
                 old = mysql(database, f"SELECT CONCAT(checksum,':',step) FROM schema_migration WHERE script='{identity}'")
                 step = 0
                 if old:

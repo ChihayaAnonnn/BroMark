@@ -21,7 +21,7 @@ bm:
     local-fallback-rps: 1
 ```
 
-以上数字仅为隔离验收配置，不是容量结论。Redis故障使用每实例、每类别共享的保守预算，local-fallback-rps不能大于用户、活动或查询额度。交易与查询使用不同在途许可；数据库CALLBACK预算沿用阶段0，支付通知入口预算由阶段5接入，不能借用交易额度。固定秒窗口允许跨窗口边界突发，max-in-flight与数据库预算继续限制实际并发。
+以上数字仅为隔离验收配置，不是容量结论。Redis故障使用每实例、每类别共享的保守预算，local-fallback-rps不能大于用户、活动或查询额度。交易与查询使用不同在途许可；数据库CALLBACK预算沿用阶段0，支付通知入口预算由阶段5接入，不能借用交易额度。Lua仅操作传入键（hash保存窗口与计数），兼容Redis Cluster。Redis异步等待最多200ms且不超过请求剩余时间，超时取消等待并释放在途许可；固定秒窗口允许跨窗口边界突发，max-in-flight与数据库预算继续限制实际并发。
 
 V2模式停止三类旧资产监听器启动，同时在旧HTTP交易、积分仓储、发奖仓储和旧账户DAO写操作设置写门。直接重投旧消息会抛出迁移身份缺失异常，不作为成功Ack；历史订单/消息排空与身份导入属于阶段6。不要在仍运行的实例上只修改配置文件来宣称切换完成，必须维护窗口内统一停写、排空并重启验证。
 
@@ -37,7 +37,7 @@ V2_MIGRATION_ALLOW=isolated-router-test-only python3 docs/dev-ops/mysql/apply_mi
 V2_MIGRATION_ALLOW=isolated-router-test-only python3 docs/dev-ops/mysql/apply_migrations.py --env v2-it --through 002 --mode upgrade
 ```
 
-脚本默认只列router_control/router_one/router_two；生产env只能dry-run。001旧账户升级不SUM、不覆盖available_amount、不自动回填期初或提前增加唯一约束，最终审计及约束归006。已提交DDL不DROP回滚；schema_migration保存脚本及升级字段摘要、逐语句进度，校验和变化即拒绝重入。中断时先检查information_schema再执行同一版本，已创建对象采用IF NOT EXISTS。
+脚本默认只列router_control/router_one/router_two；生产env只能dry-run。001旧账户升级不SUM、不覆盖available_amount、不自动回填期初或提前增加唯一约束，最终审计及约束归006。已提交DDL不DROP回滚；schema_migration保存脚本及升级字段摘要、逐语句进度；任何业务DDL前先持久化step=0校验和记录，校验和变化即拒绝重入。中断时先检查information_schema再执行同一版本，已创建对象采用IF NOT EXISTS。
 
 db00的v2_admission_config是本阶段的SQL发布面：EXCHANGE键为sku，SIGNIN键为daily，ACTIVITY键为次数奖励activityId。snapshot遵循AdmissionSnapshot的JSON结构，价格使用十进制字符串，必须由可信运维发布完整不可变权益。签到读取全部次数奖励活动的权威状态和有效期，取有效期交集；v2_asset_blacklist按用户拒绝新交易。策略配置发布流程在阶段4完成。
 
@@ -60,6 +60,8 @@ db00的v2_admission_config是本阶段的SQL发布面：EXCHANGE键为sku，SIGN
 # 需要Docker与python3；不需要宿主Java/Maven。
 docker compose -f docs/dev-ops/docker-compose-v2-test.yml up -d
 MAVEN_CACHE_DIR=/tmp/bromark-router-audit-20261015/m2 docs/operations/verify-assets.sh
+# 验证脚本另启动三节点隔离Redis Cluster，无外部端口；停止：
+docker compose -f docs/dev-ops/docker-compose-v2-redis-cluster.yml stop
 ```
 
 迁移测试仅清理专用router_migration_it/router_migration_checksum_it测试库的表，不清理其他服务数据库。Java测试使用MySQL InnoDB、实际路由事务及Redis Lua；完整应用启动测试通过命令行显式只启用v2-it，避免默认dev profile叠加。历史演示测试含无限等待，完整旧套件另作限时检查并报告，不能宣称全库测试通过。

@@ -67,20 +67,34 @@ public final class RedisRequestAdmission implements RequestAdmission {
     if (org.springframework.transaction.support.TransactionSynchronizationManager
         .isActualTransactionActive())
       throw new IllegalStateException("Redis admission must precede database transaction");
+    org.redisson.api.RFuture<Number> pending = null;
     try {
       if (redis == null) throw new IllegalStateException("Redis unavailable");
       String hash = new RequestHasher().hash("ADMISSION", Map.of("identity", identity));
-      Number n =
+      pending =
           redis
               .getScript(StringCodec.INSTANCE)
-              .eval(
+              .evalAsync(
                   RScript.Mode.READ_WRITE,
                   script,
                   RScript.ReturnType.INTEGER,
                   List.of("bm:v2:admission:" + category + ":" + hash),
                   Integer.toString(limit));
+      Number n =
+          pending.get(
+              Math.min(
+                  d.remaining().toNanos(), java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(200)),
+              java.util.concurrent.TimeUnit.NANOSECONDS);
       allowed = n.longValue() == 1;
-    } catch (RuntimeException e) {
+    } catch (InterruptedException e) {
+      if (pending != null) pending.cancel(true);
+      Thread.currentThread().interrupt();
+      throw new BudgetExceededException("Admission interrupted");
+    } catch (java.util.concurrent.TimeoutException
+        | java.util.concurrent.ExecutionException
+        | RuntimeException e) {
+      if (pending != null) pending.cancel(true);
+      deadline(d);
       allowed = fallback(category);
     }
     deadline(d);
