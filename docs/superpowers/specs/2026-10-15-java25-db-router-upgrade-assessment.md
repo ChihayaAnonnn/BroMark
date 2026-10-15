@@ -2,6 +2,10 @@
 
 评估日期：2026-10-15。用户已选择 Java 25 LTS 为升级目标。
 
+## 当前模块归属
+
+用户确认Router为其此前开发的模块，并要求整合。当前实现位于BroMark/bm-router，与应用统一构建；下文独立下载、许可排查及本地安装描述是前期评估历史，不再作为当前构建流程。当前无需平级源码仓库或预先安装JAR。
+
 ## 结论与技术选型
 
 可以推进升级，但 `cn.bugstack.middleware:db-router-spring-boot-starter:1.0.2` 不能作为 Boot 3 的直接替换依赖。建议采用 Java 25、Spring Boot 3.5.16、MyBatis Starter 3.0.5，并维护一个具有独立坐标的 DB Router 适配版本。初始评估完成源码下载、原版行为验证和隔离原型。随后已完成正式本地适配与BroMark Java25/阶段0实施：Router28项、BroMark17项针对性测试通过，镜像已启动验证；[执行报告](../../verification/2026-10-15-java25-foundation/README.md)记录全量旧测试超时及遗留项。未发布适配制品或部署。

@@ -1,0 +1,149 @@
+{
+  "module": "bm-router",
+  "coordinate": "com.jay.middleware:db-router-spring-boot-starter:2.0.0-SNAPSHOT",
+  "standaloneInstallRequired": false,
+  "sourceFilesCopiedUnchanged": 21,
+  "groups": {
+    "bm-router": {
+      "total": 28,
+      "classes": [
+        {
+          "class": "audit.RouterAcceptanceTest",
+          "tests": 8,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "audit.RouterTransactionContractTest",
+          "tests": 5,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "audit.RouterSqlBoundaryTest",
+          "tests": 11,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "audit.RouterLifecycleTest",
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "audit.RouterMySqlIntegrationTest",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        }
+      ]
+    },
+    "bm-app": {
+      "total": 17,
+      "classes": [
+        {
+          "class": "com.jay.test.v2.BuildBaselineV2Test",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "com.jay.test.v2.Java25RouterIntegrationTest",
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "com.jay.test.domain.strategy.AliasMethodAlgorithmTest",
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "com.jay.test.v2.MiddlewareSmokeV2Test",
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "com.jay.test.v2.RoutingTransactionV2Test",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "com.jay.test.v2.DatabaseBudgetV2Test",
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "com.jay.test.v2.V2IdentityV2Test",
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "class": "com.jay.test.v2.V2FoundationWiringTest",
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        }
+      ]
+    }
+  },
+  "bytecode": {
+    "bm-api": {
+      "count": 24,
+      "major": 69
+    },
+    "bm-types": {
+      "count": 8,
+      "major": 69
+    },
+    "bm-trigger": {
+      "count": 20,
+      "major": 69
+    },
+    "bm-app": {
+      "count": 15,
+      "major": 69
+    },
+    "bm-infrastructure": {
+      "count": 65,
+      "major": 69
+    },
+    "bm-domain": {
+      "count": 216,
+      "major": 69
+    },
+    "bm-router": {
+      "count": 16,
+      "major": 69
+    }
+  },
+  "routerJarSha256": "7c0f8e8245529c87960cfdbce7a5b15837b0398cbda602788f67f9935080679c",
+  "applicationJarSha256": "4109cc85dd8302265c6556b78ca15f0ee589ec063389f2f537f34a9f0ae4a25e",
+  "imageId": "sha256:150b83da036e3da5dfbf8e94953f29c4677adc19d1bc3984385bd1903e9552b4",
+  "imageSmoke": {
+    "health": {
+      "status": "UP"
+    },
+    "armoryCode": "200",
+    "armoryResult": true
+  }
+}

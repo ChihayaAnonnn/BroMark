@@ -8,6 +8,7 @@
     <packaging>pom</packaging>
 
     <modules>
+        <module>bm-router</module>
         <module>bm-api</module>
         <module>bm-app</module>
         <module>bm-domain</module>

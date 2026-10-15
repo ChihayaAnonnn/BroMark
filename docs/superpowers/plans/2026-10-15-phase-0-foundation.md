@@ -66,7 +66,7 @@ assertEquals(69, classFileMajorVersion(com.jay.Application.class));
 
 - [x] **Step 2 — 验证失败。** 运行 `mvn -pl bm-app -am -DskipTests=false -Dsurefire.failIfNoSpecifiedTests=false -Dtest=BuildBaselineV2Test test`。预期相关行为断言失败；新接口尚不存在时编译失败也属于本步红灯，但不能以依赖不可用或测试被跳过代替行为失败。
 - [x] **Step 3 — 统一依赖与测试发现。** 移除Surefire 2.6覆盖，使用Boot父POM管理版本；skipTests默认改false。保留JUnit 4并加入BOM管理的junit-vintage-engine测试依赖，防止JUnit Platform遗漏旧测试。如果Step 2未发现测试，先仅修复发现配置，重跑确认上述版本断言确实失败。AMQP、Redis、Actuator与Micrometer去掉跨版本覆盖，启用所需Actuator/Prometheus依赖；validation使用Boot 3配套Jakarta体系，保持现有接口契约。
-- [x] **Step 3a — 统一 Java 25 编译与运行。** 根POM设置java.version=25和maven.compiler.release=25，移除旧source=8/target=8及子模块重复source/target/compilerVersion覆盖，让六模块继承同一release配置。Maven本身和Surefire fork也使用JDK 25，核对java -version、javac -version与mvn -version；具体25补丁版本和供应商在实施时记录并锁定。Dockerfile改用经amd64/arm64验证的Java 25 JRE镜像并记录digest；启动命令用exec，JAVA_OPTS放在-jar之前，避免把JVM选项当成jar文件名。build.sh记录镜像标签/digest和目标架构，不能继续把Java 25产物装入Java 8镜像。
+- [x] **Step 3a — 统一 Java 25 编译与运行。** 根POM设置java.version=25和maven.compiler.release=25，移除旧source=8/target=8及子模块重复source/target/compilerVersion覆盖，让七模块继承同一release配置。Maven本身和Surefire fork也使用JDK 25，核对java -version、javac -version与mvn -version；具体25补丁版本和供应商在实施时记录并锁定。Dockerfile改用经amd64/arm64验证的Java 25 JRE镜像并记录digest；启动命令用exec，JAVA_OPTS放在-jar之前，避免把JVM选项当成jar文件名。build.sh记录镜像标签/digest和目标架构，不能继续把Java 25产物装入Java 8镜像。
 - [x] **Step 3b — 核对 Java 25 兼容性。** 验证Lombok注解处理、MyBatis、DB Router动态代理/ThreadLocal路由、Redisson及fastjson/fastjson2序列化。检查JDK移除模块和强封装导致的编译或反射异常，优先升级兼容组件或显式补入所需API；禁止用宽泛--add-opens掩盖问题，确需单项开放必须记录组件、原因和去除条件。Java升级不顺带重写业务为record，数据库预算完成后显式启用受控虚拟线程。保存effective-pom、依赖树及兼容检查表。
 - [x] **Step 4 — 验证通过。** 重跑同一命令，要求目标测试实际执行、failures=0、errors=0、skipped=0，并核对 `bm-app/target/surefire-reports` 中该类计数；集成测试依赖不可用时记录未完成，不能改成 mock 后声称并发或恢复已验收。另运行 `mvn -pl bm-app -am -DskipTests=false -Dsurefire.failIfNoSpecifiedTests=false -Dtest=AliasMethodAlgorithmTest,BuildBaselineV2Test test`，要求旧Alias算法回归实际执行。
 - [x] **Step 4a — 验证产物与镜像。** 执行 `mvn -DskipTests package` 验证打包，再执行 `docker build -t bromark-v2:jdk25-it bm-app` 和 `docker run --rm --entrypoint java bromark-v2:jdk25-it -version`，确认镜像内为25。此任务先完成不依赖业务环境的版本和打包检查；同一镜像的数据库、路由与序列化启动冒烟在0.2建立隔离环境后完成，不倒置任务依赖。保存镜像digest、JVM参数与测试报告；打包或容器能显示版本不替代行为测试。回退使用匹配的旧产物/旧运行时组合，Java 25新包不能降回Java 8运行；新业务状态的回滚仍遵守阶段6协议。
@@ -173,7 +173,7 @@ assertEquals("u1", authenticatedResponse.getContentAsString());
 
 ## 阶段退出条件
 
-0.1—0.4真实测试通过；六模块release=25、Application字节码major=69、Maven与镜像运行时为25；保存依赖树、JDK供应商与补丁、中间件版本、镜像digest、兼容检查表、连接预算和隔离环境说明。后续计划不能绕过事务执行器、许可和认证。
+0.1—0.4真实测试通过；七模块release=25、Application字节码major=69、Maven与镜像运行时为25；保存依赖树、JDK供应商与补丁、中间件版本、镜像digest、兼容检查表、连接预算和隔离环境说明。后续计划不能绕过事务执行器、许可和认证。
 
 ## 本次执行结果
 

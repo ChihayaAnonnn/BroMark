@@ -62,3 +62,7 @@
 - Final: Ruling: only tested shutdown/permit drain is claimed, not all forced-timeout failures — recovery validation belongs to later phases; cost if wrong: long JDBC interruption/drain requires fault tests before rollout.
 - Final: Ruling: dependency versions/images rely on recorded live pulls — patch/architecture evidence retained; cost if wrong: refresh vendor patch selection before deployment.
 - Final: Ruling: inherited legacy asset/recovery behavior is outside foundation scope — no rewrite; cost if wrong: later business phases must close known reliability gaps.
+
+## 后续模块整合
+
+Router现已嵌入BroMark/bm-router，不再需要平级仓库或预先install。当前统一构建及复现入口见[模块整合验收](../2026-10-15-embedded-router/README.md)。本报告保留此前独立模块阶段的历史证据。

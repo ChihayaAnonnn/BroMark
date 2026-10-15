@@ -4,7 +4,7 @@
 
 **Goal:** 将设计稿拆成可独立测试、逐阶段评审和受控发布的实施任务。
 
-**Architecture:** 保留现有六个 Maven 模块与用户两库四表布局。用户资产操作使用同库短事务，支付与库存跨库通过 Outbox、Inbox、固定业务身份和状态机推进。按阶段0→1/2→3→4→5→6执行，不同时改造其他仓库。
+**Architecture:** 保留原六个业务Maven模块，新增bm-router技术模块与用户两库四表布局。用户资产操作使用同库短事务，支付与库存跨库通过 Outbox、Inbox、固定业务身份和状态机推进。按阶段0→1/2→3→4→5→6执行，不同时改造其他仓库。
 
 **Tech Stack:** Java 25、Spring Boot 3.5.16、MySQL 8.0 InnoDB、MyBatis、Redis、RabbitMQ、JUnit 5＋Vintage（兼容JUnit 4）、Maven。
 

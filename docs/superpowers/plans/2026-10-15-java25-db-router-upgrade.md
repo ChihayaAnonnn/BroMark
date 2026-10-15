@@ -4,7 +4,7 @@
 
 **Goal:** 将下载的 DB Router 原始源码改造成经过 MySQL 验收的 Boot 3 组件，并建立 BroMark 的 Java 25 构建与运行基线。
 
-**Architecture:** 独立维护 Router，不覆盖上游 Maven 坐标；保留现有分片映射。先完成组件的事务路由、SQL 支持边界和生命周期验收，再升级 BroMark；虚拟线程按入口逐步启用，使用既有数据库许可约束并发。
+**Architecture:** Router作为bm-router模块维护，保留既有内部坐标；保留现有分片映射。组件的事务路由、SQL支持边界和生命周期验收已完成，当前统一纳入BroMark构建；虚拟线程按入口逐步启用，使用既有数据库许可约束并发。
 
 **Tech Stack:** Java 25 LTS、Spring Boot 3.5.16、MyBatis Starter 3.0.5、JUnit 5（旧测试保留 Vintage）、MySQL 8.0 InnoDB、Docker、Maven。
 
@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- 路径默认相对工作区；BroMark 与 db-router-spring-boot-starter 是两个独立项目。
+- 当前Router已整合为BroMark/bm-router子模块，统一继承根POM；原独立仓库保留为历史快照，不再参与构建。
 - 原型仅供参考；正式实现已完成本地验收（Router28项、BroMark17项），证据见[执行报告](../../verification/2026-10-15-java25-foundation/README.md)。全量旧测试因无限等待超时，未宣称全量回归通过。
 - Router 正式坐标：`com.jay.middleware:db-router-spring-boot-starter:2.0.0-SNAPSHOT`；保留原 Java 包名，不覆盖上游 1.0.2。
 - 两库四表映射不变，db00 为控制库；活动事务不能修改数据库或表槽。
@@ -30,14 +30,14 @@
 ## Task 1: 正式化自动配置与事务路由
 
 **Files:**
-- Modify: `db-router-spring-boot-starter/pom.xml`
-- Modify: `db-router-spring-boot-starter/src/main/java/cn/bugstack/middleware/db/router/config/DataSourceAutoConfig.java`
-- Modify: `db-router-spring-boot-starter/src/main/java/cn/bugstack/middleware/db/router/DBContextHolder.java`
-- Modify: `db-router-spring-boot-starter/src/main/java/cn/bugstack/middleware/db/router/DBRouterJoinPoint.java`
-- Modify: `db-router-spring-boot-starter/src/main/java/cn/bugstack/middleware/db/router/strategy/impl/DBRouterStrategyHashCode.java`
-- Create: `db-router-spring-boot-starter/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`
-- Create: `db-router-spring-boot-starter/src/test/java/audit/RouterAcceptanceTest.java`
-- Create: `db-router-spring-boot-starter/src/test/java/audit/RouterTransactionContractTest.java`
+- Modify: `BroMark/bm-router/pom.xml`
+- Modify: `BroMark/bm-router/src/main/java/cn/bugstack/middleware/db/router/config/DataSourceAutoConfig.java`
+- Modify: `BroMark/bm-router/src/main/java/cn/bugstack/middleware/db/router/DBContextHolder.java`
+- Modify: `BroMark/bm-router/src/main/java/cn/bugstack/middleware/db/router/DBRouterJoinPoint.java`
+- Modify: `BroMark/bm-router/src/main/java/cn/bugstack/middleware/db/router/strategy/impl/DBRouterStrategyHashCode.java`
+- Create: `BroMark/bm-router/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`
+- Create: `BroMark/bm-router/src/test/java/audit/RouterAcceptanceTest.java`
+- Create: `BroMark/bm-router/src/test/java/audit/RouterTransactionContractTest.java`
 
 **Interfaces:**
 - Consumes: 原有 `IDBRouterStrategy.doRouter(String)`、`setDBKey(int)`、`setTBKey(int)`、`clear()`。
@@ -52,13 +52,13 @@
 ## Task 2: SQL 边界、连接池生命周期与 MySQL 验收
 
 **Files:**
-- Modify: `db-router-spring-boot-starter/src/main/java/cn/bugstack/middleware/db/router/dynamic/DynamicMybatisPlugin.java`
-- Modify: `db-router-spring-boot-starter/src/main/java/cn/bugstack/middleware/db/router/dynamic/DynamicDataSource.java`
-- Modify: `db-router-spring-boot-starter/src/main/java/cn/bugstack/middleware/db/router/config/DataSourceAutoConfig.java`
-- Create: `db-router-spring-boot-starter/src/test/java/audit/RouterSqlBoundaryTest.java`
-- Create: `db-router-spring-boot-starter/src/test/java/audit/RouterLifecycleTest.java`
-- Create: `db-router-spring-boot-starter/src/test/java/audit/RouterMySqlIntegrationTest.java`
-- Create: `db-router-spring-boot-starter/docs/sql-support.md`
+- Modify: `BroMark/bm-router/src/main/java/cn/bugstack/middleware/db/router/dynamic/DynamicMybatisPlugin.java`
+- Modify: `BroMark/bm-router/src/main/java/cn/bugstack/middleware/db/router/dynamic/DynamicDataSource.java`
+- Modify: `BroMark/bm-router/src/main/java/cn/bugstack/middleware/db/router/config/DataSourceAutoConfig.java`
+- Create: `BroMark/bm-router/src/test/java/audit/RouterSqlBoundaryTest.java`
+- Create: `BroMark/bm-router/src/test/java/audit/RouterLifecycleTest.java`
+- Create: `BroMark/bm-router/src/test/java/audit/RouterMySqlIntegrationTest.java`
+- Create: `BroMark/bm-router/docs/sql-support.md`
 - Create: `db-router-spring-boot-starter/docs/docker-compose-it.yml`
 
 **Interfaces:**
@@ -93,3 +93,7 @@
 - [x] **Step 3 — 迁移依赖和运行时。** 安装内部 Router 至本地 Maven 仓库供隔离验证；Boot 统一至 3.5.16、MyBatis Starter 至 3.0.5，移除跨 BOM 覆盖。release=25，确认 Lombok 在 Java 25 的显式 annotationProcessorPaths 配置；迁移 Jakarta EE API 和 Spring Security 6，回归原认证/授权语义。Docker 和 Maven 运行时统一 25；JAVA_OPTS 放在 -jar 之前。数据库许可边界完成前不开启虚拟线程入口；启用时显式配置自定义 Executor 生命周期和并发准入，不假定 Boot 开关能替换它。同步设计与所有计划中的 Java 17、major=61、javax/Security 5 基线。
 - [x] **Step 4 — 验证整体。** 在 BroMark 运行 `mvn -pl bm-app -am -DskipTests=false -Dsurefire.failIfNoSpecifiedTests=false -Dtest=BuildBaselineV2Test,Java25RouterIntegrationTest,AliasMethodAlgorithmTest test`，核对新旧测试实际计数；执行完整测试并区分环境失败。构建镜像、验证镜像 Java 25，再在隔离环境执行真实 DAO、MQ/Redis、序列化及认证冒烟。虚拟线程入口断言实际 `Thread.currentThread().isVirtual()`，验证许可上限和关闭释放；不宣称未测吞吐提升。保存依赖树、effective-pom、镜像 digest、测试计数和未解决项。
 - [x] **Step 5 — 提交与衔接。** 检查 diff 和文档基线一致性，提交可回退的依赖/运行时迁移；不变更生产数据库和部署。通过后继续阶段0的事务执行器、数据库预算及身份入口任务。
+
+## 模块整合更新
+
+用户确认Router为其此前开发的模块，要求嵌入BroMark。当前源码位于bm-router，保留内部坐标和Java包名，根Reactor自动先构建Router再构建调用方。verify-java25.sh改为一次clean package运行Router和应用验收，不再执行平级仓库install。旧独立改造阶段的历史记录保留，当前集成结果见docs/verification/2026-10-15-embedded-router/。

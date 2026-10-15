@@ -7,7 +7,7 @@
 保留javax.sql；未发现现有Spring Security配置或javax.validation调用。
 现有自定义Executor调用点：ThreadPoolConfig、SendMessageTaskJob、AwardRepository；虚拟线程开关不会替换它们。
 默认不启用全局虚拟线程，阶段0预算完成后显式有界worker启用。
-Router仅本地安装，源仓库独立维护；未验证上游再分发许可，不发布。
+Router已整合为bm-router子模块，源码与BroMark统一维护和构建，无需平级仓库或预先安装制品。
 
 ## Jakarta迁移完整清单
 
@@ -63,7 +63,7 @@ Router仅本地安装，源仓库独立维护；未验证上游再分发许可�
 
 ## 全部分表SQL
 
-对应独立Router仓库 src/test/resources/bromark-sharded-sql.tsv：5个Mapper共13条语句，全部AST范围检查通过。
+对应bm-router/src/test/resources/bromark-sharded-sql.tsv：5个Mapper共13条语句，全部AST范围检查通过。
 
 ## 资源与身份
 
