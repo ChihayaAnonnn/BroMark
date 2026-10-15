@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS v2_admission_config(config_type varchar(16) NOT NULL,config_key varchar(64) COLLATE utf8mb4_bin NOT NULL,snapshot json NOT NULL,PRIMARY KEY(config_type,config_key)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;

@@ -18,6 +18,18 @@
       "scope": "all",
       "shards": 1,
       "sha256": "57e7a7e8f896792f560d3d2fd1655d49e1e318a97367e2bddaf52c1fb4cbd467"
+    },
+    {
+      "file": "002_signin_exchange.sql",
+      "scope": "user",
+      "shards": 4,
+      "sha256": "8bcb96bb3bf76d2fd2a899dd7b5eb89e4b08ca469f6e201811a30bc1b6d7e1f5"
+    },
+    {
+      "file": "002_admission_config.sql",
+      "scope": "control",
+      "shards": 1,
+      "sha256": "13122b30f100f9522710d1dd1e206f60c24a39bfb56efa4c9217a7ef5e475dab"
     }
   ]
 }

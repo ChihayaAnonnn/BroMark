@@ -13,7 +13,10 @@ public final class AssetTestSupport {
  final JdbcTemplate j; final RoutedTransactionRunner runner; final AssetKernel assets; final MySqlAssetRepository repo;
  final RouteCodec codec=new RouteCodec(2,4);
  AssetTestSupport(DataSource ds,PlatformTransactionManager tm){
-  j=new JdbcTemplate(ds);runner=new RoutedTransactionRunner(ds,tm,codec);
+  j=new JdbcTemplate(ds);
+  var metrics=new io.micrometer.core.instrument.simple.SimpleMeterRegistry();
+  var limits=new java.util.EnumMap<WorkClass,Integer>(WorkClass.class);for(var w:WorkClass.values())limits.put(w,1);limits.put(WorkClass.TRADE,4);
+  runner=new RoutedTransactionRunner(ds,tm,codec,new BoundedDatabaseBudget(java.util.Map.of("it",limits),metrics),java.util.Map.of("00","it","01","it","02","it"),metrics);
   repo=new MySqlAssetRepository(ds);assets=new AssetKernel(repo,new DatabaseBusinessClock(ds));
  }
  interface CheckedConsumer {void accept(AssetTestSupport h) throws Exception;}
