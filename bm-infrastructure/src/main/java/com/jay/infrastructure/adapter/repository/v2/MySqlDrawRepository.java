@@ -1,0 +1,16 @@
+package com.jay.infrastructure.adapter.repository.v2;
+import com.jay.domain.raffle.model.*;import com.jay.domain.raffle.repository.*;import com.jay.domain.asset.model.*;import com.jay.domain.task.model.*;import org.springframework.jdbc.core.JdbcTemplate;import javax.sql.DataSource;import java.util.*;
+public final class MySqlDrawRepository implements DrawRepository {
+ private final JdbcTemplate j;public MySqlDrawRepository(DataSource ds){j=new JdbcTemplate(ds);}
+ private String table(){return MySqlAssetRepository.table("v2_draw_order");}
+ public Optional<String> request(RequestIdentity id){return RequestReceipts.find(j,id,String.class);}
+ public DrawRecord find(String order,boolean lock){return j.queryForObject("select snapshot,state,recovery_status,version from "+table()+" where order_id=?"+(lock?" for update":""),(rs,n)->{var r=JsonStore.read(rs.getString(1),DrawRecord.class);return new DrawRecord(r.orderId(),r.userId(),r.activityId(),r.requestHash(),r.identityHash(),r.version(),r.time(),r.ruleInput(),r.strategy(),rs.getString(2),RecoveryStatus.valueOf(rs.getString(3)),rs.getLong(4),r.candidate(),r.fallback(),r.finalAward());},order);}
+ public void insert(RequestIdentity id,DrawRecord r){j.update("insert into "+table()+"(order_id,user_id,activity_id,state,snapshot) values(?,?,?,?,?)",r.orderId(),r.userId(),r.activityId(),r.state(),JsonStore.write(r));RequestReceipts.save(j,id,r.orderId(),r.state(),r.orderId());}
+ public boolean update(DrawRecord old,DrawRecord next){return j.update("update "+table()+" set state=?,snapshot=?,version=version+1,last_progress_at=UTC_TIMESTAMP(6),confirmed_at=case when ?='COMMITTED' then UTC_TIMESTAMP(6) else confirmed_at end,delivered_at=case when ?='DELIVERED' then UTC_TIMESTAMP(6) else delivered_at end where order_id=? and state=? and version=? and recovery_status='ACTIVE'",next.state(),JsonStore.write(next),next.state(),next.state(),old.orderId(),old.state(),old.objectVersion())==1;}
+ public void award(DrawRecord r,String state){j.update("insert into "+MySqlAssetRepository.table("v2_award_record")+"(order_id,user_id,state,snapshot) values(?,?,?,?) on duplicate key update state=values(state)",r.orderId(),r.userId(),state,JsonStore.write(r.finalAward()));}
+ public void delivered(DrawRecord r){j.update("insert into "+MySqlAssetRepository.table("v2_award_delivery")+"(order_id,user_id,award_hash,snapshot) values(?,?,?,?)",r.orderId(),r.userId(),r.finalAward().configHash(),JsonStore.write(r.finalAward()));award(r,"DELIVERED");}
+ public RecoveryAggregate lock(String id){var r=find(id,true);return new RecoveryAggregate(id,r.state(),r.recoveryStatus(),r.objectVersion());}
+ public boolean updateStatus(String id,long version,RecoveryStatus s){return j.update("update "+table()+" set recovery_status=?,version=version+1 where order_id=? and version=?",s.name(),id,version)==1;}
+ public boolean terminal(RecoveryAggregate r){return Set.of("REJECTED","CANCELLED","DELIVERED").contains(r.state());}
+ public List<String> scanActive(int limit){return j.query("select order_id from "+table()+" where recovery_status='ACTIVE' and state in('ACCEPTED','CANDIDATE_FIXED','RESULT_RECORDED','COMMITTED','CANCELLING') order by last_progress_at,order_id limit ?",(rs,n)->rs.getString(1),limit);}
+}

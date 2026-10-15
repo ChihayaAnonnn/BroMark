@@ -1,0 +1,8 @@
+package com.jay.domain.raffle.service;
+import com.jay.domain.raffle.repository.*;import com.jay.domain.strategy.model.*;import com.jay.domain.strategy.service.*;import com.jay.domain.asset.service.*;import com.jay.domain.asset.model.*;import com.jay.domain.stock.model.*;import com.jay.domain.task.model.*;import com.jay.domain.task.repository.*;import java.util.*;
+public final class CandidateWorker {
+ private final DrawRepository repo;private final FrozenRaffleEngine engine;private final RouteCodec codec;private final OutboxWriter out;
+ public CandidateWorker(DrawRepository r,Object cache,FrozenRaffleEngine e,RouteCodec c,OutboxWriter o){repo=r;engine=e;codec=c;out=o;}
+ public void prepare(EventEnvelope event){var r=repo.find(event.aggregateId(),true);if(!r.userId().equals(event.userId())||!r.requestHash().equals(event.requestHash()))throw new AssetConflictException("Draw event changed");prepareFrozen(r.orderId(),r.strategy(),new Random());}
+ public void prepareFrozen(String order,FrozenStrategy f,Random random){var r=repo.find(order,true);if(r.recoveryStatus()!=RecoveryStatus.ACTIVE)throw new AssetConflictException("Draw paused");if(!r.state().equals("ACCEPTED"))return;if(!r.version().equals(f.version()))throw new AssetConflictException("Strategy changed");var candidate=engine.choose(f,r.ruleInput(),random);var fallback=engine.fallback(f,random);var next=r.transition("CANDIDATE_FIXED",candidate,fallback,null);if(repo.update(r,next)){var cmd=new ReserveCommand(r.orderId(),r.userId(),r.identityHash(),r.requestHash(),f.strategyId(),r.version(),candidate,fallback);out.append(DrawService.event(next,"ReserveAward",RouteSlot.control(),codec.newEventId(),ReceiptJson.write(cmd)));}}
+}
