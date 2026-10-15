@@ -4,6 +4,10 @@ import com.jay.domain.asset.model.RouteSlot;
 
 public final class RouteCodec {
   private final int dbCount, tbCount;
+  private OrderIdGenerator generator;
+  public RouteCodec withGenerator(OrderIdGenerator generator){this.generator=java.util.Objects.requireNonNull(generator);return this;}
+  public String newOrderId(String type,String user){if(generator==null)throw new IllegalStateException("ID generator required");return generator.next(type,routeUser(user));}
+  public String newEventId(){if(generator==null)throw new IllegalStateException("ID generator required");return generator.next("EV",RouteSlot.control());}
 
   public RouteCodec(int dbCount, int tbCount) {
     if (dbCount != 2 || tbCount != 4)
