@@ -13,8 +13,20 @@ public final class PaymentRecoveryJob {
     this.ids = ids;
   }
 
+  private CoalescingJobDispatcher dispatcher;
+
+  public PaymentRecoveryJob dispatchWith(CoalescingJobDispatcher dispatcher) {
+    this.dispatcher = dispatcher;
+    return this;
+  }
+
   @Scheduled(fixedDelayString = "${bm.v2.payment.recovery-delay-ms:10000}")
   public void tick() {
+    if (dispatcher == null) runWork();
+    else dispatcher.submit("payment", this::runWork);
+  }
+
+  private void runWork() {
     ids.prefetch();
     service.tick();
   }

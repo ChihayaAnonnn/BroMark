@@ -97,6 +97,15 @@ public final class BoundedDatabaseBudget implements DatabaseBudget {
     }
   }
 
+  public boolean isIdle() {
+    lock.lock();
+    try {
+      return inFlight == 0;
+    } finally {
+      lock.unlock();
+    }
+  }
+
   public void stopAccepting() {
     lock.lock();
     try {

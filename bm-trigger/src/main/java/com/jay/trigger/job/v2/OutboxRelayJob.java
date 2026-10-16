@@ -34,8 +34,17 @@ public final class OutboxRelayJob {
     }
   }
 
-  public void stop() {
+  public void quiesce() {
     running = false;
-    relay.stopAndDrain(Duration.ofSeconds(30));
+    relay.quiesce();
+  }
+
+  public void stopAndDrain(Duration timeout) {
+    quiesce();
+    relay.stopAndDrain(timeout);
+  }
+
+  public void stop() {
+    stopAndDrain(Duration.ofSeconds(30));
   }
 }

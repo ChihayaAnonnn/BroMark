@@ -190,8 +190,13 @@ public final class BoundedOutboxRelay {
     return invocationUncertain || !outstanding.isEmpty();
   }
 
-  public synchronized void stopAndDrain(Duration timeout) {
+  /** 先对所有通道停止领取，再分别消费共享关闭截止的剩余时间。 */
+  public synchronized void quiesce() {
     accepting = false;
+  }
+
+  public synchronized void stopAndDrain(Duration timeout) {
+    quiesce();
     long end = System.nanoTime() + timeout.toNanos();
     while (active > 0 || physicalPending()) {
       long left = end - System.nanoTime();

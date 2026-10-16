@@ -39,15 +39,66 @@ public class V2RabbitConfig {
     final RabbitTemplate template;
     final RabbitAdmin admin;
 
+    private final Runnable physicalClose;
+
     V2Transport(CachingConnectionFactory c) {
+      this(c, c::destroy);
+    }
+
+    V2Transport(CachingConnectionFactory c, Runnable physicalClose) {
+      this.physicalClose = physicalClose;
       connection = c;
       template = new RabbitTemplate(c);
       template.setMandatory(true);
       admin = new RabbitAdmin(c);
     }
 
-    public void close() {
-      connection.destroy();
+    private CompletableFuture<Void> closing;
+
+    public synchronized void close() {
+      if (closing != null) return;
+      closing = new CompletableFuture<>();
+      try {
+        physicalClose.run();
+        closing.complete(null);
+      } catch (RuntimeException e) {
+        closing.completeExceptionally(e);
+        throw e;
+      }
+    }
+
+    public boolean closeBefore(long end) {
+      CompletableFuture<Void> completion;
+      synchronized (this) {
+        if (closing == null) {
+          closing = new CompletableFuture<>();
+          Thread.ofVirtual()
+              .name("v2-rabbit-cleanup")
+              .start(
+                  () -> {
+                    try {
+                      physicalClose.run();
+                      closing.complete(null);
+                    } catch (Throwable e) {
+                      closing.completeExceptionally(e);
+                      org.slf4j.LoggerFactory.getLogger(getClass())
+                          .warn("Deferred Rabbit cleanup failed", e);
+                    }
+                  });
+        }
+        completion = closing;
+      }
+      try {
+        completion.get(V2WorkerConfig.remaining(end).toNanos(), TimeUnit.NANOSECONDS);
+        return true;
+      } catch (TimeoutException e) {
+        return false;
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        return false;
+      } catch (ExecutionException e) {
+        throw new IllegalStateException("Rabbit cleanup failed", e.getCause());
+      }
     }
   }
 
@@ -111,6 +162,7 @@ public class V2RabbitConfig {
     var f = new SimpleRabbitListenerContainerFactory();
     f.setConnectionFactory(c);
     f.setAutoStartup(false);
+    f.setPhase(Integer.MAX_VALUE - 2);
     f.setAcknowledgeMode(AcknowledgeMode.MANUAL);
     f.setPrefetchCount(props.getPrefetch());
     f.setConcurrentConsumers(props.getWorkerConcurrency());
@@ -120,7 +172,7 @@ public class V2RabbitConfig {
     return f;
   }
 
-  @Bean(destroyMethod = "close")
+  @Bean(destroyMethod = "")
   public V2ConfirmedEventPublisher v2ConfirmedPublisher(
       V2Transport transport, @Value("${bm.v2.messaging.prefix:bromark.v2}") String prefix) {
     return new V2ConfirmedEventPublisher(
@@ -134,8 +186,18 @@ public class V2RabbitConfig {
 
   @Bean
   public MySqlRetryJobRepository v2RetryRepository(
-      DataSource ds, UserTransactionRunner tx, RecoveryService recovery) {
-    return new MySqlRetryJobRepository(ds, tx, recovery);
+      DataSource ds,
+      UserTransactionRunner tx,
+      RecoveryService recovery,
+      org.springframework.beans.factory.ObjectProvider<MessagingWorkers> workers) {
+    return new MySqlRetryJobRepository(
+        ds,
+        tx,
+        recovery,
+        () -> {
+          var active = workers.getIfAvailable();
+          if (active != null) active.wakeRetry();
+        });
   }
 
   @Bean
@@ -143,18 +205,23 @@ public class V2RabbitConfig {
       DataSource ds,
       UserTransactionRunner tx,
       RouteCodec codec,
-      Map<String, RecoveryAggregatePort> ports) {
+      Map<String, RecoveryAggregatePort> ports,
+      MySqlOutboxWriter writer) {
     return new RecoveryService(
-        tx, new MySqlRecoveryRepository(ds), new MySqlOutboxWriter(ds), ports, codec::newEventId);
+        tx, new MySqlRecoveryRepository(ds), writer, ports, codec::newEventId);
   }
 
   @Bean
   public ConsumerUnitOfWork v2ConsumerWork(
-      DataSource ds, UserTransactionRunner tx, RouteCodec codec, RecoveryService recovery) {
+      DataSource ds,
+      UserTransactionRunner tx,
+      RouteCodec codec,
+      RecoveryService recovery,
+      MySqlOutboxWriter writer) {
     return new ConsumerUnitOfWork(
         tx,
         new MySqlConsumerInbox(ds),
-        new MySqlOutboxWriter(ds),
+        writer,
         new EventRouting(codec),
         recovery,
         codec::newEventId);
@@ -215,8 +282,9 @@ public class V2RabbitConfig {
   }
 
   @Bean
-  public RecoveryScanJob v2RecoveryJob(RecoveryService service) {
-    return new RecoveryScanJob(service);
+  public RecoveryScanJob v2RecoveryJob(
+      RecoveryService service, CoalescingJobDispatcher dispatcher, BlockOrderIdGenerator ids) {
+    return new RecoveryScanJob(service).dispatchWith(dispatcher).prefetchWith(ids::prefetch);
   }
 
   @Bean
@@ -226,8 +294,35 @@ public class V2RabbitConfig {
       RetryPublishJob retry,
       RecoveryScanJob recovery,
       BlockOrderIdGenerator ids,
-      RabbitListenerEndpointRegistry registry) {
-    return new MessagingWorkers(listener, outbox, retry, recovery, ids, registry);
+      RabbitListenerEndpointRegistry registry,
+      @Qualifier("v2OutboxRepository") MySqlOutboxRepository outboxRepo,
+      MySqlRetryJobRepository retryRepo,
+      V2ConfirmedEventPublisher publisher,
+      FaultInjector faults,
+      V2RelayProperties relay,
+      @Qualifier("v2RelayExecutor") ExecutorService executor,
+      V2Transport transport) {
+    var outboxBounded =
+        "bounded".equals(relay.getMode())
+            ? new BoundedOutboxRelay(outboxRepo, publisher, relay.policy(), faults)
+            : null;
+    var retryBounded =
+        "bounded".equals(relay.getMode())
+            ? new BoundedOutboxRelay(retryRepo, publisher, relay.policy(), faults)
+            : null;
+    return new MessagingWorkers(
+        listener,
+        outbox,
+        retry,
+        recovery,
+        ids,
+        registry,
+        outboxBounded,
+        retryBounded,
+        relay,
+        executor,
+        publisher,
+        transport);
   }
 
   public static final class MessagingWorkers implements SmartLifecycle {
@@ -242,6 +337,11 @@ public class V2RabbitConfig {
             1, Thread.ofPlatform().name("v2-consumer-backoff").factory());
     private final Set<String> paused = ConcurrentHashMap.newKeySet();
     private volatile boolean running;
+    private final BoundedOutboxRelay outboxBounded, retryBounded;
+    private final RelayDrainWorker outboxWorker, retryWorker;
+    private final ExecutorService executor;
+    private final V2ConfirmedEventPublisher publisher;
+    private final V2Transport transport;
 
     MessagingWorkers(
         V2MessageListener listener,
@@ -249,18 +349,53 @@ public class V2RabbitConfig {
         RetryPublishJob retry,
         RecoveryScanJob recovery,
         BlockOrderIdGenerator ids,
-        RabbitListenerEndpointRegistry registry) {
+        RabbitListenerEndpointRegistry registry,
+        BoundedOutboxRelay outboxBounded,
+        BoundedOutboxRelay retryBounded,
+        V2RelayProperties relay,
+        ExecutorService executor,
+        V2ConfirmedEventPublisher publisher,
+        V2Transport transport) {
       this.listener = listener;
       this.outbox = outbox;
       this.retry = retry;
       this.recovery = recovery;
       this.ids = ids;
       this.registry = registry;
+      this.outboxBounded = outboxBounded;
+      this.retryBounded = retryBounded;
+      this.outboxWorker =
+          outboxBounded == null
+              ? null
+              : new RelayDrainWorker(
+                  slot -> {
+                    ids.prefetch();
+                    return outboxBounded.runOnce(slot);
+                  },
+                  relay.policy().idlePoll());
+      this.retryWorker =
+          retryBounded == null
+              ? null
+              : new RelayDrainWorker(
+                  slot -> {
+                    ids.prefetch();
+                    return retryBounded.runOnce(slot);
+                  },
+                  relay.policy().idlePoll());
+      this.executor = executor;
+      this.publisher = publisher;
+      this.transport = transport;
     }
 
     public void start() {
       ids.prefetch();
       running = true;
+      if (outboxWorker != null) {
+        outbox.quiesce();
+        retry.quiesce();
+        executor.execute(outboxWorker);
+        executor.execute(retryWorker);
+      }
       for (String id : List.of("v2-workflow", "v2-notification")) {
         var container = registry.getListenerContainer(id);
         if (container == null) throw new IllegalStateException("Missing V2 consumer");
@@ -273,12 +408,12 @@ public class V2RabbitConfig {
     }
 
     public int getPhase() {
-      return Integer.MAX_VALUE;
+      return Integer.MAX_VALUE - 1;
     }
 
     @Scheduled(fixedDelayString = "${bm.v2.messaging.poll-ms:1000}")
     public void relay() {
-      if (running) {
+      if (running && outboxWorker == null) {
         ids.prefetch();
         outbox.tick();
         retry.tick();
@@ -287,10 +422,7 @@ public class V2RabbitConfig {
 
     @Scheduled(fixedDelay = 10000)
     public void recover() {
-      if (running) {
-        ids.prefetch();
-        recovery.tick();
-      }
+      if (running) recovery.tick();
     }
 
     @RabbitListener(
@@ -354,13 +486,57 @@ public class V2RabbitConfig {
           });
     }
 
+    public void wakeOutbox() {
+      if (outboxWorker != null) outboxWorker.wake();
+    }
+
+    public void wakeRetry() {
+      if (retryWorker != null) retryWorker.wake();
+    }
+
     public void stop() {
       running = false;
-      outbox.stop();
-      retry.stop();
+      outbox.quiesce();
+      retry.quiesce();
       recovery.stop();
-      registry.stop();
+      if (outboxWorker != null) {
+        outboxWorker.quiesce();
+        retryWorker.quiesce();
+        outboxBounded.quiesce();
+        retryBounded.quiesce();
+      }
       pauses.shutdownNow();
+    }
+
+    public void shutdown(long end) {
+      stop();
+      var stopped = new CountDownLatch(1);
+      RuntimeException failure = null;
+      try {
+        if (outboxBounded != null) {
+          outboxBounded.stopAndDrain(V2WorkerConfig.remaining(end));
+          retryBounded.stopAndDrain(V2WorkerConfig.remaining(end));
+        } else {
+          outbox.stopAndDrain(V2WorkerConfig.remaining(end));
+          retry.stopAndDrain(V2WorkerConfig.remaining(end));
+        }
+      } catch (RuntimeException e) {
+        failure = e;
+      }
+      try {
+        registry.stop(stopped::countDown);
+        if (!stopped.await(V2WorkerConfig.remaining(end).toNanos(), TimeUnit.NANOSECONDS))
+          failure = new IllegalStateException("V2 consumers did not stop before shared deadline");
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        failure = new IllegalStateException(e);
+      } catch (RuntimeException e) {
+        failure = e;
+      }
+      publisher.close(V2WorkerConfig.remaining(end));
+      if (!transport.closeBefore(end))
+        failure = new IllegalStateException("Rabbit cleanup continues after shared deadline");
+      if (failure != null) throw failure;
     }
   }
 }

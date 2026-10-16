@@ -18,6 +18,18 @@ import org.springframework.jdbc.core.JdbcTemplate;
 @ConditionalOnProperty(name = "bm.v2.enabled", havingValue = "true")
 public class V2AssetConfig {
   @Bean
+  public MySqlOutboxWriter v2OutboxWriter(
+      DataSource ds,
+      org.springframework.beans.factory.ObjectProvider<V2RabbitConfig.MessagingWorkers> workers) {
+    return new MySqlOutboxWriter(
+        ds,
+        () -> {
+          var active = workers.getIfAvailable();
+          if (active != null) active.wakeOutbox();
+        });
+  }
+
+  @Bean
   public MySqlAssetRepository assetRepository(DataSource ds) {
     return new MySqlAssetRepository(ds);
   }
@@ -76,17 +88,10 @@ public class V2AssetConfig {
       AdmissionService admission,
       RouteCodec codec,
       BlockOrderIdGenerator ids,
-      FaultInjector faults) {
+      FaultInjector faults,
+      MySqlOutboxWriter writer) {
     return new ExchangeService(
-        tx,
-        assets,
-        quota,
-        new MySqlExchangeRepository(ds),
-        admission,
-        codec,
-        ids,
-        new MySqlOutboxWriter(ds),
-        faults);
+        tx, assets, quota, new MySqlExchangeRepository(ds), admission, codec, ids, writer, faults);
   }
 
   @Bean
@@ -98,16 +103,9 @@ public class V2AssetConfig {
       AdmissionService admission,
       RouteCodec codec,
       BlockOrderIdGenerator ids,
-      FaultInjector faults) {
+      FaultInjector faults,
+      MySqlOutboxWriter writer) {
     return new SignInService(
-        tx,
-        assets,
-        quota,
-        new MySqlSignInRepository(ds),
-        admission,
-        codec,
-        ids,
-        new MySqlOutboxWriter(ds),
-        faults);
+        tx, assets, quota, new MySqlSignInRepository(ds), admission, codec, ids, writer, faults);
   }
 }

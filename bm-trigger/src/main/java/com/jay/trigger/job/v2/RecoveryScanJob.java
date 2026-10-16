@@ -11,8 +11,27 @@ public final class RecoveryScanJob {
     this.recovery = recovery;
   }
 
-  public synchronized void tick() {
+  private CoalescingJobDispatcher dispatcher;
+  private Runnable prefetch = () -> {};
+
+  public RecoveryScanJob prefetchWith(Runnable prefetch) {
+    this.prefetch = prefetch;
+    return this;
+  }
+
+  public RecoveryScanJob dispatchWith(CoalescingJobDispatcher dispatcher) {
+    this.dispatcher = dispatcher;
+    return this;
+  }
+
+  public void tick() {
+    if (dispatcher == null) runWork();
+    else dispatcher.submit("recovery-scan", this::runWork);
+  }
+
+  private void runWork() {
     if (!running) return;
+    prefetch.run();
     for (var slot : OutboxRelayJob.SOURCES) {
       if (!running) break;
       try {
@@ -24,7 +43,7 @@ public final class RecoveryScanJob {
     }
   }
 
-  public synchronized void stop() {
+  public void stop() {
     running = false;
   }
 }

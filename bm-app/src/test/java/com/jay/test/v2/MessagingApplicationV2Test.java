@@ -10,18 +10,32 @@ import com.jay.infrastructure.adapter.repository.v2.*;
 import java.time.*;
 import java.util.*;
 import org.junit.Test;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 public class MessagingApplicationV2Test {
   @Test
   public void bootsDedicatedTopologyAndCommitsNotificationBeforeAck() throws Exception {
+    bootsMode("legacy");
+  }
+
+  @Test
+  public void boundedModeOwnsExactlyTwoRelayThreadsAndSharedWakeWriter() throws Exception {
+    bootsMode("bounded");
+  }
+
+  @Test
+  public void sharedWriterRemainsUsableWhenMessagingIsDisabled() throws Exception {
+    bootsMode("disabled");
+  }
+
+  private void bootsMode(String mode) throws Exception {
     AssetTestSupport.run(h -> ConsumerInboxV2Test.schema(h));
     var settings = new HashMap<String, Object>();
     settings.put("spring.profiles.active", "v2-it");
     settings.put("bm.v2.enabled", true);
     settings.put("bm.v2.asset-write-mode", "V2");
-    settings.put("bm.v2.messaging.enabled", true);
+    settings.put("bm.v2.messaging.enabled", !mode.equals("disabled"));
+    settings.put("bm.v2.messaging.relay.mode", mode.equals("disabled") ? "legacy" : mode);
     settings.put("bm.v2.messaging.prefix", "bromark.it.msg." + UUID.randomUUID());
     for (String key :
         List.of("user-rps", "activity-rps", "max-in-flight", "query-rps", "query-max-in-flight"))
@@ -39,6 +53,9 @@ public class MessagingApplicationV2Test {
                 settings.entrySet().stream()
                     .map(e -> "--" + e.getKey() + "=" + e.getValue())
                     .toArray(String[]::new))) {
+      var relayThreads =
+          (java.util.concurrent.ThreadPoolExecutor) context.getBean("v2RelayExecutor");
+      assertThat(relayThreads.getActiveCount()).isEqualTo(mode.equals("bounded") ? 2 : 0);
       var tx = context.getBean(UserTransactionRunner.class);
       var j = new JdbcTemplate(context.getBean(javax.sql.DataSource.class));
       String user = "notification-" + UUID.randomUUID(), id = "notify-" + UUID.randomUUID();
@@ -61,9 +78,25 @@ public class MessagingApplicationV2Test {
           WorkClass.TRADE,
           new Deadline(Instant.now().plusSeconds(30)),
           () -> {
-            new MySqlOutboxWriter(j.getDataSource()).append(e);
+            context.getBean(MySqlOutboxWriter.class).append(e);
             return null;
           });
+      if (mode.equals("disabled")) {
+        assertThat(context.getBeansOfType(com.jay.config.V2RabbitConfig.MessagingWorkers.class))
+            .isEmpty();
+        tx.inSlot(
+            slot,
+            WorkClass.QUERY,
+            new Deadline(Instant.now().plusSeconds(5)),
+            () -> {
+              assertThat(
+                      j.queryForObject(
+                          "select state from outbox where event_id=?", String.class, id))
+                  .isEqualTo("PENDING");
+              return null;
+            });
+        return;
+      }
       org.awaitility.Awaitility.await()
           .atMost(Duration.ofSeconds(15))
           .untilAsserted(

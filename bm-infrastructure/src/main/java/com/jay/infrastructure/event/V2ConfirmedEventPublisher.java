@@ -153,11 +153,15 @@ public final class V2ConfirmedEventPublisher implements ConfirmedEventPublisher,
   }
 
   public void close() {
+    close(timeout.plusSeconds(1));
+  }
+
+  public void close(Duration remaining) {
     synchronized (this) {
       closed = true;
       sends.shutdown();
     }
-    long end = System.nanoTime() + timeout.plusSeconds(1).toNanos();
+    long end = System.nanoTime() + remaining.toNanos();
     try {
       long left = end - System.nanoTime();
       if (left > 0) sends.awaitTermination(left, TimeUnit.NANOSECONDS);

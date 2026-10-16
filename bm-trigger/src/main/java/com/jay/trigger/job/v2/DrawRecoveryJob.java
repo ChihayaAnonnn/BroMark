@@ -13,8 +13,20 @@ public final class DrawRecoveryJob {
     ids = i;
   }
 
+  private CoalescingJobDispatcher dispatcher;
+
+  public DrawRecoveryJob dispatchWith(CoalescingJobDispatcher dispatcher) {
+    this.dispatcher = dispatcher;
+    return this;
+  }
+
   @Scheduled(fixedDelayString = "${bm.v2.raffle.recovery-delay-ms:10000}")
   public void tick() {
+    if (dispatcher == null) runWork();
+    else dispatcher.submit("draw", this::runWork);
+  }
+
+  private void runWork() {
     ids.prefetch();
     recovery.tick();
   }

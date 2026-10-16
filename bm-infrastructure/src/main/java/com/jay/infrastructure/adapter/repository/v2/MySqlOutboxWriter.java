@@ -9,9 +9,15 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 public final class MySqlOutboxWriter implements OutboxWriter {
   private final JdbcTemplate j;
+  private final Runnable afterCommitWake;
 
   public MySqlOutboxWriter(DataSource ds) {
+    this(ds, () -> {});
+  }
+
+  public MySqlOutboxWriter(DataSource ds, Runnable afterCommitWake) {
     j = new JdbcTemplate(ds);
+    this.afterCommitWake = java.util.Objects.requireNonNull(afterCommitWake);
   }
 
   public void append(EventEnvelope event) {
@@ -36,5 +42,22 @@ public final class MySqlOutboxWriter implements OutboxWriter {
         j.queryForObject(
             "select payload_hash from outbox where event_id=?", String.class, event.eventId());
     if (!hash.equals(stored)) throw new AssetConflictException("Event payload changed");
+    registerWake(afterCommitWake);
+  }
+
+  static void registerWake(Runnable wake) {
+    if (!TransactionSynchronizationManager.isActualTransactionActive()
+        || !TransactionSynchronizationManager.isSynchronizationActive()) return;
+    TransactionSynchronizationManager.registerSynchronization(
+        new org.springframework.transaction.support.TransactionSynchronization() {
+          public void afterCommit() {
+            try {
+              wake.run();
+            } catch (RuntimeException e) {
+              org.slf4j.LoggerFactory.getLogger(MySqlOutboxWriter.class)
+                  .warn("Relay wake failed; periodic polling remains active", e);
+            }
+          }
+        });
   }
 }

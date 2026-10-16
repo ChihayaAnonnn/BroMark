@@ -11,6 +11,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 public final class MySqlRetryJobRepository extends MySqlOutboxRepository
     implements RetryJobRepository {
   private final com.jay.domain.task.service.RecoveryService recovery;
+  private final Runnable afterCommitWake;
 
   public MySqlRetryJobRepository(DataSource ds, UserTransactionRunner tx) {
     this(ds, tx, null);
@@ -20,7 +21,16 @@ public final class MySqlRetryJobRepository extends MySqlOutboxRepository
       DataSource ds,
       UserTransactionRunner tx,
       com.jay.domain.task.service.RecoveryService recovery) {
+    this(ds, tx, recovery, () -> {});
+  }
+
+  public MySqlRetryJobRepository(
+      DataSource ds,
+      UserTransactionRunner tx,
+      com.jay.domain.task.service.RecoveryService recovery,
+      Runnable afterCommitWake) {
     super(ds, tx, "retry_job");
+    this.afterCommitWake = java.util.Objects.requireNonNull(afterCommitWake);
     this.recovery = recovery;
   }
 
@@ -77,6 +87,7 @@ public final class MySqlRetryJobRepository extends MySqlOutboxRepository
             e.eventId());
     if (!hash.equals(row.get("payload_hash")) || !consumer.equals(row.get("consumer_name")))
       throw new AssetConflictException("Retry identity changed");
+    MySqlOutboxWriter.registerWake(afterCommitWake);
   }
 
   public boolean mayApply(String consumer, EventEnvelope e, int generation) {

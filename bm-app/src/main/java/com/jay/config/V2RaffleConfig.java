@@ -71,18 +71,10 @@ public class V2RaffleConfig {
       RouteCodec codec,
       BlockOrderIdGenerator ids,
       DataSource ds,
-      FaultInjector faults) {
+      FaultInjector faults,
+      MySqlOutboxWriter writer) {
     return new DrawService(
-        tx,
-        assets,
-        quota,
-        accounts,
-        draws,
-        strategies,
-        codec,
-        ids,
-        new MySqlOutboxWriter(ds),
-        faults);
+        tx, assets, quota, accounts, draws, strategies, codec, ids, writer, faults);
   }
 
   @Bean
@@ -97,8 +89,9 @@ public class V2RaffleConfig {
       AssetKernel assets,
       QuotaKernel quota,
       RouteCodec codec,
-      DataSource ds) {
-    return new DrawProgressService(draws, assets, quota, codec, new MySqlOutboxWriter(ds));
+      DataSource ds,
+      MySqlOutboxWriter writer) {
+    return new DrawProgressService(draws, assets, quota, codec, writer);
   }
 
   @Bean
@@ -109,9 +102,8 @@ public class V2RaffleConfig {
 
   @Bean
   public CandidateWorker candidateWorker(
-      MySqlDrawRepository draws, RouteCodec codec, DataSource ds) {
-    return new CandidateWorker(
-        draws, null, new FrozenRaffleEngine(), codec, new MySqlOutboxWriter(ds));
+      MySqlDrawRepository draws, RouteCodec codec, DataSource ds, MySqlOutboxWriter writer) {
+    return new CandidateWorker(draws, null, new FrozenRaffleEngine(), codec, writer);
   }
 
   @Bean(name = "ReserveAward")
@@ -166,8 +158,9 @@ public class V2RaffleConfig {
       MySqlDrawRepository draws,
       MySqlStockRepository stocks,
       RouteCodec codec,
-      DataSource ds) {
-    return new DrawRecoveryService(tx, draws, stocks, codec, new MySqlOutboxWriter(ds));
+      DataSource ds,
+      MySqlOutboxWriter writer) {
+    return new DrawRecoveryService(tx, draws, stocks, codec, writer);
   }
 
   @Bean
@@ -177,14 +170,19 @@ public class V2RaffleConfig {
       MySqlDrawRepository draws,
       RouteCodec codec,
       BlockOrderIdGenerator ids,
-      DataSource ds) {
-    return new com.jay.trigger.job.v2.StockRecoveryJob(
-        tx, stocks, draws, codec, ids, new MySqlOutboxWriter(ds));
+      DataSource ds,
+      MySqlOutboxWriter writer,
+      com.jay.trigger.job.v2.CoalescingJobDispatcher dispatcher) {
+    return new com.jay.trigger.job.v2.StockRecoveryJob(tx, stocks, draws, codec, ids, writer)
+        .dispatchWith(dispatcher);
   }
 
   @Bean
-  public DrawRecoveryJob drawRecoveryJob(DrawRecoveryService r, BlockOrderIdGenerator ids) {
-    return new DrawRecoveryJob(r, ids);
+  public DrawRecoveryJob drawRecoveryJob(
+      DrawRecoveryService r,
+      BlockOrderIdGenerator ids,
+      com.jay.trigger.job.v2.CoalescingJobDispatcher dispatcher) {
+    return new DrawRecoveryJob(r, ids).dispatchWith(dispatcher);
   }
 
   @Bean(name = "STOCK_RECONCILIATION")

@@ -40,23 +40,23 @@ public class V2WorkerConfig {
     return new BoundedDatabaseBudget(props.getInstances(), metrics);
   }
 
-  @Bean(destroyMethod = "close")
+  @Bean(destroyMethod = "")
   public BoundedVirtualExecutor v2WorkerExecutor(V2BudgetProperties props) {
     return new BoundedVirtualExecutor(
         "v2-worker", props.getWorkerConcurrency(), Duration.ofSeconds(30));
   }
 
-  @Bean(destroyMethod = "shutdown")
+  @Bean(destroyMethod = "")
   public ExecutorService v2ApiExecutor() {
     return pool("v2-api");
   }
 
-  @Bean(destroyMethod = "shutdown")
+  @Bean(destroyMethod = "")
   public ExecutorService v2RelayExecutor() {
     return pool("v2-relay");
   }
 
-  @Bean(destroyMethod = "shutdown")
+  @Bean(destroyMethod = "")
   public ExecutorService v2RecoveryExecutor() {
     return pool("v2-recovery");
   }
@@ -73,12 +73,91 @@ public class V2WorkerConfig {
   }
 
   @Bean
+  public com.jay.trigger.job.v2.CoalescingJobDispatcher v2JobDispatcher(
+      @org.springframework.beans.factory.annotation.Qualifier("v2RecoveryExecutor")
+          ExecutorService executor,
+      V2RecoveryRedriveProperties recovery) {
+    if ("guarded".equals(recovery.getMode()))
+      throw new IllegalStateException(
+          "Guarded recovery requires Task6 wiring; no placeholder recovery permitted");
+    return new com.jay.trigger.job.v2.CoalescingJobDispatcher(executor);
+  }
+
+  /** 在HTTP线程进入控制器之前关闭新入站，包含不经过RequestAdmission的供应商回调。 */
+  public static final class InboundGate
+      extends org.springframework.web.filter.OncePerRequestFilter {
+    private boolean accepting = true;
+    private int active;
+
+    public synchronized void stopAccepting() {
+      accepting = false;
+    }
+
+    public synchronized boolean awaitIdle(Duration timeout) throws InterruptedException {
+      long end = System.nanoTime() + timeout.toNanos();
+      while (active > 0) {
+        long left = end - System.nanoTime();
+        if (left <= 0) return false;
+        TimeUnit.NANOSECONDS.timedWait(this, left);
+      }
+      return true;
+    }
+
+    protected void doFilterInternal(
+        jakarta.servlet.http.HttpServletRequest request,
+        jakarta.servlet.http.HttpServletResponse response,
+        jakarta.servlet.FilterChain chain)
+        throws java.io.IOException, jakarta.servlet.ServletException {
+      if (!request.getRequestURI().startsWith(request.getContextPath() + "/api/v2/")) {
+        chain.doFilter(request, response);
+        return;
+      }
+      synchronized (this) {
+        if (!accepting) {
+          response.setStatus(503);
+          return;
+        }
+        active++;
+      }
+      try {
+        chain.doFilter(request, response);
+      } finally {
+        synchronized (this) {
+          active--;
+          notifyAll();
+        }
+      }
+    }
+  }
+
+  @Bean
+  public InboundGate v2InboundGate() {
+    return new InboundGate();
+  }
+
+  @Bean
+  public org.springframework.boot.web.servlet.FilterRegistrationBean<InboundGate> v2InboundFilter(
+      InboundGate gate) {
+    var registration = new org.springframework.boot.web.servlet.FilterRegistrationBean<>(gate);
+    registration.setOrder(org.springframework.core.Ordered.HIGHEST_PRECEDENCE);
+    registration.addUrlPatterns("/api/v2/*");
+    return registration;
+  }
+
+  @Bean
   public SmartLifecycle v2Shutdown(
       BoundedDatabaseBudget budget,
       BoundedVirtualExecutor v2WorkerExecutor,
-      ExecutorService v2ApiExecutor,
-      ExecutorService v2RelayExecutor,
-      ExecutorService v2RecoveryExecutor) {
+      @org.springframework.beans.factory.annotation.Qualifier("v2ApiExecutor")
+          ExecutorService v2ApiExecutor,
+      @org.springframework.beans.factory.annotation.Qualifier("v2RelayExecutor")
+          ExecutorService v2RelayExecutor,
+      @org.springframework.beans.factory.annotation.Qualifier("v2RecoveryExecutor")
+          ExecutorService v2RecoveryExecutor,
+      com.jay.trigger.job.v2.CoalescingJobDispatcher dispatcher,
+      InboundGate inbound,
+      org.springframework.beans.factory.ObjectProvider<V2RabbitConfig.MessagingWorkers> messaging,
+      javax.sql.DataSource dataSource) {
     return new SmartLifecycle() {
       volatile boolean running;
 
@@ -91,27 +170,56 @@ public class V2WorkerConfig {
       }
 
       public int getPhase() {
-        return Integer.MAX_VALUE - 100;
+        return Integer.MAX_VALUE;
       }
 
-      public void stop() {
+      public synchronized void stop() {
+        if (!running) return;
         running = false;
+        long end = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
+        inbound.stopAccepting();
+        dispatcher.quiesce();
         var workers =
             java.util.List.of(v2WorkerExecutor, v2ApiExecutor, v2RelayExecutor, v2RecoveryExecutor);
-        workers.forEach(ExecutorService::shutdown);
-        budget.stopAccepting();
-        long end = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
+        RuntimeException failure = null;
         try {
+          var active = messaging.getIfAvailable();
+          if (active != null) active.shutdown(end);
+        } catch (RuntimeException e) {
+          failure = e;
+        }
+        workers.forEach(ExecutorService::shutdown);
+        try {
+          if (!inbound.awaitIdle(remaining(end)))
+            failure = new IllegalStateException("HTTP requests did not drain");
           for (var worker : workers)
-            if (!worker.awaitTermination(
-                Math.max(0, end - System.nanoTime()), TimeUnit.NANOSECONDS)) worker.shutdownNow();
-          if (!budget.awaitIdle(Duration.ofNanos(Math.max(0, end - System.nanoTime()))))
-            throw new IllegalStateException("Database transactions did not drain before shutdown");
+            if (!worker.awaitTermination(remaining(end).toNanos(), TimeUnit.NANOSECONDS)) {
+              worker.shutdownNow();
+              failure =
+                  new IllegalStateException(
+                      "V2 workers did not drain; leased work remains recoverable");
+            }
+          budget.stopAccepting();
+          if (!budget.awaitIdle(remaining(end)))
+            failure = new IllegalStateException("Database transactions did not drain");
         } catch (InterruptedException e) {
           workers.forEach(ExecutorService::shutdownNow);
+          budget.stopAccepting();
           Thread.currentThread().interrupt();
+          failure = new IllegalStateException("V2 shutdown interrupted", e);
         }
+        if (dataSource instanceof cn.bugstack.middleware.db.router.dynamic.DynamicDataSource routed
+            && !routed.closeBefore(end, budget::isIdle))
+          failure =
+              new IllegalStateException(
+                  "Datasource cleanup continues after deadline; active transactions retain their"
+                      + " pools");
+        if (failure != null) throw failure;
       }
     };
+  }
+
+  public static Duration remaining(long end) {
+    return Duration.ofNanos(Math.max(0, end - System.nanoTime()));
   }
 }

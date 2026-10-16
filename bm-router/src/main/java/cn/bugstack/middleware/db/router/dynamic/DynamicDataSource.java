@@ -15,6 +15,7 @@ public class DynamicDataSource extends AbstractRoutingDataSource implements Auto
   private final java.util.Set<Object> owned =
       java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
   private boolean closed;
+  private java.util.concurrent.CompletableFuture<Void> deferredClose;
 
   @Override
   public void setTargetDataSources(java.util.Map<Object, Object> targets) {
@@ -32,6 +33,51 @@ public class DynamicDataSource extends AbstractRoutingDataSource implements Auto
   public synchronized void close() {
     if (closed) return;
     closed = true;
+    closeOwned();
+  }
+
+  /** V2接管清理所有权；预算未排空时不关闭仍在使用的池，默认close语义保持同步。 */
+  public boolean closeBefore(long deadline, java.util.function.BooleanSupplier safeToClose) {
+    java.util.concurrent.CompletableFuture<Void> completion;
+    synchronized (this) {
+      if (!closed) {
+        closed = true;
+        deferredClose = new java.util.concurrent.CompletableFuture<>();
+        Thread.ofVirtual()
+            .name("v2-datasource-cleanup")
+            .start(
+                () -> {
+                  try {
+                    while (!safeToClose.getAsBoolean())
+                      java.util.concurrent.locks.LockSupport.parkNanos(
+                          java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(10));
+                    closeOwned();
+                    deferredClose.complete(null);
+                  } catch (Throwable e) {
+                    deferredClose.completeExceptionally(e);
+                    org.slf4j.LoggerFactory.getLogger(getClass())
+                        .warn("Deferred datasource cleanup failed", e);
+                  }
+                });
+      }
+      completion = deferredClose;
+    }
+    if (completion == null) return true;
+    try {
+      completion.get(
+          Math.max(0, deadline - System.nanoTime()), java.util.concurrent.TimeUnit.NANOSECONDS);
+      return true;
+    } catch (java.util.concurrent.TimeoutException e) {
+      return false;
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      return false;
+    } catch (java.util.concurrent.ExecutionException e) {
+      throw new IllegalStateException("Router cleanup failed", e.getCause());
+    }
+  }
+
+  private void closeOwned() {
     RuntimeException failure = null;
     for (Object source : owned)
       if (source instanceof AutoCloseable c)

@@ -54,14 +54,19 @@ public class V2PaymentConfig {
       SandboxPaymentProvider provider,
       RouteCodec codec,
       BlockOrderIdGenerator ids,
-      DataSource ds) {
-    return new PaymentService(tx, repo, provider, codec, ids, new MySqlOutboxWriter(ds));
+      DataSource ds,
+      MySqlOutboxWriter writer) {
+    return new PaymentService(tx, repo, provider, codec, ids, writer);
   }
 
   @Bean
   public PaymentFactService paymentFactService(
-      UserTransactionRunner tx, MySqlPaymentRepository repo, RouteCodec codec, DataSource ds) {
-    return new PaymentFactService(tx, repo, codec, new MySqlOutboxWriter(ds));
+      UserTransactionRunner tx,
+      MySqlPaymentRepository repo,
+      RouteCodec codec,
+      DataSource ds,
+      MySqlOutboxWriter writer) {
+    return new PaymentFactService(tx, repo, codec, writer);
   }
 
   @Bean
@@ -91,8 +96,9 @@ public class V2PaymentConfig {
       UserTransactionRunner tx,
       MySqlPaymentRepository repo,
       PaymentFactService facts,
-      BlockOrderIdGenerator ids) {
-    return new PaymentInboxJob(tx, repo, facts, ids);
+      BlockOrderIdGenerator ids,
+      CoalescingJobDispatcher dispatcher) {
+    return new PaymentInboxJob(tx, repo, facts, ids).dispatchWith(dispatcher);
   }
 
   @Bean
@@ -101,14 +107,15 @@ public class V2PaymentConfig {
       MySqlPaymentRepository repo,
       SandboxPaymentProvider provider,
       PaymentFactService facts,
-      DataSource ds) {
-    return new PaymentRecoveryService(tx, repo, provider, facts, new MySqlOutboxWriter(ds));
+      DataSource ds,
+      MySqlOutboxWriter writer) {
+    return new PaymentRecoveryService(tx, repo, provider, facts, writer);
   }
 
   @Bean
   public PaymentRecoveryJob paymentRecoveryJob(
-      PaymentRecoveryService s, BlockOrderIdGenerator ids) {
-    return new PaymentRecoveryJob(s, ids);
+      PaymentRecoveryService s, BlockOrderIdGenerator ids, CoalescingJobDispatcher dispatcher) {
+    return new PaymentRecoveryJob(s, ids).dispatchWith(dispatcher);
   }
 
   @Bean

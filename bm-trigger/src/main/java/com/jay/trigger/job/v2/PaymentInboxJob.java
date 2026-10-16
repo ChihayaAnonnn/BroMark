@@ -25,8 +25,20 @@ public final class PaymentInboxJob {
     this.ids = ids;
   }
 
+  private CoalescingJobDispatcher dispatcher;
+
+  public PaymentInboxJob dispatchWith(CoalescingJobDispatcher dispatcher) {
+    this.dispatcher = dispatcher;
+    return this;
+  }
+
   @Scheduled(fixedDelayString = "${bm.v2.payment.inbox-delay-ms:1000}")
   public void tick() {
+    if (dispatcher == null) runWork();
+    else dispatcher.submit("provider-inbox", this::runWork);
+  }
+
+  private void runWork() {
     ids.prefetch();
     String token = UUID.randomUUID().toString();
     var entries =

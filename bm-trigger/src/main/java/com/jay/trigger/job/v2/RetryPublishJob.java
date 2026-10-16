@@ -13,6 +13,14 @@ public final class RetryPublishJob {
     delegate.tick();
   }
 
+  public void quiesce() {
+    delegate.quiesce();
+  }
+
+  public void stopAndDrain(java.time.Duration timeout) {
+    delegate.stopAndDrain(timeout);
+  }
+
   public void stop() {
     delegate.stop();
   }

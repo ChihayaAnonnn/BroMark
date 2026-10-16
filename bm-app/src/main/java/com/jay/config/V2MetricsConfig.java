@@ -23,7 +23,9 @@ public class V2MetricsConfig {
         int index = 0;
         for (var ds : dynamic.getResolvedDataSources().values())
           if (ds instanceof HikariDataSource pool) {
-            pool.setPoolName("v2-pool-" + index++);
+            // bounded启动校验会先获取连接；已启动的Hikari名称不可再次修改。
+            if (!pool.isRunning()) pool.setPoolName("v2-pool-" + index);
+            index++;
             pool.setMetricsTrackerFactory(new MicrometerMetricsTrackerFactory(metrics));
           }
       }
