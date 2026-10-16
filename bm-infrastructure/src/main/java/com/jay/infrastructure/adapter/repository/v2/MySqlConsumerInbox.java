@@ -21,11 +21,11 @@ public final class MySqlConsumerInbox implements ConsumerInbox {
     return new RequestHasher().hash("MESSAGE", Map.of("body", value));
   }
 
-  private static String operation(EventEnvelope e) {
+  static String operation(EventEnvelope e) {
     return digest(e.eventType() + ":" + e.bizId().type() + ":" + e.bizId().id());
   }
 
-  private static String businessHash(EventEnvelope e) {
+  static String businessHash(EventEnvelope e) {
     return digest(
         JsonStore.write(
             List.of(

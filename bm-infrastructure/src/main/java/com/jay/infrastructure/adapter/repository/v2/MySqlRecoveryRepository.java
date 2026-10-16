@@ -26,7 +26,7 @@ public final class MySqlRecoveryRepository implements RecoveryRepository {
 
   public Case active(String type, String id) {
     requireTx();
-    lockIdentity(type,id);
+    lockIdentity(type, id);
     return j
         .query(
             "select * from recovery_case where active_key=? for update",
@@ -51,11 +51,16 @@ public final class MySqlRecoveryRepository implements RecoveryRepository {
             + " select ?,?,COALESCE(MAX(object_version),0) from recovery_case"
             + " where aggregate_type=? and aggregate_id=?"
             + " ON DUPLICATE KEY UPDATE case_version=case_version",
-        type, id, type, id);
+        type,
+        id,
+        type,
+        id);
     return j.queryForObject(
         "select case_version from recovery_guard"
             + " where aggregate_type=? and aggregate_id=? for update",
-        Long.class, type, id);
+        Long.class,
+        type,
+        id);
   }
 
   public void open(String type, RecoveryAggregate a, RecoveryStatus status, String evidence) {
@@ -63,7 +68,8 @@ public final class MySqlRecoveryRepository implements RecoveryRepository {
     if (current != null) {
       j.update(
           "update recovery_case set evidence=CONCAT(evidence,CHAR(10),?) where case_id=?",
-          evidence, current.caseId());
+          evidence,
+          current.caseId());
       return;
     }
     long previous = lockIdentity(type, a.id());
@@ -71,13 +77,21 @@ public final class MySqlRecoveryRepository implements RecoveryRepository {
     j.update(
         "update recovery_guard set case_version=GREATEST(case_version,?)"
             + " where aggregate_type=? and aggregate_id=?",
-        version, type, a.id());
+        version,
+        type,
+        a.id());
     j.update(
         "insert into recovery_case(case_id,aggregate_type,aggregate_id,business_state,"
             + "recovery_status,object_version,active_key,evidence,created_at)"
             + " values(?,?,?,?,?,?,?,?,UTC_TIMESTAMP(6))",
-        UUID.randomUUID().toString(), type, a.id(), a.state(), status.name(), version,
-        key(type, a.id()), evidence);
+        UUID.randomUUID().toString(),
+        type,
+        a.id(),
+        a.state(),
+        status.name(),
+        version,
+        key(type, a.id()),
+        evidence);
   }
 
   public void close(Case c, String operator, String reason) {
@@ -161,5 +175,78 @@ public final class MySqlRecoveryRepository implements RecoveryRepository {
         type,
         id,
         eventId);
+  }
+
+  /** 历史 DEAD 必须有审计关闭、deferred 映射和真实持久新运输身份。 */
+  boolean auditedReplay(String type, String id, EventEnvelope original) {
+    return auditedReplay(type, id, original, null);
+  }
+
+  private boolean auditedReplay(
+      String type, String id, EventEnvelope original, java.time.Instant after) {
+    requireTx();
+    var mappings =
+        j.queryForList(
+            "select f.payload,f.payload_hash,f.replayed_event_id from deferred_fact f where"
+                + " f.event_id=? and f.replayed_event_id is not null and"
+                + " f.replayed_event_id<>f.event_id and exists(select 1 from recovery_case c where"
+                + " c.aggregate_type=f.aggregate_type and c.aggregate_id=f.aggregate_id and"
+                + " c.closed_at is not null and c.operator_id is not null and c.operator_id<>'' and"
+                + " c.resolution_reason is not null and c.resolution_reason<>'' and"
+                + " c.created_at<=f.created_at and c.closed_at>=f.created_at and (? is null or"
+                + " c.closed_at>?)) and ((f.aggregate_type=? and f.aggregate_id=?) or"
+                + " (f.aggregate_type in ('OUTBOX_TASK','RETRY_TASK') and f.aggregate_id=?))",
+            original.eventId(),
+            after == null
+                ? null
+                : java.time.LocalDateTime.ofInstant(after, java.time.ZoneOffset.UTC),
+            after == null
+                ? null
+                : java.time.LocalDateTime.ofInstant(after, java.time.ZoneOffset.UTC),
+            type,
+            id,
+            original.eventId());
+    for (var mapping : mappings) {
+      String raw = (String) mapping.get("payload");
+      var deferred = JsonStore.read(raw, EventEnvelope.class);
+      if (!MySqlConsumerInbox.digest(JsonStore.write(deferred)).equals(mapping.get("payload_hash")))
+        continue;
+      if (!deferred.eventId().equals(original.eventId())
+          || !MySqlConsumerInbox.businessHash(deferred)
+              .equals(MySqlConsumerInbox.businessHash(original))) continue;
+      for (String table : List.of("outbox", "retry_job")) {
+        var replays =
+            j.queryForList(
+                "select payload,payload_hash from " + table + " where event_id=?",
+                mapping.get("replayed_event_id"));
+        for (var stored : replays) {
+          var replay = JsonStore.read((String) stored.get("payload"), EventEnvelope.class);
+          String canonical = JsonStore.write(replay);
+          String expected =
+              table.equals("outbox")
+                  ? new com.jay.domain.asset.service.RequestHasher()
+                      .hash("EVENT", Map.of("envelope", canonical))
+                  : MySqlConsumerInbox.digest(canonical);
+          if (!expected.equals(stored.get("payload_hash"))) continue;
+          if (replay.eventId().equals(mapping.get("replayed_event_id"))
+              && MySqlConsumerInbox.businessHash(replay)
+                  .equals(MySqlConsumerInbox.businessHash(original))) return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  boolean auditedReplayAfter(String type, String id, String eventId, java.time.Instant after) {
+    requireTx();
+    if (eventId == null || after == null) return false;
+    for (String table : List.of("outbox", "retry_job")) {
+      var events =
+          j.queryForList(
+              "select payload from " + table + " where event_id=?", String.class, eventId);
+      for (String raw : events)
+        if (auditedReplay(type, id, JsonStore.read(raw, EventEnvelope.class), after)) return true;
+    }
+    return false;
   }
 }
