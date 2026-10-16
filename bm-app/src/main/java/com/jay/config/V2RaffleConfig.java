@@ -159,8 +159,16 @@ public class V2RaffleConfig {
       MySqlStockRepository stocks,
       RouteCodec codec,
       DataSource ds,
-      MySqlOutboxWriter writer) {
-    return new DrawRecoveryService(tx, draws, stocks, codec, writer);
+      MySqlOutboxWriter writer,
+      WorkflowRedrive guarded,
+      V2RecoveryRedriveProperties policy) {
+    return ("guarded".equals(policy.getMode())
+            ? new DrawRecoveryService(tx, draws, stocks, codec, writer, guarded)
+            : new DrawRecoveryService(tx, draws, stocks, codec, writer))
+        .scanBudget(
+            policy.getCandidateLimit(),
+            policy.getEmissionLimit(),
+            java.time.Duration.ofSeconds(policy.getRoundTimeoutSeconds()));
   }
 
   @Bean
@@ -172,8 +180,18 @@ public class V2RaffleConfig {
       BlockOrderIdGenerator ids,
       DataSource ds,
       MySqlOutboxWriter writer,
-      com.jay.trigger.job.v2.CoalescingJobDispatcher dispatcher) {
-    return new com.jay.trigger.job.v2.StockRecoveryJob(tx, stocks, draws, codec, ids, writer)
+      com.jay.trigger.job.v2.CoalescingJobDispatcher dispatcher,
+      DrawRecoveryService unified,
+      WorkflowRedrive guarded,
+      V2RecoveryRedriveProperties policy) {
+    return ("guarded".equals(policy.getMode())
+            ? new com.jay.trigger.job.v2.StockRecoveryJob(
+                tx, stocks, draws, codec, ids, writer, unified, guarded)
+            : new com.jay.trigger.job.v2.StockRecoveryJob(tx, stocks, draws, codec, ids, writer))
+        .scanBudget(
+            policy.getCandidateLimit(),
+            policy.getEmissionLimit(),
+            java.time.Duration.ofSeconds(policy.getRoundTimeoutSeconds()))
         .dispatchWith(dispatcher);
   }
 

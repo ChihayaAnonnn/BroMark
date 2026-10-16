@@ -278,4 +278,29 @@ public final class MySqlStockRepository implements StockRepository {
         (rs, n) -> rs.getString(1),
         limit);
   }
+
+  public com.jay.domain.task.model.RecoveryScanPage scanStale(
+      String state,
+      com.jay.domain.task.model.RecoveryScanPosition cursor,
+      java.time.Instant cutoff,
+      int limit) {
+    return RecoveryScanSql.scan(
+        j, "award_reservation", "draw_order_id", state, cursor, cutoff, limit);
+  }
+
+  public RecoveryStatus recoveryStatus(String id) {
+    requireControlTransaction();
+    if (j.queryForObject(
+            "select count(*) from recovery_case where aggregate_type='RESERVATION' and"
+                + " aggregate_id=? and active_key is not null",
+            Integer.class,
+            id)
+        > 0) return RecoveryStatus.REVIEW;
+    var rows =
+        j.queryForList(
+            "select recovery_status from award_reservation where draw_order_id=?",
+            String.class,
+            id);
+    return rows.isEmpty() ? RecoveryStatus.ACTIVE : RecoveryStatus.valueOf(rows.getFirst());
+  }
 }

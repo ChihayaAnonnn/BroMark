@@ -108,8 +108,16 @@ public class V2PaymentConfig {
       SandboxPaymentProvider provider,
       PaymentFactService facts,
       DataSource ds,
-      MySqlOutboxWriter writer) {
-    return new PaymentRecoveryService(tx, repo, provider, facts, writer);
+      MySqlOutboxWriter writer,
+      com.jay.domain.task.service.WorkflowRedrive guarded,
+      V2RecoveryRedriveProperties policy) {
+    return ("guarded".equals(policy.getMode())
+            ? new PaymentRecoveryService(tx, repo, provider, facts, writer, guarded)
+            : new PaymentRecoveryService(tx, repo, provider, facts, writer))
+        .scanBudget(
+            policy.getCandidateLimit(),
+            policy.getEmissionLimit(),
+            java.time.Duration.ofSeconds(policy.getRoundTimeoutSeconds()));
   }
 
   @Bean

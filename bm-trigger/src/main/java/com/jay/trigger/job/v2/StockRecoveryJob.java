@@ -36,6 +36,30 @@ public final class StockRecoveryJob {
     out = o;
   }
 
+  private DrawRecoveryService unified;
+  private com.jay.domain.task.service.WorkflowRedrive guarded;
+  private final com.jay.domain.task.service.WorkflowRecoveryScan scanner =
+      new com.jay.domain.task.service.WorkflowRecoveryScan();
+
+  public StockRecoveryJob(
+      UserTransactionRunner tx,
+      StockRepository stocks,
+      DrawRepository draws,
+      RouteCodec codec,
+      OrderIdGenerator ids,
+      OutboxWriter out,
+      DrawRecoveryService unified,
+      com.jay.domain.task.service.WorkflowRedrive guarded) {
+    this(tx, stocks, draws, codec, ids, out);
+    this.unified = unified;
+    this.guarded = guarded;
+  }
+
+  public StockRecoveryJob scanBudget(int candidates, int emissions, Duration timeout) {
+    if (unified != null) scanner.budget(candidates, emissions, timeout);
+    return this;
+  }
+
   private Deadline deadline() {
     return new Deadline(Instant.now().plusSeconds(5));
   }
@@ -55,6 +79,23 @@ public final class StockRecoveryJob {
 
   private void runWork() {
     ids.prefetch();
+    if (unified != null) {
+      scanner.run(
+          List.of(
+              new com.jay.domain.task.service.WorkflowRecoveryScan.Partition(
+                  RouteSlot.control(), "HELD"),
+              new com.jay.domain.task.service.WorkflowRecoveryScan.Partition(
+                  RouteSlot.control(), "CONFIRMED"),
+              new com.jay.domain.task.service.WorkflowRecoveryScan.Partition(
+                  RouteSlot.control(), "CANCELLED")),
+          (p, c) ->
+              tx.inControl(
+                  WorkClass.RECOVERY,
+                  deadline(),
+                  () -> stocks.scanStale(p.state(), c, guarded.cutoff(), 1)),
+          id -> unified.inspect(id).actions().size());
+      return;
+    }
     var work = tx.inControl(WorkClass.RECOVERY, deadline(), () -> stocks.scanRecovery(8));
     for (String order : work)
       try {
@@ -66,6 +107,10 @@ public final class StockRecoveryJob {
   }
 
   public void inspect(String order) {
+    if (unified != null) {
+      unified.inspect(order);
+      return;
+    }
     tx.inControl(
         WorkClass.RECOVERY,
         deadline(),

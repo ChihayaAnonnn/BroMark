@@ -206,9 +206,53 @@ public class V2RabbitConfig {
       UserTransactionRunner tx,
       RouteCodec codec,
       Map<String, RecoveryAggregatePort> ports,
-      MySqlOutboxWriter writer) {
+      MySqlOutboxWriter writer,
+      V2RecoveryRedriveProperties policy) {
     return new RecoveryService(
-        tx, new MySqlRecoveryRepository(ds), writer, ports, codec::newEventId);
+            tx, new MySqlRecoveryRepository(ds), writer, ports, codec::newEventId)
+        .dedicatedWorkflows("guarded".equals(policy.getMode()));
+  }
+
+  @Bean
+  public WorkflowRedrive workflowRedrive(
+      DataSource ds,
+      UserTransactionRunner tx,
+      RecoveryService recovery,
+      MySqlOutboxWriter writer,
+      V2RecoveryRedriveProperties policy) {
+    var j = new JdbcTemplate(ds);
+    if ("guarded".equals(policy.getMode())) {
+      for (var slot :
+          List.of(
+              com.jay.domain.asset.model.RouteSlot.control(),
+              new com.jay.domain.asset.model.RouteSlot("01", "000"),
+              new com.jay.domain.asset.model.RouteSlot("02", "000"))) {
+        tx.inSlot(
+            slot,
+            com.jay.domain.asset.model.WorkClass.RECOVERY,
+            new com.jay.domain.asset.model.Deadline(java.time.Instant.now().plusSeconds(5)),
+            () -> {
+              // 仅验证必需结构，绝不在启动时DDL或静默退回legacy。
+              j.queryForList(
+                  "select"
+                      + " aggregate_type,aggregate_id,observed_state,observed_version,last_event_type,last_event_id,last_redrive_at,next_redrive_at,redrive_count"
+                      + " from v2_recovery_dispatch limit 0");
+              return null;
+            });
+      }
+    }
+    return new WorkflowRedrive(
+        tx,
+        new MySqlRecoveryDispatchRepository(ds),
+        new MySqlDeliveryEvidenceRepository(ds),
+        recovery,
+        writer,
+        () ->
+            j.queryForObject("select UTC_TIMESTAMP(6)", java.time.LocalDateTime.class)
+                .toInstant(java.time.ZoneOffset.UTC),
+        Duration.ofSeconds(policy.getStaleSeconds()),
+        Duration.ofSeconds(policy.getIntervalSeconds()),
+        policy.getMaxPerStage());
   }
 
   @Bean

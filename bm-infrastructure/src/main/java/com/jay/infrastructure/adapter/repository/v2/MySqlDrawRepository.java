@@ -211,4 +211,20 @@ public final class MySqlDrawRepository implements DrawRepository {
         (rs, n) -> rs.getString(1),
         limit);
   }
+
+  public com.jay.domain.task.model.RecoveryScanPage scanStale(
+      String state,
+      com.jay.domain.task.model.RecoveryScanPosition cursor,
+      java.time.Instant cutoff,
+      int limit) {
+    return RecoveryScanSql.scan(j, table(), "order_id", state, cursor, cutoff, limit);
+  }
+
+  public java.time.Instant lastProgressAt(String id) {
+    return j.queryForObject(
+            "select last_progress_at from " + table() + " where order_id=?",
+            java.time.LocalDateTime.class,
+            id)
+        .toInstant(java.time.ZoneOffset.UTC);
+  }
 }

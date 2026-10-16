@@ -559,7 +559,7 @@ public class RelayLifecycleV2Test {
   }
 
   @Test
-  public void guardedCannotStartPlaceholderAndCallerRunsIsForbidden() {
+  public void guardedDispatcherStillForbidsCallerRuns() {
     var executor =
         new ThreadPoolExecutor(
             1,
@@ -575,7 +575,7 @@ public class RelayLifecycleV2Test {
       properties.setMode("guarded");
       assertThatThrownBy(
               () -> new com.jay.config.V2WorkerConfig().v2JobDispatcher(executor, properties))
-          .isInstanceOf(IllegalStateException.class);
+          .isInstanceOf(IllegalArgumentException.class);
     } finally {
       executor.shutdownNow();
     }

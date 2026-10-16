@@ -500,4 +500,20 @@ public final class MySqlPaymentRepository implements PaymentRepository {
                     rs.getBigDecimal(5),
                     rs.getBigDecimal(6))));
   }
+
+  public com.jay.domain.task.model.RecoveryScanPage scanStale(
+      String state,
+      com.jay.domain.task.model.RecoveryScanPosition cursor,
+      java.time.Instant cutoff,
+      int limit) {
+    return RecoveryScanSql.scan(j, "payment_order", "order_id", state, cursor, cutoff, limit);
+  }
+
+  public java.time.Instant lastProgressAt(String id) {
+    return j.queryForObject(
+            "select last_progress_at from " + "payment_order" + " where order_id=?",
+            java.time.LocalDateTime.class,
+            id)
+        .toInstant(java.time.ZoneOffset.UTC);
+  }
 }

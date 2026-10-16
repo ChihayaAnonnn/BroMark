@@ -57,6 +57,21 @@ public final class RecoveryService {
     repo.open(type, a, status, evidence);
   }
 
+  /** 已持有owner业务锁及guard；只defer真实持久化命令，不通过目标路由猜owner。 */
+  public void pauseRedrive(String type, String id, EventEnvelope frozen, String evidence) {
+    if (frozen == null || !id.equals(frozen.aggregateId()))
+      throw new IllegalArgumentException("Frozen owner mismatch");
+    pauseInCurrentTransaction(type, id, RecoveryStatus.RETRY_EXHAUSTED, evidence);
+    repo.defer("workflow-v2", type, frozen);
+  }
+
+  private boolean dedicatedRecovery;
+
+  public RecoveryService dedicatedWorkflows(boolean guarded) {
+    dedicatedRecovery = guarded;
+    return this;
+  }
+
   /** Called inside the exact business transaction, before Inbox or handler. */
   public boolean deferIfPaused(String consumer, EventEnvelope e) {
     String type = EventRouting.aggregateType(e);
@@ -173,6 +188,8 @@ public final class RecoveryService {
                 return facts.size();
               });
     for (var entry : ports.entrySet()) {
+      if (dedicatedRecovery && Set.of("DRAW", "RESERVATION", "PAYMENT").contains(entry.getKey()))
+        continue;
       var ids =
           tx.inSlot(
               slot,

@@ -77,9 +77,6 @@ public class V2WorkerConfig {
       @org.springframework.beans.factory.annotation.Qualifier("v2RecoveryExecutor")
           ExecutorService executor,
       V2RecoveryRedriveProperties recovery) {
-    if ("guarded".equals(recovery.getMode()))
-      throw new IllegalStateException(
-          "Guarded recovery requires Task6 wiring; no placeholder recovery permitted");
     return new com.jay.trigger.job.v2.CoalescingJobDispatcher(executor);
   }
 

@@ -30,6 +30,26 @@ public final class PaymentRecoveryService {
     this.out = out;
   }
 
+  private com.jay.domain.task.service.WorkflowRedrive guarded;
+  private final com.jay.domain.task.service.WorkflowRecoveryScan scanner =
+      new com.jay.domain.task.service.WorkflowRecoveryScan();
+
+  public PaymentRecoveryService(
+      UserTransactionRunner tx,
+      PaymentRepository repo,
+      PaymentProvider provider,
+      PaymentFactService facts,
+      OutboxWriter out,
+      com.jay.domain.task.service.WorkflowRedrive guarded) {
+    this(tx, repo, provider, facts, out);
+    this.guarded = guarded;
+  }
+
+  public PaymentRecoveryService scanBudget(int candidates, int emissions, Duration timeout) {
+    if (guarded != null) scanner.budget(candidates, emissions, timeout);
+    return this;
+  }
+
   private <T> T control(java.util.function.Supplier<T> s) {
     return tx.inControl(WorkClass.RECOVERY, new Deadline(Instant.now().plusSeconds(10)), s);
   }
@@ -108,6 +128,26 @@ public final class PaymentRecoveryService {
       return new RecoveryDecision(List.of());
     }
     if (!r.state().equals("PAID")) return new RecoveryDecision(List.of());
+    if (guarded != null) {
+      var command = facts.grant(r);
+      var remote = guarded.observe(command);
+      return control(
+          () -> {
+            repo.lock(id);
+            var current = repo.find(id, false);
+            if (current.version() != r.version()
+                || current.recoveryStatus() != RecoveryStatus.ACTIVE
+                || !current.state().equals("PAID")) return new RecoveryDecision(List.of());
+            return guarded.commit(
+                "PAYMENT",
+                id,
+                current.state(),
+                current.version(),
+                repo.lastProgressAt(id),
+                command,
+                remote);
+          });
+    }
     return control(
         () -> {
           var current = repo.find(id, true);
@@ -121,6 +161,17 @@ public final class PaymentRecoveryService {
   }
 
   public void tick() {
+    if (guarded != null) {
+      scanner.run(
+          List.of(
+              new com.jay.domain.task.service.WorkflowRecoveryScan.Partition(
+                  RouteSlot.control(), "CREATED"),
+              new com.jay.domain.task.service.WorkflowRecoveryScan.Partition(
+                  RouteSlot.control(), "PAID")),
+          (p, c) -> control(() -> repo.scanStale(p.state(), c, guarded.cutoff(), 1)),
+          id -> inspect(id).actions().size());
+      return;
+    }
     for (var id : control(() -> repo.scanActive(8)))
       try {
         inspect(id);

@@ -7,7 +7,16 @@ public interface DeliveryEvidenceRepository {
   DeliveryEvidence local(
       String aggregateType, String aggregateId, String eventType, String requestHash);
 
+  /** guarded调用携带当前冻结命令；旧fake继续委托旧签名。 */
+  default DeliveryEvidence local(String aggregateType, String aggregateId, EventEnvelope command) {
+    return local(aggregateType, aggregateId, command.eventType(), command.requestHash());
+  }
+
   DeliveryEvidence target(EventEnvelope command);
+
+  default java.util.Optional<EventEnvelope> localEvent(String eventId) {
+    return java.util.Optional.empty();
+  }
 
   boolean operationCompleted(String consumer, EventEnvelope event);
 }

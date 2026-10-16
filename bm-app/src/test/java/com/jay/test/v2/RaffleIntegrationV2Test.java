@@ -122,9 +122,102 @@ public class RaffleIntegrationV2Test {
       String order =
           new com.fasterxml.jackson.databind.ObjectMapper().readTree(body).get("orderId").asText();
       var draws = ctx.getBean(DrawService.class);
-      org.awaitility.Awaitility.await()
-          .atMost(Duration.ofSeconds(25))
-          .untilAsserted(() -> assertThat(draws.get(user, order).state()).isEqualTo("DELIVERED"));
+      try {
+        org.awaitility.Awaitility.await()
+            .atMost(Duration.ofSeconds(25))
+            .untilAsserted(() -> assertThat(draws.get(user, order).state()).isEqualTo("DELIVERED"));
+      } catch (org.awaitility.core.ConditionTimeoutException failure) {
+        System.err.println(
+            "RAFFLE_INTEGRATION_DIAGNOSTIC order="
+                + order
+                + " route="
+                + ctx.getBean(RouteCodec.class).routeOrder(order));
+        try {
+          System.err.println("drawState=" + draws.get(user, order).state());
+          tx.inUser(
+              user,
+              WorkClass.RECOVERY,
+              new Deadline(Instant.now().plusSeconds(5)),
+              () -> {
+                System.err.println(
+                    "outbox="
+                        + j.queryForList(
+                            "select"
+                                + " event_id,event_type,state,attempt,lease_until,next_attempt_at,created_at,published_at"
+                                + " from outbox where aggregate_id=? order by created_at",
+                            order));
+                for (var event :
+                    j.query(
+                        "select payload from outbox where aggregate_id=?",
+                        (rs, n) -> JsonStore.read(rs.getString(1), EventEnvelope.class),
+                        order)) {
+                  String key =
+                      MySqlConsumerInbox.digest(
+                          event.eventType()
+                              + ":"
+                              + event.bizId().type()
+                              + ":"
+                              + event.bizId().id());
+                  System.err.println(
+                      "receipt "
+                          + event.eventType()
+                          + "="
+                          + j.queryForList(
+                              "select consumer_name,operation_key from consumer_receipt where"
+                                  + " operation_key=?",
+                              key));
+                }
+                System.err.println(
+                    "retry="
+                        + j.queryForList(
+                            "select event_id,event_type,state,attempt,lease_until,next_attempt_at"
+                                + " from retry_job where aggregate_id=?",
+                            order));
+                System.err.println(
+                    "inbox="
+                        + j.queryForList(
+                            "select consumer_name,event_id,processed_at from consumer_inbox where"
+                                + " event_id in (select event_id from outbox where aggregate_id=?)",
+                            order));
+                System.err.println(
+                    "dispatch="
+                        + j.queryForList(
+                            "select"
+                                + " aggregate_type,observed_state,last_event_type,last_event_id,redrive_count"
+                                + " from v2_recovery_dispatch where aggregate_id=?",
+                            order));
+                System.err.println(
+                    "cases="
+                        + j.queryForList(
+                            "select"
+                                + " aggregate_type,business_state,recovery_status,created_at,closed_at"
+                                + " from recovery_case where aggregate_id=?",
+                            order));
+                return null;
+              });
+          tx.inControl(
+              WorkClass.RECOVERY,
+              new Deadline(Instant.now().plusSeconds(5)),
+              () -> {
+                System.err.println(
+                    "stock="
+                        + j.queryForList(
+                            "select draw_order_id,state,recovery_status,last_progress_at from"
+                                + " award_reservation where draw_order_id=?",
+                            order));
+                System.err.println(
+                    "stockOutbox="
+                        + j.queryForList(
+                            "select event_id,event_type,state,attempt,lease_until,next_attempt_at"
+                                + " from outbox where aggregate_id=?",
+                            order));
+                return null;
+              });
+        } catch (RuntimeException diagnosticError) {
+          failure.addSuppressed(diagnosticError);
+        }
+        throw failure;
+      }
       assertThat(draws.get(user, order).finalAward().amount())
           .isBetween(new java.math.BigDecimal("1.00"), new java.math.BigDecimal("2.00"));
       mvc.perform(

@@ -28,7 +28,8 @@ public class V2RecoveryRedriveProperties implements InitializingBean {
         || emissionLimit < 1
         || emissionLimit > 8
         || emissionLimit > candidateLimit
-        || roundTimeoutSeconds < 1)
+        || roundTimeoutSeconds < 1
+        || ("guarded".equals(mode) && roundTimeoutSeconds > 2))
       throw new IllegalArgumentException("Invalid recovery redrive budget or mode");
   }
 }
