@@ -9,6 +9,10 @@ import org.springframework.context.annotation.*;
 import org.springframework.transaction.PlatformTransactionManager;
 
 @Import({V2WorkerConfig.class, V2MetricsConfig.class})
+@org.springframework.boot.context.properties.EnableConfigurationProperties({
+  V2RelayProperties.class,
+  V2RecoveryRedriveProperties.class
+})
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnProperty(name = "bm.v2.enabled", havingValue = "true")
 public class V2TransactionConfig {
@@ -24,8 +28,34 @@ public class V2TransactionConfig {
       RouteCodec codec,
       BoundedDatabaseBudget budget,
       V2BudgetProperties properties,
+      V2RelayProperties relay,
       io.micrometer.core.instrument.MeterRegistry metrics) {
+    if ("bounded".equals(relay.getMode())) validateNetworkTimeouts(ds, relay.policy());
     return new RoutedTransactionRunner(ds, tm, codec, budget, properties.getPhysical(), metrics);
+  }
+
+  /** 读取驱动实际属性，拒绝仅有 future 超时但 JDBC 网络无限等待的配置。 */
+  public static void validateNetworkTimeouts(
+      DataSource ds, com.jay.domain.task.model.RelayPolicy policy) {
+    if (!(ds instanceof cn.bugstack.middleware.db.router.dynamic.DynamicDataSource routed))
+      throw new IllegalArgumentException("Bounded relay requires routed MySQL data sources");
+    long limit = Math.min(policy.claimTimeout().toMillis(), policy.settleTimeout().toMillis());
+    for (var source : routed.getResolvedDataSources().values()) {
+      if (!(source instanceof com.zaxxer.hikari.HikariDataSource pool)
+          || pool.getConnectionTimeout() > limit)
+        throw new IllegalArgumentException(
+            "Bounded relay requires Hikari acquisition timeout within DB budget");
+      try (var connection = source.getConnection()) {
+        var properties = connection.unwrap(com.mysql.cj.jdbc.JdbcConnection.class).getPropertySet();
+        int socket = properties.getIntegerProperty("socketTimeout").getValue();
+        int connect = properties.getIntegerProperty("connectTimeout").getValue();
+        if (socket < 1 || connect < 1 || socket > limit || connect > limit)
+          throw new IllegalArgumentException(
+              "Bounded relay requires finite JDBC network timeouts within DB budget");
+      } catch (java.sql.SQLException e) {
+        throw new IllegalStateException("Cannot verify bounded relay network timeout", e);
+      }
+    }
   }
 
   @Bean
