@@ -172,7 +172,8 @@ def mysql(database,sql):
 
 def route_slot(user):
     h=0
-    for c in user: h=(31*h+ord(c))&0xffffffff
+    units=user.encode('utf-16-be',errors='surrogatepass')
+    for index in range(0,len(units),2):h=(31*h+int.from_bytes(units[index:index+2],'big'))&0xffffffff
     slot=(h^(h>>16))&7
     return f'{slot//4+1:02d}.{slot%4:03d}'
 
@@ -198,10 +199,27 @@ def table_digest(database,table,rows):
     return {'count':len(actual),'expected':len(rows),'matches':sorted(actual)==sorted(expected),'checksum':digest(sorted(actual))}
 
 
+def validate_sources(files):
+    registered={r['file']:r['sha256'] for r in json.loads((ROOT/'manifest.json').read_text())['scripts']}
+    sources={}
+    for file in files:
+        actual=hashlib.sha256((ROOT/file).read_bytes()).hexdigest()
+        if registered.get(file)!=actual:raise RuntimeError('migration source checksum mismatch: '+file)
+        sources[file]=actual
+    return sources
+
+
 def run(data,database,phase,execute=False,fail_after=None):
     result=precheck(data); result.update(phase=phase,execute=execute,database=database)
+    files=('001_asset_additive.sql','001_outbox_base.sql','002_signin_exchange.sql','003_messaging_recovery.sql','003_recovery_guard.sql','006_cutover_constraints.sql','006_cutover_defaults.sql','006_legacy_receipt_proof.sql')
+    result['migration_sha256']=validate_sources(files)
     if not result['cutover_allowed'] or not execute or phase=='precheck': return result
     if not execution_allowed('v2-it',execute,database): raise ValueError('isolated database required')
+    exists=mysql(database,"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='cutover_audit'")
+    if exists=='1':
+        old_evidence=mysql(database,'SELECT evidence FROM cutover_audit WHERE run_id='+sql_value(data['run_id']))
+        if old_evidence and json.loads(old_evidence).get('migration_sha256')!=result['migration_sha256']:
+            raise RuntimeError('applied migration source checksum mismatch or missing original proof')
     # Bootstrap additive v2 tables, before tightening. Each statement reentrant; never DROP.
     for file in ('001_asset_additive.sql','001_outbox_base.sql','002_signin_exchange.sql','003_messaging_recovery.sql','003_recovery_guard.sql'):
         source=(ROOT/file).read_text()
@@ -215,7 +233,8 @@ def run(data,database,phase,execute=False,fail_after=None):
     old=mysql(database,f'SELECT input_sha256 FROM cutover_audit WHERE run_id={rid}')
     if old and old!=sha: raise ValueError('resume input checksum changed')
     if not old:
-        mysql(database,f'INSERT INTO cutover_audit VALUES({rid},{sql_value(sha)},{sql_value(data["auditor"])},\'PREPARE\',0,JSON_OBJECT())')
+        initial_evidence=sql_value({'migration_sha256':result['migration_sha256']})
+        mysql(database,f'INSERT INTO cutover_audit VALUES({rid},{sql_value(sha)},{sql_value(data["auditor"])},\'PREPARE\',0,{initial_evidence})')
     if phase=='prepare':
         # Single import transaction. Partial DDL can persist; partial imported assets cannot.
         statements=[]

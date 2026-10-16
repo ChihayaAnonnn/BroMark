@@ -102,3 +102,9 @@ class LegacyImportLayout(unittest.TestCase):
         fixture=importlib.util.module_from_spec(spec);spec.loader.exec_module(fixture)
         data=fixture.CutoverValidation().fixture();data['identities']=[];data['logical_db']='01'
         self.assertFalse(m.precheck(data)['cutover_allowed'])
+
+class JavaRouteInteroperability(unittest.TestCase):
+    def test_supplementary_unicode_uses_java_utf16_hash_route(self):
+        from seed_v2_testdata import route
+        self.assertEqual('01.000',m.route_slot('\U0001f600'))
+        self.assertEqual((1,0),route('\U0001f600'))

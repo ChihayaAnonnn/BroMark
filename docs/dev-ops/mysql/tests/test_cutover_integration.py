@@ -28,6 +28,10 @@ class CutoverIntegration(unittest.TestCase):
         report=m.run(d,db,'prepare',True)
         self.assertTrue(report['cutover_allowed'],report)
         self.assertTrue(m.run(d,db,'verify',True)['cutover_allowed'])
+        m.mysql(db,"UPDATE cutover_audit SET evidence=JSON_OBJECT() WHERE run_id='ddl_fixture'")
+        with self.assertRaisesRegex(RuntimeError,'applied migration source checksum'):
+            m.run(d,db,'verify',True)
+        m.mysql(db,"UPDATE cutover_audit SET evidence="+m.sql_value(report)+" WHERE run_id='ddl_fixture'")
         m.mysql(db,"UPDATE cutover_identity SET biz_id='changed' WHERE legacy_id='17'")
         self.assertFalse(m.run(d,db,'verify',True)['cutover_allowed'])
         m.mysql(db,"UPDATE cutover_identity SET biz_id='award-17' WHERE legacy_id='17'")

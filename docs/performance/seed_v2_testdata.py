@@ -24,7 +24,8 @@ def mysql(db,statement):
 
 def route(user):
     h=0
-    for c in user:h=(31*h+ord(c))&0xffffffff
+    units=user.encode('utf-16-be',errors='surrogatepass')
+    for index in range(0,len(units),2):h=(31*h+int.from_bytes(units[index:index+2],'big'))&0xffffffff
     slot=(h^(h>>16))&7
     return slot//4+1,slot%4
 

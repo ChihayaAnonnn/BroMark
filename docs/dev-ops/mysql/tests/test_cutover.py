@@ -45,3 +45,17 @@ class AccountingPrecheck(unittest.TestCase):
     def test_missing_opening_is_not_silently_defaulted(self):
         d=CutoverValidation().fixture();d['tables']['user_credit_account'][0].pop('opening_balance')
         self.assertFalse(m.precheck(d)['cutover_allowed'])
+
+class SourceChecksumPrecheck(unittest.TestCase):
+    def test_rehearsal_refuses_modified_registered_migration_before_writing(self):
+        import tempfile
+        import json
+        old=m.ROOT
+        with tempfile.TemporaryDirectory() as directory:
+            m.ROOT=Path(directory)
+            source='CREATE TABLE untouched(id int);'
+            (m.ROOT/'001_probe.sql').write_text(source)
+            (m.ROOT/'manifest.json').write_text(json.dumps({'scripts':[{'file':'001_probe.sql','sha256':'0'*64}]}))
+            try:
+                with self.assertRaisesRegex(RuntimeError,'checksum'):m.validate_sources(['001_probe.sql'])
+            finally:m.ROOT=old
