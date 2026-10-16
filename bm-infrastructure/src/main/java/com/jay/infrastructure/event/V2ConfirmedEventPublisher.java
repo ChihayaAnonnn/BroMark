@@ -16,11 +16,13 @@ public final class V2ConfirmedEventPublisher implements ConfirmedEventPublisher,
   private final RabbitTemplate template;
   private final String exchange;
   private final Duration timeout;
+  private final int capacity;
   private final Semaphore permits;
   private final ThreadPoolExecutor sends;
   private final ScheduledThreadPoolExecutor timer =
       new ScheduledThreadPoolExecutor(1, Thread.ofPlatform().name("v2-confirm-timeout").factory());
-  private final Set<CompletableFuture<PublishOutcome>> pending = ConcurrentHashMap.newKeySet();
+  private final ConcurrentMap<CompletionStage<PublishOutcome>, Attempt> pending =
+      new ConcurrentHashMap<>();
   private volatile boolean closed;
 
   public V2ConfirmedEventPublisher(
@@ -30,6 +32,7 @@ public final class V2ConfirmedEventPublisher implements ConfirmedEventPublisher,
     this.template = template;
     this.exchange = exchange;
     this.timeout = timeout;
+    this.capacity = max;
     this.permits = new Semaphore(max);
     template.setMandatory(true);
     timer.setRemoveOnCancelPolicy(true);
@@ -44,6 +47,14 @@ public final class V2ConfirmedEventPublisher implements ConfirmedEventPublisher,
             new ThreadPoolExecutor.AbortPolicy());
   }
 
+  public int capacity() {
+    return capacity;
+  }
+
+  public boolean isAttemptComplete(CompletionStage<PublishOutcome> attempt) {
+    return !pending.containsKey(attempt);
+  }
+
   public CompletionStage<PublishOutcome> publish(EventEnvelope e, Deadline d) {
     return publishAttempt(e, UUID.randomUUID().toString(), 0, d);
   }
@@ -55,25 +66,24 @@ public final class V2ConfirmedEventPublisher implements ConfirmedEventPublisher,
     long nanos = Math.min(timeout.toNanos(), d.remaining().toNanos());
     if (closed || nanos <= 0 || !permits.tryAcquire())
       return CompletableFuture.completedFuture(PublishOutcome.UNKNOWN);
-    var result = new CompletableFuture<PublishOutcome>();
-    pending.add(result);
+    var attempt = new Attempt();
+    pending.put(attempt.result, attempt);
     var expiry =
-        timer.schedule(() -> result.complete(PublishOutcome.UNKNOWN), nanos, TimeUnit.NANOSECONDS);
-    result.whenComplete(
-        (v, t) -> {
-          expiry.cancel(false);
-          pending.remove(result);
-          permits.release();
-        });
+        timer.schedule(
+            () -> attempt.result.complete(PublishOutcome.UNKNOWN), nanos, TimeUnit.NANOSECONDS);
+    attempt.result.whenComplete((v, t) -> expiry.cancel(false));
     try {
       sends.execute(
           () -> {
-            if (result.isDone()) return;
+            if (attempt.result.isDone()) {
+              attempt.noSend();
+              return;
+            }
             var cd = new CorrelationData(e.eventId() + ":" + token);
             cd.getFuture()
                 .whenComplete(
                     (confirm, error) ->
-                        result.complete(
+                        attempt.transportFinished(
                             error != null
                                 ? PublishOutcome.UNKNOWN
                                 : cd.getReturned() != null
@@ -96,13 +106,50 @@ public final class V2ConfirmedEventPublisher implements ConfirmedEventPublisher,
                       JsonStore.write(e).getBytes(java.nio.charset.StandardCharsets.UTF_8), props),
                   cd);
             } catch (Exception ex) {
-              result.complete(PublishOutcome.UNKNOWN);
+              // send抛错后本地已没有迟到发送路径；仍按UNKNOWN保留远端迟到确认/重复的可能。
+              attempt.result.complete(PublishOutcome.UNKNOWN);
+              attempt.transportFinished(PublishOutcome.UNKNOWN);
+            } finally {
+              attempt.sendExited();
             }
           });
     } catch (RejectedExecutionException ex) {
-      result.complete(PublishOutcome.UNKNOWN);
+      attempt.noSend();
     }
-    return result;
+    return attempt.result;
+  }
+
+  /** 调用方超时/取消只完成result；必须send退出且confirm终结或本地send异常终结后才释放物理槽位。 */
+  private final class Attempt {
+    final CompletableFuture<PublishOutcome> result = new CompletableFuture<>();
+    boolean sendExited, transportFinished, released;
+    PublishOutcome outcome;
+
+    synchronized void noSend() {
+      sendExited = true;
+      transportFinished(PublishOutcome.UNKNOWN);
+    }
+
+    synchronized void sendExited() {
+      sendExited = true;
+      finish();
+    }
+
+    synchronized void transportFinished(PublishOutcome value) {
+      transportFinished = true;
+      outcome = value;
+      finish();
+    }
+
+    private void finish() {
+      if (!released && sendExited && transportFinished) {
+        released = true;
+        permits.release();
+        pending.remove(result);
+        // 正常确认也等send退出，避免confirm先到时本通道过早开启新波。
+        result.complete(outcome);
+      }
+    }
   }
 
   public void close() {
@@ -110,17 +157,18 @@ public final class V2ConfirmedEventPublisher implements ConfirmedEventPublisher,
       closed = true;
       sends.shutdown();
     }
+    long end = System.nanoTime() + timeout.plusSeconds(1).toNanos();
     try {
-      if (!sends.awaitTermination(timeout.toMillis() + 1000, TimeUnit.MILLISECONDS))
-        sends.shutdownNow();
-      CompletableFuture.allOf(pending.toArray(CompletableFuture[]::new))
-          .get(timeout.toMillis() + 1000, TimeUnit.MILLISECONDS);
+      long left = end - System.nanoTime();
+      if (left > 0) sends.awaitTermination(left, TimeUnit.NANOSECONDS);
+      while (!pending.isEmpty() && (left = end - System.nanoTime()) > 0)
+        TimeUnit.NANOSECONDS.sleep(Math.min(left, TimeUnit.MILLISECONDS.toNanos(10)));
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-    } catch (ExecutionException | TimeoutException e) {
-      /* Unknown deliveries remain recoverable by their lease. */
     } finally {
-      pending.forEach(f -> f.complete(PublishOutcome.UNKNOWN));
+      // 强制关闭只能通知UNKNOWN，不能伪称迟到send已结束或释放它的槽位。
+      pending.keySet().forEach(f -> f.toCompletableFuture().complete(PublishOutcome.UNKNOWN));
+      sends.shutdownNow();
       timer.shutdownNow();
     }
   }
