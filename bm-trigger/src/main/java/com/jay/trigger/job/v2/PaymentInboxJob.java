@@ -29,25 +29,51 @@ public final class PaymentInboxJob {
   public void tick() {
     ids.prefetch();
     String token = UUID.randomUUID().toString();
-    var events =
+    var entries =
         tx.inControl(
             WorkClass.CALLBACK,
             new Deadline(Instant.now().plusSeconds(5)),
             () -> repo.claimInbox(token, 8));
-    for (var e : events)
+    for (var entry : entries) {
+      com.jay.domain.payment.model.VerifiedPaymentEvent event;
+      try {
+        event = entry.event();
+      } catch (RuntimeException corrupt) {
+        fail(entry, token, true, "Invalid verified payload/identity");
+        continue;
+      }
       try {
         tx.inControl(
             WorkClass.WORKER,
             new Deadline(Instant.now().plusSeconds(10)),
             () -> {
-              if (!repo.ownsInbox(e, token)) return null;
-              facts.applyInTransaction(e);
-              repo.finishInbox(e, token, true);
+              if (!repo.ownsInbox(entry, token)) return null;
+              facts.applyInTransaction(event);
+              repo.finishInbox(entry, token, true);
               return null;
             });
       } catch (RuntimeException failed) {
-        org.slf4j.LoggerFactory.getLogger(getClass())
-            .warn("Payment inbox retained for lease retry: {}", e.eventId());
+        fail(entry, token, false, "Payment apply failed: " + failed.getClass().getSimpleName());
       }
+    }
+  }
+
+  private void fail(
+      com.jay.domain.payment.model.ProviderInboxEntry e,
+      String token,
+      boolean permanent,
+      String reason) {
+    try {
+      tx.inControl(
+          WorkClass.RECOVERY,
+          new Deadline(Instant.now().plusSeconds(10)),
+          () -> {
+            repo.failInbox(e, token, reason, permanent);
+            return null;
+          });
+    } catch (RuntimeException unavailable) {
+      org.slf4j.LoggerFactory.getLogger(getClass())
+          .warn("Provider inbox handoff unavailable; lease retained: {}", e.eventId());
+    }
   }
 }

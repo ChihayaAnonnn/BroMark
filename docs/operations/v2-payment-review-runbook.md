@@ -21,3 +21,15 @@ HTTP：POST `/api/v2/payment/orders`、GET `/api/v2/payment/orders/{id}` 要求J
 对账调用 `PaymentReconciliationService.check()`，仅声明PAYMENT检查范围；REVIEW/DEAD等暂停订单单独查payment_review/recovery_case。`checkOrder(id)` 对照用户唯一charge流水、冻结权益及原DELIVERED回执，再锁源订单复核版本；版本变化下轮重查。发现差异仅核查，不改余额。当前全量手动检查不宣称生产规模或分布式快照；后续Phase6需分批与容量验证。配合本目录v2-payment-reconciliation.sql收集证据。
 
 隔离验收：`V2_MYSQL_PASSWORD=... V2_RABBIT_PASSWORD=... MAVEN_CACHE_DIR=... docs/operations/verify-payment.sh`，正式005仅控制库，001–004校验和不变。该脚本不启动真实支付渠道，不发布部署。
+
+## 审查补充的恢复边界
+
+渠道查询明确 `NOT_FOUND` 时才用原商户号、原金额币种重试幂等建单；`UNKNOWN` 保留未知结果，不能据此换单。这个区分必须由未来渠道适配器可靠提供。暂停期间已经验证并提交的paid付款身份，在审计恢复后优先进入统一事实内核，不依赖渠道查询可用性。
+
+provider Inbox先按身份及原payload认领，再逐条解析。错误身份/摘要/结构立即DEAD；业务持续失败最多12次，指数退避最高256秒；失败证据保留在provider_inbox_failure，包含原payload、失败次数和原因。DEAD不再自动认领，并建立PAYMENT核查单。数据库不可用导致移交失败时保留租约，由过期认领恢复。必须先修复损坏数据或代码，再按核查流程处理；需要重新处理DEAD通知时，维护窗口内先记录操作人、原因及修复证据，再以原provider/account/environment/eventId把状态改为PENDING，不生成新付款身份或商户号。修复前不得仅恢复自动发放。
+
+provider_inbox.payload.rawSha256为首次验签原始字节的SHA-256；canonicalHash仍只做业务事实去重，投递元数据变化不会覆盖首次事实及原文摘要。005_payment.sql校验和不变，新增005_payment_inbox_failure.sql也仅落控制库。
+
+支付对账范围包含PAYMENT_ORDERS、PAYMENT_FACTS、PAYMENT_CHARGES：核对真实付款身份的渠道账户/环境、用户、金额币种与冻结订单；枚举所有用户2库×4表的CHARGE流水，检查孤立发放及错误归属；独立枚举付款身份，检查无源订单的事实。坏源快照单独核查，不能阻塞全量检查。已暂停订单仍通过核查单另行统计，报告不能被当作包括其他业务域的全量绿色证明。
+
+遗留小项：已签名但JSON/字段格式错误的外部通知目前由通用解析异常返回503，应后续改为明确400永久输入拒绝；不会确认接收，也不会发积分。

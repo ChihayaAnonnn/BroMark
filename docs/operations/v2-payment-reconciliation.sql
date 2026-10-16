@@ -13,3 +13,10 @@ FROM payment_order o WHERE o.state='DELIVERED';
 -- SELECT user_id,biz_id,request_hash,delta,balance_after,receipt
 -- FROM user_credit_ledger_{{suffix}} WHERE biz_type='CHARGE' AND biz_id=CONCAT('charge:',:order_id);
 -- 对照冻结商品credit、PaymentPayload权益摘要与原CreditGranted receipt；balance_after是历史回执而非当前余额。
+-- 孤立付款身份，不包含普通待履约PAID：
+SELECT f.* FROM provider_payment_fact f LEFT JOIN payment_order o ON o.order_id=f.order_id
+WHERE o.order_id IS NULL;
+-- 通知永久失败与损坏证据：
+SELECT i.provider,i.account,i.environment,i.event_id,i.state,f.failures,f.reason,f.failed_at
+FROM provider_inbox i LEFT JOIN provider_inbox_failure f USING(provider,account,environment,event_id)
+WHERE i.state='DEAD';

@@ -43,7 +43,40 @@ public final class PaymentRecoveryService {
             });
     if (r.recoveryStatus() != RecoveryStatus.ACTIVE) return new RecoveryDecision(List.of());
     if (r.state().equals("CREATED")) {
+      var stored = control(() -> repo.facts(id));
+      var paid = stored.stream().filter(PaymentFact::paid).findFirst();
+      if (paid.isPresent()) {
+        facts.apply(paid.get().event());
+        return new RecoveryDecision(List.of());
+      }
       var answer = provider.query(id);
+      if (answer.status().equals("NOT_FOUND")) {
+        ProviderOrder created;
+        try {
+          created = provider.create(id, r.product().amount(), r.product().currency());
+          if (!id.equals(created.merchantOrderId()))
+            throw new IllegalArgumentException("Create merchant mismatch");
+        } catch (RuntimeException unknown) {
+          created = new ProviderOrder(id, "UNKNOWN", Map.of());
+        }
+        var response = created;
+        control(
+            () -> {
+              var current = repo.find(id, true);
+              if (current.recoveryStatus() == RecoveryStatus.ACTIVE
+                  && !Set.of("READY", "CLOSED").contains(current.providerCreateStatus()))
+                repo.update(
+                    current,
+                    current.change(
+                        current.state(),
+                        response.status(),
+                        current.recoveryStatus(),
+                        response.parameters(),
+                        current.receipt()));
+              return null;
+            });
+        return new RecoveryDecision(List.of());
+      }
       if (!answer.merchantOrderId().equals(id))
         throw new IllegalArgumentException("Query merchant mismatch");
       if (answer.fact() != null) {

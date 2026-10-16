@@ -17,13 +17,13 @@ public interface PaymentRepository extends RecoveryAggregatePort {
 
   void review(String id, String reason, Object evidence);
 
-  boolean saveInbox(VerifiedPaymentEvent e);
+  boolean saveInbox(VerifiedPaymentEvent e, String rawHash);
 
-  java.util.List<VerifiedPaymentEvent> claimInbox(String token, int limit);
+  java.util.List<ProviderInboxEntry> claimInbox(String token, int limit);
 
-  boolean ownsInbox(VerifiedPaymentEvent e, String token);
+  boolean ownsInbox(ProviderInboxEntry e, String token);
 
-  void finishInbox(VerifiedPaymentEvent e, String token, boolean success);
+  void finishInbox(ProviderInboxEntry e, String token, boolean success);
 
   java.util.Map<String, Object> lockFact(VerifiedPaymentEvent e);
 
@@ -33,7 +33,15 @@ public interface PaymentRepository extends RecoveryAggregatePort {
 
   void touch(String id);
 
-  java.util.List<PaymentRecord> all();
+  java.util.List<String> orderIds();
 
   void stage(String id, String stage);
+
+  void failInbox(ProviderInboxEntry entry, String token, String reason, boolean permanent);
+
+  java.util.List<PaymentFact> facts(String order);
+
+  java.util.List<String> factOrderIds();
+
+  java.util.List<PaymentCharge> charges();
 }

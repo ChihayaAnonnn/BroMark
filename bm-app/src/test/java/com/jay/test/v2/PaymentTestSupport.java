@@ -24,10 +24,12 @@ final class PaymentTestSupport {
     control(
         () -> {
           try {
-            for (String s :
-                java.nio.file.Files.readString(
-                        java.nio.file.Path.of("../docs/dev-ops/mysql/migrations/005_payment.sql"))
-                    .split(";")) if (!s.isBlank()) h.j.execute(s);
+            for (String file :
+                java.util.List.of("005_payment.sql", "005_payment_inbox_failure.sql"))
+              for (String s :
+                  java.nio.file.Files.readString(
+                          java.nio.file.Path.of("../docs/dev-ops/mysql/migrations/" + file))
+                      .split(";")) if (!s.isBlank()) h.j.execute(s);
           } catch (Exception e) {
             throw new IllegalStateException(e);
           }

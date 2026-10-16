@@ -139,33 +139,27 @@ public final class MySqlPaymentRepository implements PaymentRepository {
         id,
         reason,
         json);
-    try {
-      var r = find(id, true);
-      if (r.recoveryStatus() == RecoveryStatus.ACTIVE)
-        update(
-            r,
-            r.change(
-                r.state(),
-                r.providerCreateStatus(),
-                RecoveryStatus.REVIEW,
-                r.parameters(),
-                r.receipt()));
-      var paused = find(id, false);
-      recovery.open(
-          "PAYMENT",
-          new RecoveryAggregate(id, paused.state(), paused.recoveryStatus(), paused.version()),
-          RecoveryStatus.REVIEW,
-          reason + ": " + json);
-    } catch (AssetNotFoundException missing) {
-      recovery.open(
-          "PAYMENT",
-          new RecoveryAggregate(id, "UNBOUND", RecoveryStatus.REVIEW, 1),
-          RecoveryStatus.REVIEW,
-          reason + ": " + json);
+    var rows =
+        j.query(
+            "select state,recovery_status,version from payment_order where order_id=? for update",
+            (rs, n) ->
+                new RecoveryAggregate(
+                    id, rs.getString(1), RecoveryStatus.valueOf(rs.getString(2)), rs.getLong(3)),
+            id);
+    RecoveryAggregate aggregate;
+    if (rows.isEmpty()) aggregate = new RecoveryAggregate(id, "UNBOUND", RecoveryStatus.REVIEW, 1);
+    else {
+      var r = rows.getFirst();
+      if (r.recoveryStatus() == RecoveryStatus.ACTIVE) {
+        if (!updateStatus(id, r.version(), RecoveryStatus.REVIEW))
+          throw new AssetConflictException("Review version");
+        aggregate = new RecoveryAggregate(id, r.state(), RecoveryStatus.REVIEW, r.version() + 1);
+      } else aggregate = r;
     }
+    recovery.open("PAYMENT", aggregate, RecoveryStatus.REVIEW, reason + ": " + json);
   }
 
-  public boolean saveInbox(VerifiedPaymentEvent e) {
+  public boolean saveInbox(VerifiedPaymentEvent e, String rawHash) {
     control();
     j.update(
         "insert into provider_inbox(provider,account,environment,event_id,canonical_hash,payload)"
@@ -175,7 +169,7 @@ public final class MySqlPaymentRepository implements PaymentRepository {
         e.environment(),
         e.eventId(),
         e.canonicalHash(),
-        JsonStore.write(e));
+        notificationJson(e, rawHash));
     var original =
         j.queryForObject(
             "select payload from provider_inbox where provider=? and account=? and environment=?"
@@ -195,30 +189,52 @@ public final class MySqlPaymentRepository implements PaymentRepository {
     return true;
   }
 
-  public List<VerifiedPaymentEvent> claimInbox(String token, int limit) {
+  private String notificationJson(VerifiedPaymentEvent e, String rawHash) {
+    if (rawHash == null || !rawHash.matches("[a-f0-9]{64}"))
+      throw new IllegalArgumentException("Raw hash required");
+    try {
+      var node =
+          (com.fasterxml.jackson.databind.node.ObjectNode)
+              new com.fasterxml.jackson.databind.ObjectMapper().readTree(JsonStore.write(e));
+      node.put("rawSha256", rawHash);
+      return node.toString();
+    } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
+      throw new IllegalStateException(ex);
+    }
+  }
+
+  public List<ProviderInboxEntry> claimInbox(String token, int limit) {
     control();
-    var events =
+    if (limit < 1 || limit > 8) throw new IllegalArgumentException("Inbox batch limit");
+    var entries =
         j.query(
-            "select payload from provider_inbox where (state='PENDING' and"
-                + " next_attempt_at<=UTC_TIMESTAMP(6)) or (state='PROCESSING' and"
-                + " lease_until<UTC_TIMESTAMP(6)) order by next_attempt_at,event_id limit ? for"
-                + " update skip locked",
-            (rs, n) -> JsonStore.read(rs.getString(1), VerifiedPaymentEvent.class),
+            "select provider,account,environment,event_id,canonical_hash,payload from"
+                + " provider_inbox where (state='PENDING' and next_attempt_at<=UTC_TIMESTAMP(6)) or"
+                + " (state='PROCESSING' and lease_until<UTC_TIMESTAMP(6)) order by"
+                + " next_attempt_at,event_id limit ? for update skip locked",
+            (rs, n) ->
+                new ProviderInboxEntry(
+                    rs.getString(1),
+                    rs.getString(2),
+                    rs.getString(3),
+                    rs.getString(4),
+                    rs.getString(5),
+                    rs.getString(6)),
             limit);
-    for (var e : events)
+    for (var e : entries)
       j.update(
           "update provider_inbox set"
               + " state='PROCESSING',lease_token=?,lease_until=TIMESTAMPADD(SECOND,30,UTC_TIMESTAMP(6))"
               + " where provider=? and account=? and environment=? and event_id=?",
           token,
           e.provider(),
-          e.providerAccount(),
+          e.account(),
           e.environment(),
           e.eventId());
-    return events;
+    return entries;
   }
 
-  public boolean ownsInbox(VerifiedPaymentEvent e, String token) {
+  public boolean ownsInbox(ProviderInboxEntry e, String token) {
     control();
     return j.queryForObject(
             "select count(*) from provider_inbox where provider=? and account=? and environment=?"
@@ -226,14 +242,14 @@ public final class MySqlPaymentRepository implements PaymentRepository {
                 + " lease_until>UTC_TIMESTAMP(6) for update",
             Long.class,
             e.provider(),
-            e.providerAccount(),
+            e.account(),
             e.environment(),
             e.eventId(),
             token)
         == 1;
   }
 
-  public void finishInbox(VerifiedPaymentEvent e, String token, boolean success) {
+  public void finishInbox(ProviderInboxEntry e, String token, boolean success) {
     control();
     j.update(
         "update provider_inbox set"
@@ -241,10 +257,66 @@ public final class MySqlPaymentRepository implements PaymentRepository {
             + " where provider=? and account=? and environment=? and event_id=? and lease_token=?",
         success ? "DONE" : "PENDING",
         e.provider(),
-        e.providerAccount(),
+        e.account(),
         e.environment(),
         e.eventId(),
         token);
+  }
+
+  public void failInbox(ProviderInboxEntry e, String token, String reason, boolean permanent) {
+    control();
+    if (!ownsInbox(e, token)) return;
+    j.update(
+        "insert into"
+            + " provider_inbox_failure(provider,account,environment,event_id,failures,reason,payload)"
+            + " values(?,?,?,?,1,?,?) on duplicate key update"
+            + " failures=failures+1,reason=values(reason),payload=values(payload),failed_at=UTC_TIMESTAMP(6)",
+        e.provider(),
+        e.account(),
+        e.environment(),
+        e.eventId(),
+        reason.substring(0, Math.min(1024, reason.length())),
+        e.payload());
+    int n =
+        j.queryForObject(
+            "select failures from provider_inbox_failure where provider=? and account=? and"
+                + " environment=? and event_id=?",
+            Integer.class,
+            e.provider(),
+            e.account(),
+            e.environment(),
+            e.eventId());
+    boolean dead = permanent || n >= com.jay.domain.task.service.RetryPolicy.MAX_ATTEMPTS;
+    j.update(
+        "update provider_inbox set"
+            + " state=?,lease_token=null,lease_until=null,next_attempt_at=TIMESTAMPADD(SECOND,?,UTC_TIMESTAMP(6))"
+            + " where provider=? and account=? and environment=? and event_id=? and lease_token=?",
+        dead ? "DEAD" : "PENDING",
+        Math.min(300, 1 << Math.min(n, 8)),
+        e.provider(),
+        e.account(),
+        e.environment(),
+        e.eventId(),
+        token);
+    if (dead) {
+      String id;
+      try {
+        id =
+            new com.fasterxml.jackson.databind.ObjectMapper()
+                .readTree(e.payload())
+                .path("merchantOrderId")
+                .asText();
+      } catch (Exception invalid) {
+        id = "";
+      }
+      if (id.isBlank() || id.length() > 128)
+        id =
+            "INBOX-"
+                + MySqlConsumerInbox.digest(
+                    JsonStore.write(
+                        List.of(e.provider(), e.account(), e.environment(), e.eventId())));
+      review(id, "Provider inbox exhausted/corrupt: " + reason, e);
+    }
   }
 
   public Map<String, Object> lockFact(VerifiedPaymentEvent e) {
@@ -319,7 +391,7 @@ public final class MySqlPaymentRepository implements PaymentRepository {
                         ? null
                         : JsonStore.read(rs.getString(2), VerifiedPaymentEvent.class)),
             id);
-    return rows.isEmpty() ? new ProviderPayment(id, "UNKNOWN", null) : rows.getFirst();
+    return rows.isEmpty() ? new ProviderPayment(id, "NOT_FOUND", null) : rows.getFirst();
   }
 
   public void sandboxFact(VerifiedPaymentEvent e) {
@@ -334,8 +406,13 @@ public final class MySqlPaymentRepository implements PaymentRepository {
   public RecoveryAggregate lock(String id) {
     if (!"00".equals(cn.bugstack.middleware.db.router.DBContextHolder.getDBKey()))
       throw new org.springframework.dao.EmptyResultDataAccessException(1);
-    var r = find(id, true);
-    return new RecoveryAggregate(id, r.state(), r.recoveryStatus(), r.version());
+    control();
+    return j.queryForObject(
+        "select state,recovery_status,version from payment_order where order_id=? for update",
+        (rs, n) ->
+            new RecoveryAggregate(
+                id, rs.getString(1), RecoveryStatus.valueOf(rs.getString(2)), rs.getLong(3)),
+        id);
   }
 
   public boolean updateStatus(String id, long v, RecoveryStatus status) {
@@ -373,12 +450,54 @@ public final class MySqlPaymentRepository implements PaymentRepository {
         id);
   }
 
-  public List<PaymentRecord> all() {
+  public List<String> orderIds() {
     control();
-    return j
-        .query("select order_id from payment_order order by order_id", (rs, n) -> rs.getString(1))
-        .stream()
-        .map(id -> find(id, false))
-        .toList();
+    return j.query(
+        "select order_id from payment_order order by order_id", (rs, n) -> rs.getString(1));
+  }
+
+  public List<PaymentFact> facts(String id) {
+    control();
+    return j.query(
+        "select * from provider_payment_fact where order_id=? order by"
+            + " provider,account,environment,transaction_id",
+        (rs, n) ->
+            new PaymentFact(
+                rs.getString("provider"),
+                rs.getString("account"),
+                rs.getString("environment"),
+                rs.getString("transaction_id"),
+                rs.getString("order_id"),
+                rs.getString("user_id"),
+                rs.getBigDecimal("amount"),
+                rs.getString("currency"),
+                rs.getBoolean("paid"),
+                rs.getBoolean("reversed")),
+        id);
+  }
+
+  public List<String> factOrderIds() {
+    control();
+    return j.query(
+        "select distinct order_id from provider_payment_fact order by order_id",
+        (rs, n) -> rs.getString(1));
+  }
+
+  public List<PaymentCharge> charges() {
+    if ("00".equals(cn.bugstack.middleware.db.router.DBContextHolder.getDBKey())
+        || !org.springframework.transaction.support.TransactionSynchronizationManager
+            .isActualTransactionActive())
+      throw new IllegalStateException("User transaction required");
+    return j.query(
+        "select user_id,biz_type,biz_id,request_hash,delta,balance_after from "
+            + MySqlAssetRepository.table("user_credit_ledger")
+            + " where biz_type='CHARGE'",
+        (rs, n) ->
+            new PaymentCharge(
+                rs.getString(1),
+                new AssetReceipt(
+                    new BusinessId(rs.getString(2), rs.getString(3), rs.getString(4)),
+                    rs.getBigDecimal(5),
+                    rs.getBigDecimal(6))));
   }
 }

@@ -38,10 +38,19 @@ public final class PaymentNotificationService {
         WorkClass.CALLBACK,
         new Deadline(Instant.now().plusSeconds(5)),
         () -> {
-          repo.saveInbox(e);
+          repo.saveInbox(e, rawHash(raw));
           faults.hit("payment.after-inbox");
           return null;
         });
     return provider.accepted();
+  }
+
+  private static String rawHash(byte[] raw) {
+    try {
+      return java.util.HexFormat.of()
+          .formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(raw));
+    } catch (java.security.NoSuchAlgorithmException e) {
+      throw new IllegalStateException(e);
+    }
   }
 }
