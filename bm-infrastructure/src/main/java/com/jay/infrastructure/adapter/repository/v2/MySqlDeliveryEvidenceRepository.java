@@ -75,7 +75,7 @@ public final class MySqlDeliveryEvidenceRepository implements DeliveryEvidenceRe
         false);
   }
 
-  private boolean targetPaused(EventEnvelope e) {
+  public boolean targetPaused(EventEnvelope e) {
     if (EventRouting.USER.contains(e.eventType())) {
       if (j.queryForObject(
               "select count(*) from user_credit_account where user_id=? and status<>'ACTIVE'",

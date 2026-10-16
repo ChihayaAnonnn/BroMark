@@ -19,4 +19,9 @@ public interface DeliveryEvidenceRepository {
   }
 
   boolean operationCompleted(String consumer, EventEnvelope event);
+
+  /** 只读目标业务暂停证据；调用方已在目标库事务内。 */
+  default boolean targetPaused(EventEnvelope event) {
+    return false;
+  }
 }

@@ -47,7 +47,7 @@ public final class RecoveryService {
     if (status == RecoveryStatus.ACTIVE || evidence == null || evidence.isBlank())
       throw new IllegalArgumentException("Pause evidence required");
     var port = ports.get(type);
-    var a = lockOrNull(port, id);
+    var a = lockOrNull(port, id, true);
     if (a == null) a = new RecoveryAggregate(id, "UNBOUND", RecoveryStatus.ACTIVE, 1);
     else if (a.recoveryStatus() == RecoveryStatus.ACTIVE) {
       if (!port.updateStatus(id, a.version(), status))
@@ -83,6 +83,38 @@ public final class RecoveryService {
       return true;
     }
     return false;
+  }
+
+  /** 运输恢复在锁 Retry 任务前，按原业务顺序检查可执行状态。 */
+  public boolean transportAllowed(EventEnvelope e) {
+    String type = EventRouting.aggregateType(e);
+    var port = ports.get(type);
+    var a = lockOrNull(port, e.aggregateId());
+    return (port == null || (a != null && a.recoveryStatus() == RecoveryStatus.ACTIVE))
+        && repo.active(type, e.aggregateId()) == null;
+  }
+
+  /** 发布上限只做暂停与核查，不执行资产；允许已有 REVIEW case 保持原状态。 */
+  public boolean transportPresentForTerminal(EventEnvelope e) {
+    String type = EventRouting.aggregateType(e);
+    var port = ports.get(type);
+    if (port != null && lockOrNull(port, e.aggregateId(), true) == null) return false;
+    // 与消费事务按相同顺序持有聚合 guard，直到 receipt 核查和任务 DEAD 提交。
+    repo.active(type, e.aggregateId());
+    return true;
+  }
+
+  /** 调用者已在目标短事务内；按metadata业务锁→核查guard→任务CAS的顺序。 */
+  public void pauseTransportRetry(
+      String consumer, EventEnvelope e, RecoveryStatus status, String evidence) {
+    if (consumer == null
+        || !consumer.equals(
+            EventRouting.NOTIFICATIONS.contains(e.eventType())
+                ? "notification-v2"
+                : "workflow-v2")) throw new IllegalArgumentException("Retry consumer identity");
+    String type = EventRouting.aggregateType(e);
+    pauseInCurrentTransaction(type, e.aggregateId(), status, evidence);
+    repo.defer(consumer, type, e);
   }
 
   public void resume(
@@ -133,8 +165,12 @@ public final class RecoveryService {
   }
 
   private RecoveryAggregate lockOrNull(RecoveryAggregatePort port, String id) {
+    return lockOrNull(port, id, false);
+  }
+
+  private RecoveryAggregate lockOrNull(RecoveryAggregatePort port, String id, boolean pauseOnly) {
     try {
-      return port == null ? null : port.lock(id);
+      return port == null ? null : pauseOnly ? port.lockForPause(id) : port.lock(id);
     } catch (org.springframework.dao.EmptyResultDataAccessException missing) {
       return null;
     }

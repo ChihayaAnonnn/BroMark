@@ -6,6 +6,11 @@ import java.util.List;
 public interface RecoveryAggregatePort {
   RecoveryAggregate lock(String id);
 
+  /** 仅核查/暂停元数据；默认与业务锁相同，禁用账户等特例可覆盖。 */
+  default RecoveryAggregate lockForPause(String id) {
+    return lock(id);
+  }
+
   boolean updateStatus(String id, long expectedVersion, RecoveryStatus status);
 
   default boolean terminal(RecoveryAggregate aggregate) {

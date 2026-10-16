@@ -332,11 +332,44 @@ public class V2RabbitConfig {
   }
 
   @Bean
+  @ConditionalOnProperty(
+      prefix = "bm.v2.recovery.redrive", name = "mode", havingValue = "guarded")
+  public RetryTransportRecoveryJob v2RetryTransportRecoveryJob(
+      DataSource ds,
+      UserTransactionRunner tx,
+      MySqlRetryJobRepository retries,
+      RecoveryService recovery,
+      CoalescingJobDispatcher dispatcher,
+      V2RecoveryRedriveProperties policy) {
+    var j = new JdbcTemplate(ds);
+    for (var slot : OutboxRelayJob.SOURCES)
+      tx.inSlot(
+          slot,
+          com.jay.domain.asset.model.WorkClass.RECOVERY,
+          new com.jay.domain.asset.model.Deadline(java.time.Instant.now().plusSeconds(5)),
+          () -> {
+            j.queryForList(
+                "select published_at,event_id from retry_job FORCE INDEX(published_recovery)"
+                    + " where state='PUBLISHED' limit 0");
+            return null;
+          });
+    var service =
+        new RetryTransportRecovery(
+            tx, retries, new MySqlDeliveryEvidenceRepository(ds), recovery);
+    service.budget(
+        policy.getCandidateLimit(),
+        policy.getEmissionLimit(),
+        Duration.ofSeconds(policy.getRoundTimeoutSeconds()));
+    return new RetryTransportRecoveryJob(service, dispatcher);
+  }
+
+  @Bean
   public MessagingWorkers v2MessagingWorkers(
       V2MessageListener listener,
       OutboxRelayJob outbox,
       RetryPublishJob retry,
       RecoveryScanJob recovery,
+      org.springframework.beans.factory.ObjectProvider<RetryTransportRecoveryJob> transportRecovery,
       BlockOrderIdGenerator ids,
       RabbitListenerEndpointRegistry registry,
       @Qualifier("v2OutboxRepository") MySqlOutboxRepository outboxRepo,
@@ -359,6 +392,7 @@ public class V2RabbitConfig {
         outbox,
         retry,
         recovery,
+        transportRecovery.getIfAvailable(),
         ids,
         registry,
         outboxBounded,
@@ -374,6 +408,7 @@ public class V2RabbitConfig {
     private final OutboxRelayJob outbox;
     private final RetryPublishJob retry;
     private final RecoveryScanJob recovery;
+    private final RetryTransportRecoveryJob transportRecovery;
     private final BlockOrderIdGenerator ids;
     private final RabbitListenerEndpointRegistry registry;
     private final ScheduledThreadPoolExecutor pauses =
@@ -392,6 +427,7 @@ public class V2RabbitConfig {
         OutboxRelayJob outbox,
         RetryPublishJob retry,
         RecoveryScanJob recovery,
+        RetryTransportRecoveryJob transportRecovery,
         BlockOrderIdGenerator ids,
         RabbitListenerEndpointRegistry registry,
         BoundedOutboxRelay outboxBounded,
@@ -404,6 +440,7 @@ public class V2RabbitConfig {
       this.outbox = outbox;
       this.retry = retry;
       this.recovery = recovery;
+      this.transportRecovery = transportRecovery;
       this.ids = ids;
       this.registry = registry;
       this.outboxBounded = outboxBounded;
@@ -466,7 +503,10 @@ public class V2RabbitConfig {
 
     @Scheduled(fixedDelay = 10000)
     public void recover() {
-      if (running) recovery.tick();
+      if (running) {
+        recovery.tick();
+        if (transportRecovery != null) transportRecovery.tick();
+      }
     }
 
     @RabbitListener(
@@ -543,6 +583,7 @@ public class V2RabbitConfig {
       outbox.quiesce();
       retry.quiesce();
       recovery.stop();
+      if (transportRecovery != null) transportRecovery.stop();
       if (outboxWorker != null) {
         outboxWorker.quiesce();
         retryWorker.quiesce();

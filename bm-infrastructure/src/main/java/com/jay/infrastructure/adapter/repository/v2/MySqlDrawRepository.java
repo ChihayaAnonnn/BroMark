@@ -169,6 +169,28 @@ public final class MySqlDrawRepository implements DrawRepository {
         id);
   }
 
+  public RecoveryAggregate lockForPause(String id) {
+    var owner =
+        j.queryForMap("select user_id,activity_id from " + table() + " where order_id=?", id);
+    String user = (String) owner.get("user_id");
+    long activity = ((Number) owner.get("activity_id")).longValue();
+    // 只锁元数据，顺序与业务账户→活动账户→订单一致；禁用账户不获得资产写许可。
+    j.queryForList(
+        "select user_id from user_credit_account where user_id=? for update", String.class, user);
+    j.queryForList(
+        "select activity_id from raffle_activity_account where user_id=? and activity_id=? for"
+            + " update",
+        Long.class,
+        user,
+        activity);
+    return j.queryForObject(
+        "select state,recovery_status,version from " + table() + " where order_id=? for update",
+        (rs, n) ->
+            new RecoveryAggregate(
+                id, rs.getString(1), RecoveryStatus.valueOf(rs.getString(2)), rs.getLong(3)),
+        id);
+  }
+
   public boolean updateStatus(String id, long version, RecoveryStatus s) {
     return j.update(
             "update "
