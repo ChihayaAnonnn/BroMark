@@ -20,6 +20,7 @@ public class V2WorkerConfig {
       throw new IllegalArgumentException("Map every logical database to its physical instance");
     if (!(dataSource instanceof cn.bugstack.middleware.db.router.dynamic.DynamicDataSource dynamic))
       throw new IllegalArgumentException("V2 requires routed data source");
+    var measuredPools = new java.util.HashMap<String, Integer>();
     props
         .getPhysical()
         .forEach(
@@ -32,13 +33,17 @@ public class V2WorkerConfig {
                   || total >= hikari.getMaximumPoolSize())
                 throw new IllegalArgumentException(
                     "Budget total must leave spare capacity in every logical pool");
+              measuredPools.put(
+                  logical, ((com.zaxxer.hikari.HikariDataSource) source).getMaximumPoolSize());
             });
+    props.validateConnections(measuredPools);
     return new BoundedDatabaseBudget(props.getInstances(), metrics);
   }
 
   @Bean(destroyMethod = "close")
-  public BoundedVirtualExecutor v2WorkerExecutor() {
-    return new BoundedVirtualExecutor("v2-worker", 16, Duration.ofSeconds(30));
+  public BoundedVirtualExecutor v2WorkerExecutor(V2BudgetProperties props) {
+    return new BoundedVirtualExecutor(
+        "v2-worker", props.getWorkerConcurrency(), Duration.ofSeconds(30));
   }
 
   @Bean(destroyMethod = "shutdown")

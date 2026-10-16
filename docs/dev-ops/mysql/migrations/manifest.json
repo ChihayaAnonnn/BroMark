@@ -73,6 +73,12 @@
       "scope": "user",
       "shards": 1,
       "sha256": "2ed24cd6c173efafa06ddeb66b15c040527ebc587ade4f8a6142a342a391a5af"
+    },
+    {
+      "file": "006_cutover_defaults.sql",
+      "scope": "user",
+      "shards": 1,
+      "sha256": "cc093dc8fc2952cb5c6a420b174079745c1214fee3ad2eefbfe5364911da36d4"
     }
   ]
 }

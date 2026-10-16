@@ -105,15 +105,16 @@ public class V2RabbitConfig {
   }
 
   @Bean(name = "v2MessageContainerFactory")
-  public SimpleRabbitListenerContainerFactory v2MessageContainerFactory(V2Transport transport) {
+  public SimpleRabbitListenerContainerFactory v2MessageContainerFactory(
+      V2Transport transport, V2BudgetProperties props) {
     var c = transport.connection;
     var f = new SimpleRabbitListenerContainerFactory();
     f.setConnectionFactory(c);
     f.setAutoStartup(false);
     f.setAcknowledgeMode(AcknowledgeMode.MANUAL);
-    f.setPrefetchCount(8);
-    f.setConcurrentConsumers(1);
-    f.setMaxConcurrentConsumers(1);
+    f.setPrefetchCount(props.getPrefetch());
+    f.setConcurrentConsumers(props.getWorkerConcurrency());
+    f.setMaxConcurrentConsumers(props.getWorkerConcurrency());
     f.setDefaultRequeueRejected(false);
     f.setContainerCustomizer(cn -> cn.setShutdownTimeout(10000L));
     return f;

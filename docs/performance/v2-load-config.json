@@ -1,0 +1,15 @@
+{
+  "executor": "constant-arrival-rate",
+  "rates": [100, 300, 600, 1000],
+  "durationSeconds": 600,
+  "warmupSeconds": 60,
+  "repeats": 3,
+  "preAllocatedVUs": 100,
+  "maxVUs": 1000,
+  "hotUserConcurrency": [2, 8, 32],
+  "mix": {"query": 70, "result": 10, "exchange": 10, "draw": 10},
+  "scenarios": ["mixed", "hot-activity", "hot-user", "signin-first", "signin-repeat", "payment-create", "payment-replay", "version-switch", "recovery-with-arrivals"],
+  "maxRejectionRatio": 0,
+  "thresholds": {"queryP99Ms": 200, "acceptanceP99Ms": 500, "completionP99Ms": 5000},
+  "semantics": "unlimited quota SKU, finite award stock; fallback after exhaustion reported separately"
+}

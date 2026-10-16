@@ -1,0 +1,4 @@
+ALTER TABLE user_credit_account MODIFY balance decimal(18,2) NOT NULL DEFAULT 0,MODIFY opening_balance decimal(18,2) NOT NULL DEFAULT 0,MODIFY status varchar(16) NOT NULL DEFAULT 'ACTIVE',MODIFY version bigint NOT NULL DEFAULT 0,MODIFY audit_source varchar(255) NOT NULL DEFAULT 'NEW';
+ALTER TABLE raffle_activity_account MODIFY total_remaining bigint NOT NULL DEFAULT 0,MODIFY day_limit bigint NOT NULL DEFAULT 0,MODIFY month_limit bigint NOT NULL DEFAULT 0,MODIFY effective_draw_count bigint NOT NULL DEFAULT 0,MODIFY opening_total bigint NOT NULL DEFAULT 0,MODIFY opening_day_limit bigint NOT NULL DEFAULT 0,MODIFY opening_month_limit bigint NOT NULL DEFAULT 0,MODIFY opening_effective_count bigint NOT NULL DEFAULT 0,MODIFY audit_source varchar(255) NOT NULL DEFAULT 'NEW';
+ALTER TABLE raffle_activity_account_day MODIFY audit_source varchar(255) NOT NULL DEFAULT 'NEW';
+ALTER TABLE raffle_activity_account_month MODIFY audit_source varchar(255) NOT NULL DEFAULT 'NEW';

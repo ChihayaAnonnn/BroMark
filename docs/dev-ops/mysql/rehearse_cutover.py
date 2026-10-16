@@ -66,6 +66,52 @@ def precheck(data):
                         if field in ('balance','opening_balance') and amount.as_tuple().exponent < -2:
                             raise ValueError()
                     except (InvalidOperation,ValueError): errors.append('invalid amount: '+table+'.'+field)
+    tables=data.get('tables',{})
+    accounts={r.get('user_id'):r for r in tables.get('user_credit_account',[])}
+    changes={}
+    for table,rows in tables.items():
+        if re.fullmatch(r'user_credit_ledger_00[0-3]',table):
+            for row in rows:
+                try: changes[row['user_id']]=changes.get(row['user_id'],Decimal(0))+Decimal(str(row['delta']))
+                except (KeyError,InvalidOperation): errors.append('invalid imported ledger')
+    if changes.keys()-accounts.keys(): errors.append('orphan imported credit ledger')
+    for user,row in accounts.items():
+        if not {'balance','opening_balance','status','version','audit_source'}<=row.keys():
+            errors.append('incomplete audited credit opening'); continue
+        try:
+            if Decimal(str(row['balance']))!=Decimal(str(row['opening_balance']))+changes.get(user,Decimal(0)):
+                errors.append('opening plus imported credit differs from balance')
+        except InvalidOperation: errors.append('invalid credit opening')
+    required_quota={'total_remaining','day_limit','month_limit','effective_draw_count',
+                    'opening_total','opening_day_limit','opening_month_limit','opening_effective_count','audit_source'}
+    for row in tables.get('raffle_activity_account',[]):
+        if not required_quota<=row.keys():errors.append('incomplete audited quota opening')
+    for table,key in [('raffle_activity_account_day','business_date'),('raffle_activity_account_month','business_month')]:
+        for row in tables.get(table,[]):
+            if not {key,'remaining','quota_limit','opening_quota','audit_source'}<=row.keys():
+                errors.append('incomplete audited period opening')
+    quota=[]
+    for table,rows in tables.items():
+        if re.fullmatch(r'user_quota_ledger_00[0-3]',table): quota.extend(rows)
+    for row in tables.get('raffle_activity_account',[]):
+        if not required_quota<=row.keys():continue
+        entries=[q for q in quota if q.get('user_id')==row['user_id'] and q.get('activity_id')==row['activity_id']]
+        try:
+            total=sum(int(q['delta']) for q in entries if q['bucket_type']=='TOTAL')
+            day=sum(int(q['limit_delta']) for q in entries if q['bucket_type']=='DAY')
+            month=sum(int(q['limit_delta']) for q in entries if q['bucket_type']=='MONTH')
+            effective=-sum(int(q['delta']) for q in entries if q['bucket_type']=='TOTAL' and q['biz_type'].startswith(('CONSUME:','REFUND:')))
+            if any(int(row[current])!=int(row[opening])+delta for current,opening,delta in [
+                    ('total_remaining','opening_total',total),('day_limit','opening_day_limit',day),
+                    ('month_limit','opening_month_limit',month),('effective_draw_count','opening_effective_count',effective)]):
+                errors.append('quota opening plus imported ledger mismatch')
+        except (KeyError,ValueError):errors.append('invalid quota evidence')
+    for table,bucket,key in [('raffle_activity_account_day','DAY','business_date'),('raffle_activity_account_month','MONTH','business_month')]:
+        for row in tables.get(table,[]):
+            try:
+                delta=sum(int(q['delta']) for q in quota if q.get('user_id')==row['user_id'] and q.get('activity_id')==row['activity_id'] and q.get('bucket_type')==bucket and q.get('bucket_key')==row[key])
+                if int(row['remaining'])!=int(row['opening_quota'])+delta:errors.append('period opening mismatch')
+            except (KeyError,ValueError):errors.append('invalid period evidence')
     seen=set()
     for row in data.get('identities',[]):
         identity=(row.get('entry'),row.get('legacy_id'))
@@ -88,9 +134,9 @@ def mysql(database,sql):
     container=os.environ.get('V2_MYSQL_CONTAINER','bromark-v2-mysql')
     if container!='bromark-v2-mysql': raise ValueError('isolated container allowlist')
     if not os.environ.get('V2_MYSQL_PASSWORD'): raise ValueError('password required')
-    return subprocess.run(['docker','exec','-i','-e','MYSQL_PWD='+os.environ['V2_MYSQL_PASSWORD'],container,
+    return subprocess.run(['docker','exec','-i','-e','MYSQL_PWD',container,
                            'mysql','--batch','--skip-column-names','-uroot',database],
-                          input=sql,text=True,capture_output=True,check=True).stdout.strip()
+                          input=sql,text=True,capture_output=True,check=True,env=dict(os.environ,MYSQL_PWD=os.environ['V2_MYSQL_PASSWORD'])).stdout.strip()
 
 
 def table_digest(database,table,rows):
@@ -129,7 +175,7 @@ def run(data,database,phase,execute=False,fail_after=None):
         for suffix in range(4 if '{{suffix}}' in source else 1):
             for s in source.replace('{{suffix}}',f'{suffix:03d}').split(';'):
                 if s.strip(): mysql(database,s)
-    ddl=[s for s in (ROOT/'006_cutover_constraints.sql').read_text().split(';') if s.strip()]
+    ddl=[s for f in ('006_cutover_constraints.sql','006_cutover_defaults.sql') for s in (ROOT/f).read_text().split(';') if s.strip()]
     for s in ddl[:2]: mysql(database,s)
     rid=sql_value(data['run_id']); sha=result['input_sha256']
     old=mysql(database,f'SELECT input_sha256 FROM cutover_audit WHERE run_id={rid}')
