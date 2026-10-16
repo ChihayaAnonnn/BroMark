@@ -55,6 +55,12 @@
       "scope": "user",
       "shards": 4,
       "sha256": "65ea8d5bf6c7f0d71dad50db212a5d73d4dfbb2d3217661de3e002f90ab89030"
+    },
+    {
+      "file": "005_payment.sql",
+      "scope": "control",
+      "shards": 1,
+      "sha256": "dbdbcc199190e02f2147ec6bb9e3736d3294efeae082e61be72feb52bb64f6a8"
     }
   ]
 }
