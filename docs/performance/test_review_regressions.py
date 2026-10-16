@@ -108,3 +108,9 @@ class JavaRouteInteroperability(unittest.TestCase):
         from seed_v2_testdata import route
         self.assertEqual('01.000',m.route_slot('\U0001f600'))
         self.assertEqual((1,0),route('\U0001f600'))
+
+class UnknownRecoveryRates(unittest.TestCase):
+    def test_null_rate_evidence_fails_closed_without_crashing_report(self):
+        r,c,meta=fixtures.CapacityStatistics().fixture();meta.update(incomingPerSecond=None,processingPerSecond=None)
+        result=collect(r,c,meta)
+        self.assertFalse(result['safeCapacityCandidate']);self.assertIsNone(result['estimatedDrainSeconds'])

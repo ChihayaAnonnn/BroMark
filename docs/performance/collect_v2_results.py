@@ -103,7 +103,7 @@ def collect(requests,completions,meta,check_repeats=True):
     require(SCOPES<=set(meta.get('checkedScopes',[])) and meta.get('differences')==0,'six-scope zero-difference evidence missing')
     require(meta.get('backlogEnd') is not None and meta.get('backlogStart') is not None and meta['backlogEnd']<=meta['backlogStart'],'backlog growing/unverified')
     require(backlog_evidence(meta),'load-period backlog growth/unmeasured')
-    require(meta.get('processingPerSecond',0)>meta.get('incomingPerSecond',float('inf')),'recovery processing does not exceed new arrivals')
+    require(isinstance(meta.get('processingPerSecond'),(int,float)) and isinstance(meta.get('incomingPerSecond'),(int,float)) and meta['processingPerSecond']>meta['incomingPerSecond'],'recovery processing does not exceed new arrivals')
     require(pending==0 and unknown==0 and unconfirmed==0 and not orphans,'unfinished/unknown/orphan results')
     require(rejected/len(requests)<=meta.get('maxRejectionRatio',0) if requests else False,'rejection ratio exceeds declared ceiling')
     require(invalid_latency==0 and missing_time==0,'invalid/missing latency evidence')
@@ -111,8 +111,9 @@ def collect(requests,completions,meta,check_repeats=True):
     require(t['p99'] is None or t['p99']<=500,'acceptance P99 exceeds 500ms')
     async_orders=any(r.get('operation') in ('draw','payment') for r in accepted.values())
     require(not async_orders or c['p99'] is not None and c['p99']<=5000,'completion P99 exceeds 5s/unmeasured')
-    processing=meta.get('processingPerSecond',0);incoming=meta.get('incomingPerSecond',0)
-    estimate=meta.get('backlogEnd',0)/(processing-incoming) if processing>incoming and meta.get('backlogEnd') is not None else None
+    processing=meta.get('processingPerSecond');incoming=meta.get('incomingPerSecond')
+    rates_known=isinstance(processing,(int,float)) and isinstance(incoming,(int,float))
+    estimate=meta.get('backlogEnd',0)/(processing-incoming) if rates_known and processing>incoming and meta.get('backlogEnd') is not None else None
     single_run_passed=not failures
     if check_repeats:require(repeat_evidence(meta),'three actual matching successful runs required')
     return {'singleRunPassed':single_run_passed,'sent':len(requests),'received':received,'accepted':len(accepted),'completed':len(terminal),
