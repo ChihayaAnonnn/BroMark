@@ -80,7 +80,19 @@ def apply(env, through, dry_run, mode):
                     if n <= step:
                         continue
                     # New objects use IF NOT EXISTS; interrupted step can be safely inspected/reentered.
-                    mysql(database, statement)
+                    index = re.fullmatch(r"CREATE INDEX (\w+) ON (\w+)\(([^)]+)\)", statement, re.IGNORECASE)
+                    if index:
+                        name, table, columns = index.groups()
+                        existing = mysql(database, f"SELECT GROUP_CONCAT(CONCAT(column_name,':',COALESCE(sub_part,0),':',collation,':',is_visible,':',non_unique,':',index_type) ORDER BY seq_in_index SEPARATOR ',') FROM information_schema.statistics WHERE table_schema=DATABASE() AND table_name='{table}' AND index_name='{name}'")
+                        if existing == 'NULL':
+                            existing = ''
+                        expected = ','.join(column.strip() + ':0:A:YES:1:BTREE' for column in columns.split(','))
+                        if existing and existing != expected:
+                            raise RuntimeError('index definition mismatch: ' + name)
+                        if not existing:
+                            mysql(database, statement)
+                    else:
+                        mysql(database, statement)
                     mysql(database, f"INSERT INTO schema_migration VALUES('{identity}','{checksum}',{n}) ON DUPLICATE KEY UPDATE step={n}")
 
 

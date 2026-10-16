@@ -106,6 +106,65 @@ class MigrationTest(unittest.TestCase):
         finally:
             m.DATABASES = original_databases
 
+    def test_007_indexes_reenter_after_ddl_commit(self):
+        database = "router_relay_migration_it"
+        root_databases, sql_client = m.DATABASES, m.mysql
+        sql_client("router_control", f"CREATE DATABASE IF NOT EXISTS {database}")
+        for table in sql_client(database, "SHOW TABLES").splitlines():
+            sql_client(database, f"DROP TABLE `{table}`")
+        m.DATABASES = {"all": [database], "user": [], "control": []}
+        os.environ["V2_MIGRATION_ALLOW"] = "isolated-router-test-only"
+        committed_index = False
+        interrupted_once = False
+        def interrupted(db, sql):
+            nonlocal committed_index, interrupted_once
+            if "CREATE INDEX" in sql:
+                result = sql_client(db, sql)
+                committed_index = True
+                return result
+            if committed_index and "ON DUPLICATE KEY UPDATE step" in sql and not interrupted_once:
+                interrupted_once = True
+                raise RuntimeError("index committed before progress acknowledgement")
+            return sql_client(db, sql)
+        try:
+            m.apply("v2-it", "003", False, "fresh")
+            m.mysql = interrupted
+            with self.assertRaisesRegex(RuntimeError, "index committed"):
+                m.apply("v2-it", "007", False, "fresh")
+            m.mysql = sql_client
+            m.apply("v2-it", "007", False, "fresh")
+            m.apply("v2-it", "007", False, "fresh")
+            self.assertEqual("1", sql_client(database, "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='v2_recovery_dispatch'"))
+            for table, indexes in {"outbox": ["pending_type", "aggregate_event"], "retry_job": ["pending_type", "aggregate_event", "published_recovery"]}.items():
+                for index in indexes:
+                    self.assertNotEqual("0", sql_client(database, f"SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema=DATABASE() AND table_name='{table}' AND index_name='{index}'"))
+        finally:
+            m.mysql, m.DATABASES = sql_client, root_databases
+
+    def test_007_rejects_wrong_existing_index_properties(self):
+        database = "router_relay_wrong_index_it"
+        original, sql_client = m.DATABASES, m.mysql
+        sql_client("router_control", f"CREATE DATABASE IF NOT EXISTS {database}")
+        for table in sql_client(database, "SHOW TABLES").splitlines():
+            sql_client(database, f"DROP TABLE `{table}`")
+        m.DATABASES = {"all": [database], "user": [], "control": []}
+        os.environ["V2_MIGRATION_ALLOW"] = "isolated-router-test-only"
+        try:
+            m.apply("v2-it", "007", False, "fresh")
+            for definition in [
+                "CREATE INDEX pending_type ON outbox(state,event_type,next_attempt_at,event_id) INVISIBLE",
+                "CREATE INDEX pending_type ON outbox(state,event_type(1),next_attempt_at,event_id)",
+                "CREATE INDEX pending_type ON outbox(state,event_type DESC,next_attempt_at,event_id)",
+                "CREATE UNIQUE INDEX pending_type ON outbox(state,event_type,next_attempt_at,event_id)",
+            ]:
+                sql_client(database, "DROP INDEX pending_type ON outbox")
+                sql_client(database, definition)
+                sql_client(database, "UPDATE schema_migration SET step=0 WHERE script='fresh:007_outbox_indexes.sql:000'")
+                with self.assertRaisesRegex(RuntimeError, "index definition mismatch"):
+                    m.apply("v2-it", "007", False, "fresh")
+        finally:
+            m.DATABASES = original
+
 
 if __name__ == '__main__':
     import unittest.mock

@@ -85,6 +85,18 @@
       "scope": "user",
       "shards": 1,
       "sha256": "04c69c9449ced880240b5299101a6a240b597a115f3f71c3456ee5f8b1c4b159"
+    },
+    {
+      "file": "007_recovery_dispatch.sql",
+      "scope": "all",
+      "shards": 1,
+      "sha256": "ea37d6562f21a42ed5f4eff4b765dcf3e23077ee83b6e68cdfaee062e407ddda"
+    },
+    {
+      "file": "007_outbox_indexes.sql",
+      "scope": "all",
+      "shards": 1,
+      "sha256": "42286920e375709be3bdbac79d65a9d38f45d080ec084836c98027980ab12dd9"
     }
   ]
 }
