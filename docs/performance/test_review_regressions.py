@@ -86,3 +86,9 @@ class RepeatedRawEvidence(unittest.TestCase):
             self.assertTrue(repeat_evidence(meta))
             meta['repeatRunDirs']=[paths[0]]*3
             self.assertFalse(repeat_evidence(meta))
+
+class CompleteBacklogScope(unittest.TestCase):
+    def test_outbox_only_cannot_prove_non_growing_business_backlog(self):
+        from collect_v2_results import backlog_evidence
+        self.assertFalse(backlog_evidence({'loadStartedAt':100,'loadEndedAt':700,
+              'backlogSamples':[{'observedAt':100,'backlog':0},{'observedAt':400,'backlog':0},{'observedAt':700,'backlog':0}]}))

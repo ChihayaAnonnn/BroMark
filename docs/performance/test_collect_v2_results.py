@@ -13,7 +13,7 @@ class CapacityStatistics(unittest.TestCase):
         completions=[{'orderId':str(i),'state':'DELIVERED','kind':'draw','serverAcceptedAt':100,
                       'serverCompletedAt':101,'observedAt':110} for i in range(550)]
         metadata={'durationSeconds':600,'repeats':3,'clockSkewMs':1,'clockMaxSkewMs':10,
-                  'loadStartedAt':100,'loadEndedAt':700,'backlogSamples':[{'observedAt':100,'backlog':0},{'observedAt':400,'backlog':0},{'observedAt':700,'backlog':0}],
+                  'loadStartedAt':100,'loadEndedAt':700,'backlogSamples':[{'observedAt':100,'backlog':0,'backlogScopes':['ORDER','OUTBOX','RETRY','BROKER']},{'observedAt':400,'backlog':0,'backlogScopes':['ORDER','OUTBOX','RETRY','BROKER']},{'observedAt':700,'backlog':0,'backlogScopes':['ORDER','OUTBOX','RETRY','BROKER']}],
                   'arrivalRate':100,'loadGeneratorHealthy':True,'resourceBudgetOk':True,
                   'backlogStart':0,'backlogEnd':50,'oldestAgeSeconds':10,'incomingPerSecond':20,
                   'processingPerSecond':10,'drainSeconds':None,

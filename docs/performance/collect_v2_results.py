@@ -17,6 +17,7 @@ def backlog_evidence(meta):
     if not isinstance(start,(int,float)) or not isinstance(end,(int,float)) or end<=start:return False
     samples=[r for r in meta.get('backlogSamples',[]) if start<=r.get('observedAt',-1)<=end]
     samples.sort(key=lambda r:r['observedAt'])
+    if any(not {'ORDER','OUTBOX','RETRY','BROKER'}<=set(r.get('backlogScopes',[])) for r in samples):return False
     if len(samples)<3 or samples[-1]['observedAt']-samples[0]['observedAt']<(end-start)*.6:return False
     width=max(1,len(samples)//3)
     before=sum(r['backlog'] for r in samples[:width])/width
