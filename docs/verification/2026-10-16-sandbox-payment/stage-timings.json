@@ -1,0 +1,40 @@
+{
+  "metric": "first committed UTC timestamps and paid_to_delivered_ms",
+  "samples": [
+    {
+      "order_id": "PAY-00.000-app-775007",
+      "state": "DELIVERED",
+      "recovery_status": "ACTIVE",
+      "credit": "100.00",
+      "source_receipt": {
+        "bizId": {
+          "id": "charge:PAY-00.000-app-775007",
+          "hash": "2353e662aa1a0bf3b88266ca928eb23cf7477d758077390a6d155cfd50b01781",
+          "type": "CHARGE"
+        },
+        "delta": "100.00",
+        "balanceAfter": "100.00"
+      },
+      "user_db": "router_two",
+      "user_table_suffix": "002",
+      "ledger_count": 1,
+      "paid_identities": 1,
+      "paid_to_delivered_ms": "426.2470",
+      "stages": [
+        {
+          "stage": "CREATED",
+          "at_utc": "2026-10-16T02:42:25.949772Z"
+        },
+        {
+          "stage": "PAID",
+          "at_utc": "2026-10-16T02:42:26.819851Z"
+        },
+        {
+          "stage": "DELIVERED",
+          "at_utc": "2026-10-16T02:42:27.245794Z"
+        }
+      ]
+    }
+  ],
+  "capacity_or_percentile_claim": false
+}
