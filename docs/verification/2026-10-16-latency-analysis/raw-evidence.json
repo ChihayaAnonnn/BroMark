@@ -1,0 +1,404 @@
+{
+  "sourceCommit": "2dd5bac",
+  "runtimeImage": "sha256:e211f17077b7e93452e02a77639361b66e40aee6875260e2e5932b71c0bd66ae",
+  "rawEvidenceRoot": "/tmp/phase6-latency-analysis",
+  "originalRawRoot": "/tmp/phase6-sustained-100",
+  "files": [
+    {
+      "path": "/tmp/phase6-latency-analysis/analysis.json",
+      "bytes": 31647,
+      "sha256": "ec12d6e99044e0af4c14afaa32f1ac39137fb6b75bddcc8a2da4733dbdb2adb4"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/analyze.py",
+      "bytes": 4832,
+      "sha256": "79d0770095ddccda266396891fd13636a3ca140e85029a9a40fbad549931d648"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/baseline/before.json",
+      "bytes": 1766,
+      "sha256": "d25b8e2c661034f561801ec5cdfd3f91cd1ae0ccd2055025ffdbdcec154538a6"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/baseline/bromark-latency-baseline-1.log",
+      "bytes": 4395672,
+      "sha256": "d59a3677d2614510c235c0266508cfc0f43dca62393f5809d970e3cc5592d19e"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/baseline/bromark-latency-baseline-2.log",
+      "bytes": 1747052,
+      "sha256": "41c124f78ba019b3722e0a36013813f90ca8eaddefe62c51d50c50773e5e6e19"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/baseline/execution.json",
+      "bytes": 171,
+      "sha256": "9bcf3ba712acdac62c6543dba56ff3ff171916369d87d31c63e88be6be869f76"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/baseline/inbox-0.tsv",
+      "bytes": 1066163,
+      "sha256": "fa9ab45b587414facfe4c20d8ac691ca057a599906674b0c71a23f78f4a75a0d"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/baseline/inbox-1.tsv",
+      "bytes": 1680803,
+      "sha256": "e39a4c375616ef2714df6d63a2b646b6882c76fc554b95169084411aa7802ba7"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/baseline/inbox-2.tsv",
+      "bytes": 1364505,
+      "sha256": "aaae9ed08ec0e89c7cc66a82ebb9b7c4d63e9e064e768ca7f2c7b377a6061069"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/baseline/k6-console.jsonl",
+      "bytes": 4721092,
+      "sha256": "d03a3830ac82415de9d669f9856124ce1ad11d68c8ceebe13518367dcfa1d239"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/baseline/k6-summary.json",
+      "bytes": 2727,
+      "sha256": "33eac59fa3c3a4fae1f36faf5d804f06b35176581486e63bc18692464d105e8e"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/baseline/k6.log",
+      "bytes": 26397,
+      "sha256": "835019c739a205844ad588b957f78e61f73f503d7150c6e43cddde77740d853b"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/baseline/outbox-0.tsv",
+      "bytes": 2274100,
+      "sha256": "c3ac6b3442fec58ffd26e578fee37ee06a122901ace40d9dac9cff750d8a0b9c"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/baseline/outbox-1.tsv",
+      "bytes": 3410465,
+      "sha256": "8206852f2863882be3acc689aa22062794367b5d9f2db167b9c37ee0de858f2c"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/baseline/outbox-2.tsv",
+      "bytes": 2780746,
+      "sha256": "33f62086e2777e59a2a34276da17240fe116cd7daaccfd62efbee900b4f440ae"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/baseline/reconciliation.json",
+      "bytes": 1254,
+      "sha256": "c5d613432013bf33b26a558465a6fa86b9d3358717cae3444fb679d23ccdc0ee"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/baseline/reconciliation.log",
+      "bytes": 1254,
+      "sha256": "c5d613432013bf33b26a558465a6fa86b9d3358717cae3444fb679d23ccdc0ee"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/baseline/resources.log",
+      "bytes": 16070,
+      "sha256": "f8e4752ca3c99205addf43f6150533e4a700b6ded782724b1fa07c22ccbec333"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/baseline/samples.jsonl",
+      "bytes": 57178,
+      "sha256": "5f042dc3febfc8e7e6be3cb83d879ffe349954df27ec2aeb90c2b3fb8b4800ef"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/baseline/stages-0.tsv",
+      "bytes": 833666,
+      "sha256": "14420bbe2fad66ad907545dcb3a28198733ba8f2191fe730db72b4fc994af495"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/baseline/stages-1.tsv",
+      "bytes": 1262956,
+      "sha256": "84945f8437689786febdbcf983fc9c81b66c44e2c4f02d23992fcdeb64a7196c"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/baseline/stages-2.tsv",
+      "bytes": 1036704,
+      "sha256": "c234b80d5fb5e2c638a235f10aa4190b10170110181a193f9d38068497954ee0"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/baseline/tracked.jsonl",
+      "bytes": 973721,
+      "sha256": "beade650465420685e430da58196cd8c2c3af90fdc1edc75d643effda8c60a5e"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/baseline/tracked.polling.json",
+      "bytes": 75,
+      "sha256": "a9cc0ce036c8794ed7c8818acf7e67f3abb3350cb232db0bc6f5918232e405fe"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/baseline/tracker.log",
+      "bytes": 67,
+      "sha256": "c435590f253a86402b1434171a0ec53411785c78a31837f22a08d2e7949f48b8"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/collect_digests.py",
+      "bytes": 1000,
+      "sha256": "5cfe93ca8a64018d70eff33d2b48a9fb01f2b677cf4de89973263b6d8004c00e"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/experiment.log",
+      "bytes": 232,
+      "sha256": "bd5665022836d42d6ee74c55c3a7867243f1c3ed7c629c964c8b082710de8a42"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/experiment.py",
+      "bytes": 7677,
+      "sha256": "b17904cf5b9c1b23ae1b532a25ea55e98c604b613431ad4cda91140408bdd8eb"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/explain-0.txt",
+      "bytes": 1120,
+      "sha256": "20c63e2bfe22d877f1bad9487b5937e1632d6892b2d5853ce08906b681a48219"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/explain-1.txt",
+      "bytes": 1202,
+      "sha256": "eef631a539900d68d945fdfc6283ca98a51a952baf50c6f7d346a2005404d7a1"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/explain-2.txt",
+      "bytes": 1204,
+      "sha256": "50fa56acc31e790daeeb1e09a3435c212aef2180de2bb854b3b02f89e07c3c24"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/fixture-0.sql",
+      "bytes": 52394275,
+      "sha256": "8815cb745e6fe94908fa3e7379ce5ce7fbe74b544e7deb76e9983cac3bce0419"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/fixture-1.sql",
+      "bytes": 89688795,
+      "sha256": "f2ddd97b4e7f5e15af3d2bd3dec51211cd63ad9eeddbcd9ca08584b84d46bb43"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/fixture-2.sql",
+      "bytes": 69215444,
+      "sha256": "9e2a778f0caa0fcbff25c32e63feeb7cc82c5863f3bdb59ae105334e3e1859e9"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/inbox-0.tsv",
+      "bytes": 860489,
+      "sha256": "0cb63980124a938ef56bc8398b8e9bbab11e06a479596b38419864ede11fee4a"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/inbox-1.tsv",
+      "bytes": 1361646,
+      "sha256": "9556c89897be406753831d1df110f09c8ea9a506aad49040d7ed11d51f2203f7"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/inbox-2.tsv",
+      "bytes": 1103311,
+      "sha256": "cc9b58ee84699de2e8ae58c86be8410ca1aaa1d81829f89007c239af80b4d0fb"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/live-digests.jsonl",
+      "bytes": 22365589,
+      "sha256": "fcaf4e05ee28e97544b4a9da392454bce12385f3c80e263c949d9f87debdcec0"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/original-first-prepare.json",
+      "bytes": 1263855,
+      "sha256": "ef60a8ca79694c1bc93a7df41ff8180134bf9b140191470af502ab33a9f645b6"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/original-stage-summary.json",
+      "bytes": 1613,
+      "sha256": "cacaf5c18685da6603a3cd73e161df1738d4700fa5b900aeed1d7f7fe019862c"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/outbox-0.tsv",
+      "bytes": 1835952,
+      "sha256": "3c0c62e9587a6f09c31917ac35ef44e609529277ad750f3c399d017ed7542a14"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/outbox-1.tsv",
+      "bytes": 2763846,
+      "sha256": "d2020e6e4b22010ef3b33d8ee0300c38728854005c07f5c020951bfba3d9bd57"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/outbox-2.tsv",
+      "bytes": 2248359,
+      "sha256": "e2a6a82e19516b9b7709acee4abded9b923f1e93b7fdbf1e5163bb4cd71352af"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/scheduler4/before.json",
+      "bytes": 1980,
+      "sha256": "e10b1d38c109d5aaf778e99633d91ae7cfc368e42d1b39f05763b76b93a674c8"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/scheduler4/bromark-latency-scheduler4-1.log",
+      "bytes": 3544476,
+      "sha256": "e3041bfb37d1c696454080c5cf265bf3ccb1dd0f9c2b83f144a8edbd8c6adb43"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/scheduler4/bromark-latency-scheduler4-2.log",
+      "bytes": 1819910,
+      "sha256": "0bbb6fba457e8f662570ff304f23bd6b1e2a6721cf299e242c4983141bed426c"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/scheduler4/execution.json",
+      "bytes": 171,
+      "sha256": "cf918af55f894ee06dbc98f7efeaedbf48da58ed31c0bf71cf71a15e86217521"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/scheduler4/inbox-0.tsv",
+      "bytes": 1074042,
+      "sha256": "a8265931d0930737c2aa7e621fde9f736422d7375905079bb1febeff2a398d68"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/scheduler4/inbox-1.tsv",
+      "bytes": 1695612,
+      "sha256": "466ca7b650e82858d7ae1bb20bbbb499dd71a8ff37a38469c557049a1df8a243"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/scheduler4/inbox-2.tsv",
+      "bytes": 1345266,
+      "sha256": "4288df0323b568a027b479fcc2d8d08df44ee9c71cb602d2d3602058a1954d3f"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/scheduler4/k6-console.jsonl",
+      "bytes": 4755091,
+      "sha256": "c41e7565d7e24dc13d56941fe470f11a234924751e50621f4dee1a625c12b2d6"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/scheduler4/k6-summary.json",
+      "bytes": 2734,
+      "sha256": "6e543703c3eef544c7873954432edc7176ce1f20f4150ff869560174392b4ab1"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/scheduler4/k6.log",
+      "bytes": 26396,
+      "sha256": "6aec495109af1c1f0c2756f10cf8eb181a9637b9ecd85e02dd88a3fedc4b5439"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/scheduler4/outbox-0.tsv",
+      "bytes": 2291285,
+      "sha256": "230ed22d1e851304b94312595b29fca6271bf1a14eae662a692cf454eee83dd4"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/scheduler4/outbox-1.tsv",
+      "bytes": 3442708,
+      "sha256": "74bfae9b01d5e9e9b20d558e4e663290a3c18890a7173eabfc2863f70991c6fd"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/scheduler4/outbox-2.tsv",
+      "bytes": 2741672,
+      "sha256": "0986adc70415017fa789012a347099fee6586d01575bf6e513625235528f5f6a"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/scheduler4/reconciliation.json",
+      "bytes": 1258,
+      "sha256": "4e54c9b990e822779f8247dcaa06d784506e2a88fd7345030d359cd3154dcf28"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/scheduler4/reconciliation.log",
+      "bytes": 1258,
+      "sha256": "4e54c9b990e822779f8247dcaa06d784506e2a88fd7345030d359cd3154dcf28"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/scheduler4/resources.log",
+      "bytes": 16183,
+      "sha256": "eb0d5bf6bbb9ef970e5dbf4b4a94a0debda6b48f42530f32125bfc38368bee5c"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/scheduler4/samples.jsonl",
+      "bytes": 56313,
+      "sha256": "2386c82d4586e406022d4da269fbf36d8f075e69d0502d89bb35332a4bc3d92f"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/scheduler4/stages-0.tsv",
+      "bytes": 834046,
+      "sha256": "b9ec805d2ae6dcd9a657c3a358146e62d012cdc7c2f15c4934f67cd4f4d3d5bc"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/scheduler4/stages-1.tsv",
+      "bytes": 1263980,
+      "sha256": "71a25212b9051a36db2dccda905e4ef75efa8d894793d3b85a361df27f5fab9e"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/scheduler4/stages-2.tsv",
+      "bytes": 1036724,
+      "sha256": "43b55b00f2cb2489b6a94acbac994b05186631e6418ffce804e13bb00836ff43"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/scheduler4/tracked.jsonl",
+      "bytes": 912419,
+      "sha256": "cf533631bf10376de8db99b68aa16778781d13807ec19cb891016c1a61c24744"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/scheduler4/tracked.polling.json",
+      "bytes": 75,
+      "sha256": "5a628f2b3f615ad4f5a53437da8152b269182992addef4d90c8bf40000ec8de0"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/scheduler4/tracker.log",
+      "bytes": 67,
+      "sha256": "66007d9fa74daa35695f21889e5c27e9744cdca3ad765c2f2c412340ef19ca09"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/schemas-0.txt",
+      "bytes": 1266,
+      "sha256": "ffd742371c5d33b1c6d988797ef88c8af4b07d28285998fdc51d8560af542908"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/schemas-1.txt",
+      "bytes": 1266,
+      "sha256": "ffd742371c5d33b1c6d988797ef88c8af4b07d28285998fdc51d8560af542908"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/schemas-2.txt",
+      "bytes": 1266,
+      "sha256": "ffd742371c5d33b1c6d988797ef88c8af4b07d28285998fdc51d8560af542908"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/source-integrity.json",
+      "bytes": 1227,
+      "sha256": "14f0817ff09be6c33064aebecde0fb118a7cd93e844ec67b79b7a56388d7548f"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/sql-probe.json",
+      "bytes": 18645,
+      "sha256": "b356611615464864660880cc5920c2049864b8b88ee6c9a7e907d3a30b95c4dc"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/sql-probe.log",
+      "bytes": 6354,
+      "sha256": "1b68526214e42574f5e96929178a09248119b947d81d7b4498d7f7ed2c036276"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/sql_probe.py",
+      "bytes": 2070,
+      "sha256": "6c648e708c865f21ead88546bd10782085012335cc2c2df2bff6e2e1c801da00"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/stages-0.tsv",
+      "bytes": 669798,
+      "sha256": "c14252a0e7da4e94c19e372458b63aaf9b83c72f8e589fb87ad839b43a037be7"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/stages-1.tsv",
+      "bytes": 1014882,
+      "sha256": "a47d56171827125bf3758fb30c351e9699bc09a10ce1db15d4a850caeb799c8c"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/stages-2.tsv",
+      "bytes": 832996,
+      "sha256": "6cd3efd33cb43fcd50b568e18500728d06471dc2850b97d6a28ac79f235e2e88"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/thread-summary.json",
+      "bytes": 1056,
+      "sha256": "65aa718a5cb67bec3979c5fa5cd6892dc521b9e7a048621b99b6cec41c429458"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/verify.log",
+      "bytes": 1769,
+      "sha256": "deb2db6f5d9c5ed40e6ccf16d6f76e50aa144828a187f130fcc57e9c894dd8d3"
+    },
+    {
+      "path": "/tmp/phase6-latency-analysis/verify.py",
+      "bytes": 2125,
+      "sha256": "4968637f839d75740900d2456d17ffae6433dfcbcf796282cabeb9dc8134a25f"
+    }
+  ],
+  "capacityAuthorized": false
+}

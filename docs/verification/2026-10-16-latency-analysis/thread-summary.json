@@ -1,0 +1,56 @@
+{
+  "baseline": [
+    {
+      "file": "bromark-latency-baseline-2.log",
+      "threads": [
+        "scheduling-1"
+      ],
+      "snapshotCategories": {
+        "Idle": 7,
+        "Relay": 9,
+        "DrawRecovery": 2
+      }
+    },
+    {
+      "file": "bromark-latency-baseline-1.log",
+      "threads": [
+        "scheduling-1"
+      ],
+      "snapshotCategories": {
+        "Idle": 12,
+        "DrawRecovery": 1,
+        "Relay": 5
+      }
+    }
+  ],
+  "scheduler4": [
+    {
+      "file": "bromark-latency-scheduler4-2.log",
+      "threads": [
+        "scheduling-1",
+        "scheduling-2",
+        "scheduling-3",
+        "scheduling-4"
+      ],
+      "snapshotCategories": {
+        "Idle": 65,
+        "DrawRecovery": 1,
+        "Relay": 6
+      }
+    },
+    {
+      "file": "bromark-latency-scheduler4-1.log",
+      "threads": [
+        "scheduling-1",
+        "scheduling-2",
+        "scheduling-3",
+        "scheduling-4"
+      ],
+      "snapshotCategories": {
+        "Idle": 63,
+        "DrawRecovery": 1,
+        "Relay": 8
+      }
+    }
+  ]
+}

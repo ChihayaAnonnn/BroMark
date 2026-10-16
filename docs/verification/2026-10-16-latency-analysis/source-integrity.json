@@ -1,0 +1,59 @@
+{
+  "passed": true,
+  "checks": [
+    {
+      "database": "router_perf_it_r61016b_control",
+      "table": "stages",
+      "unchanged": true,
+      "rows": 14756
+    },
+    {
+      "database": "router_perf_it_r61016b_control",
+      "table": "outbox",
+      "unchanged": true,
+      "rows": 17238
+    },
+    {
+      "database": "router_perf_it_r61016b_control",
+      "table": "inbox",
+      "unchanged": true,
+      "rows": 17235
+    },
+    {
+      "database": "router_perf_it_r61016b_one",
+      "table": "stages",
+      "unchanged": true,
+      "rows": 20260
+    },
+    {
+      "database": "router_perf_it_r61016b_one",
+      "table": "outbox",
+      "unchanged": true,
+      "rows": 26938
+    },
+    {
+      "database": "router_perf_it_r61016b_one",
+      "table": "inbox",
+      "unchanged": true,
+      "rows": 26940
+    },
+    {
+      "database": "router_perf_it_r61016b_two",
+      "table": "stages",
+      "unchanged": true,
+      "rows": 16630
+    },
+    {
+      "database": "router_perf_it_r61016b_two",
+      "table": "outbox",
+      "unchanged": true,
+      "rows": 21883
+    },
+    {
+      "database": "router_perf_it_r61016b_two",
+      "table": "inbox",
+      "unchanged": true,
+      "rows": 21884
+    }
+  ]
+}

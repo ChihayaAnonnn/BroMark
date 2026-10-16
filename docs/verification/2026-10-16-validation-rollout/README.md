@@ -20,3 +20,5 @@ V2_RECONCILIATION_SEED=/tmp/SEED/seed.json V2_RECONCILIATION_STOPPED=1 V2_EVIDEN
 性能运行使用f29d926运行包镜像e211f170…；最终额外变更为测试和运维门禁，打包项目class比对见class-match.json。最终JAR/镜像hash见artifacts.json。原始JSONL、日志、测试JWT/密钥保留在/tmp隔离目录，git只存合成摘要与脚本。
 
 发布前仍必须完成容量失败定位、完整矩阵/重复/可比基线、真实权限与全实例旧写冻结审计；真实支付和副本整体丢失不在本次授权。功能绿灯和六域零差异不代表发布批准，validation.json.releaseAuthorized始终false。
+
+后续定位见[链路延迟分析与单变量诊断](../2026-10-16-latency-analysis/README.md)：发布前积压、恢复事件放大、领取索引与调度对照。容量 NO-GO 不变。
