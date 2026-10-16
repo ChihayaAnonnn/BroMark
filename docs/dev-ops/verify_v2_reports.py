@@ -26,7 +26,23 @@ def verify(root,required=REQUIRED):
     if required-names: problems.append('missing suites: '+','.join(sorted(required-names)))
     return {'passed':not problems,'problems':problems,'tests':sum(s['tests'] for s in suites),'suites':suites}
 
+def combine_validation(tests,financial):
+    required={'CREDIT','QUOTA','STOCK','DELIVERY','PAYMENT','SIGNIN'}
+    checked=financial.get('checkedScopes',[]) if financial else []
+    passed=bool(tests.get('passed') and tests.get('tests',0)>0 and financial
+                and financial.get('passed') is True and required<=set(checked)
+                and all(financial.get(k)==0 for k in ('totalDifferences','unfinishedOrders','unresolvedReviews','pendingTasks')))
+    return {'passed':passed,'testsPassed':tests.get('passed',False),'tests':tests.get('tests',0),
+            'checkedScopes':checked,'financialChecked':financial is not None,
+            'releaseAuthorized':False,'reason':None if passed else 'missing/failed tests or six-scope maintenance reconciliation'}
+
 if __name__=='__main__':
-    p=argparse.ArgumentParser(); p.add_argument('--root',default='.');p.add_argument('--out',required=True);a=p.parse_args()
+    p=argparse.ArgumentParser(); p.add_argument('--root',default='.');p.add_argument('--out');p.add_argument('--tests-json');p.add_argument('--financial-json');p.add_argument('--validation-out');a=p.parse_args()
+    if a.validation_out:
+        tests=json.loads(Path(a.tests_json).read_text())
+        financial=json.loads(Path(a.financial_json).read_text()) if a.financial_json and Path(a.financial_json).exists() else None
+        report=combine_validation(tests,financial);Path(a.validation_out).write_text(json.dumps(report,indent=2)+'\n')
+        print(json.dumps(report));raise SystemExit(0 if report['passed'] else 1)
+    if not a.out:p.error('--out or --validation-out required')
     report=verify(a.root);Path(a.out).write_text(json.dumps(report,indent=2)+'\n')
     print(json.dumps({k:v for k,v in report.items() if k!='suites'}));raise SystemExit(0 if report['passed'] else 1)

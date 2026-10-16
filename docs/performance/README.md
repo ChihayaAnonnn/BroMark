@@ -2,7 +2,7 @@
 
 只操作 BroMark 专用容器、全新 `router_perf_it_*` 库。原始输出/JWT/密钥放 `/tmp`；不得提交真实用户数据。生产部署未授权。
 
-1. 启动专用依赖，执行 `docs/dev-ops/v2-verify.sh --env v2-it`。设置隔离 `V2_MYSQL_PASSWORD,V2_RABBIT_PASSWORD,MAVEN_CACHE_DIR`。`tests.json.passed=true` 只表示功能回归，不是容量通过。
+1. 启动专用依赖，设置隔离 `V2_MYSQL_PASSWORD,V2_RABBIT_PASSWORD,MAVEN_CACHE_DIR`，先按下一步准备专属数据。完整门禁执行前还需 `V2_RECONCILIATION_SEED=/tmp/SEED/seed.json`、`V2_RECONCILIATION_STOPPED=1`，再执行 `docs/dev-ops/v2-verify.sh --env v2-it`；缺少停写六域对账时即使XML全绿也返回未通过。`validation.json.passed=true`只表示正确性验收，不是容量或发布批准。
 2. 停止本次目标库所有写者后准备：
    ```sh
    python3 docs/performance/seed_v2_testdata.py --env v2-it --users 1000 --run-id RUN --out /tmp/SEED --stock 1000000 --stopped
@@ -29,3 +29,5 @@
 真实故障：`fault_v2_runtime.py --env v2-it --seed /tmp/SEED/seed.json --out /tmp/faults.json`仅识别拥有当前目标库的两个应用，停止专用Rabbit、SIGKILL应用1并由应用2接管，再恢复依赖。数据库连接故障由DatabaseDisconnectV2Test实际KILL MySQL连接验证。整机/副本整体丢失不在此故障模型。
 
 报告必须披露本机同时运行的其他项目、压测端与服务端共享硬件、单节点MySQL/Rabbit；这样的本地诊断不能当作独立压测机或生产安全容量。有限库存耗尽后的兜底区间单列，查询/受理/完成分别统计。
+
+已知延期：runner的hot-user当前只传默认2个VU；8/32必须直接k6设置HOT_USER_CONCURRENCY，未通过runner验收。完整积压采样现包含ORDER/OUTBOX/RETRY/BROKER；早期只采Outbox的旧记录不能满足该门禁。

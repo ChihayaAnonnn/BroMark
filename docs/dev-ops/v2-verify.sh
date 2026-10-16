@@ -16,4 +16,15 @@ else
 fi
 python3 -m unittest discover -s "$project_root/docs/performance" -p 'test_*.py' > "$run_dir/python.log" 2>&1
 python3 -m unittest discover -s "$project_root/docs/dev-ops/mysql/tests" -p 'test_cutover*.py' >> "$run_dir/python.log" 2>&1
+# Passing tests alone cannot represent complete six-domain validation.
+if [ -n "${V2_RECONCILIATION_SEED:-}" ] && [ "${V2_RECONCILIATION_STOPPED:-}" = 1 ]; then
+  if ! python3 "$project_root/docs/performance/reconcile_v2_run.py" --seed "$V2_RECONCILIATION_SEED" --out "$run_dir/reconciliation.json" --stopped > "$run_dir/reconciliation.log" 2>&1; then
+    if [ ! -f "$run_dir/reconciliation.json" ]; then
+      echo '{"passed":false,"reason":"reconciliation dependency/input failure"}' > "$run_dir/reconciliation.json"
+    fi
+  fi
+else
+  echo '{"passed":false,"reason":"V2_RECONCILIATION_SEED and stopped-writer assertion required"}' > "$run_dir/reconciliation.json"
+fi
+python3 "$project_root/docs/dev-ops/verify_v2_reports.py" --tests-json "$run_dir/tests.json" --financial-json "$run_dir/reconciliation.json" --validation-out "$run_dir/validation.json"
 printf 'Evidence: %s\n' "$run_dir"
