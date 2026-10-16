@@ -65,7 +65,10 @@ public class V2SecurityConfig {
                 a.requestMatchers(
                         HttpMethod.GET, "/api/v2/activities/*", "/api/v2/activities/*/awards")
                     .permitAll()
-                    .requestMatchers(HttpMethod.POST, "/api/v2/payments/notify/*")
+                    .requestMatchers(
+                        HttpMethod.POST,
+                        "/api/v2/payments/notify/*",
+                        "/api/v2/payment/notifications/*")
                     .permitAll()
                     .anyRequest()
                     .authenticated())
