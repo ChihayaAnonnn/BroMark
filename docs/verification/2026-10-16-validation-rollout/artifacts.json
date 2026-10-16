@@ -1,0 +1,12 @@
+{
+  "finalSourceCommit": "49292e560e21ed3f1c4ffbaddd82ffecd77e32c8",
+  "javaSuiteSourceCommit": "ac6c573",
+  "performanceRuntimeSourceCommit": "f29d926",
+  "finalJarSha256": "454f32c9f44a80b9bdbc13352846d3724dda0f6f50e200fbd13671e00a676e1b",
+  "performanceJarSha256": "974987c841e4e867785d5ec94ccaba76b6019a950cc650c6dad829e7356ce112",
+  "performanceImage": "sha256:e211f17077b7e93452e02a77639361b66e40aee6875260e2e5932b71c0bd66ae",
+  "finalImage": "sha256:ddfa180e1ec4823447b0090239cfb1ce9b55cde9515b9a72fe7cf4d2859095b4",
+  "classMatch": true,
+  "configSha256": "d58e015948a71bb50a5cb1229af0bba9dc87d4a6b37e1b441cbbb052d259edf6",
+  "k6Image": "grafana/k6:1.3.0@sha256:3ddc8b1a33a2c3d8edc6e99b6a762ae36cba08788463458f5e6a7703e14eb77d"
+}

@@ -1,0 +1,106 @@
+{
+  "prior001Through005Unchanged": true,
+  "manifest": {
+    "scripts": [
+      {
+        "file": "001_asset_additive.sql",
+        "scope": "user",
+        "shards": 4,
+        "upgrade_fields": "001_upgrade_fields.json",
+        "sha256": "7f2cf64b23ee6fe2d7a7ec7411781324852963d796dc02449c0d9f9a49571cef",
+        "upgrade_fields_sha256": "cc65a683c8dec63e0099744dc480d3e28afbf95f29110d5d84466857eebc6ea6"
+      },
+      {
+        "file": "001_id_block.sql",
+        "scope": "control",
+        "shards": 1,
+        "sha256": "4133eff15e31564f5e8be306ec252bae8df94a636e0e65241f41f4cffaaa6e41"
+      },
+      {
+        "file": "001_outbox_base.sql",
+        "scope": "all",
+        "shards": 1,
+        "sha256": "57e7a7e8f896792f560d3d2fd1655d49e1e318a97367e2bddaf52c1fb4cbd467"
+      },
+      {
+        "file": "002_signin_exchange.sql",
+        "scope": "user",
+        "shards": 4,
+        "sha256": "8bcb96bb3bf76d2fd2a899dd7b5eb89e4b08ca469f6e201811a30bc1b6d7e1f5"
+      },
+      {
+        "file": "002_admission_config.sql",
+        "scope": "control",
+        "shards": 1,
+        "sha256": "01fa150a1af4c03ddaf6d29aabd99de9418caf6ad141877b3e611fff037d742b"
+      },
+      {
+        "file": "003_messaging_recovery.sql",
+        "scope": "all",
+        "shards": 1,
+        "sha256": "c7a92c380de1129110a255e048cbda0410f6ea84c6b4fdb50cfe3fa3d432ccf0"
+      },
+      {
+        "file": "003_recovery_guard.sql",
+        "scope": "all",
+        "shards": 1,
+        "sha256": "59dadb1c06484cae72f642299ea27dbf9193fbbc70d44098ed59bddefbaeb983"
+      },
+      {
+        "file": "004_strategy_stock_draw.sql",
+        "scope": "control",
+        "shards": 1,
+        "sha256": "3eca77fdc78fb9d7c02c7427cf692c00cc2213368cfa3d8330275ee873d16adb"
+      },
+      {
+        "file": "004_user_draw.sql",
+        "scope": "user",
+        "shards": 4,
+        "sha256": "65ea8d5bf6c7f0d71dad50db212a5d73d4dfbb2d3217661de3e002f90ab89030"
+      },
+      {
+        "file": "005_payment.sql",
+        "scope": "control",
+        "shards": 1,
+        "sha256": "dbdbcc199190e02f2147ec6bb9e3736d3294efeae082e61be72feb52bb64f6a8"
+      },
+      {
+        "file": "005_payment_inbox_failure.sql",
+        "scope": "control",
+        "shards": 1,
+        "sha256": "d1140dc9c7f1a53c40d8bcdf480b3b6ea621761d4c579128faf781dca40e7b67"
+      },
+      {
+        "file": "006_cutover_constraints.sql",
+        "scope": "user",
+        "shards": 1,
+        "sha256": "2ed24cd6c173efafa06ddeb66b15c040527ebc587ade4f8a6142a342a391a5af"
+      },
+      {
+        "file": "006_cutover_defaults.sql",
+        "scope": "user",
+        "shards": 1,
+        "sha256": "cc093dc8fc2952cb5c6a420b174079745c1214fee3ad2eefbfe5364911da36d4"
+      },
+      {
+        "file": "006_legacy_receipt_proof.sql",
+        "scope": "user",
+        "shards": 1,
+        "sha256": "04c69c9449ced880240b5299101a6a240b597a115f3f71c3456ee5f8b1c4b159"
+      }
+    ]
+  },
+  "applied006": {
+    "router_control": [],
+    "router_one": [
+      "fresh:006_cutover_constraints.sql:000\t2ed24cd6c173efafa06ddeb66b15c040527ebc587ade4f8a6142a342a391a5af\t6",
+      "fresh:006_cutover_defaults.sql:000\tcc093dc8fc2952cb5c6a420b174079745c1214fee3ad2eefbfe5364911da36d4\t4",
+      "fresh:006_legacy_receipt_proof.sql:000\t04c69c9449ced880240b5299101a6a240b597a115f3f71c3456ee5f8b1c4b159\t1"
+    ],
+    "router_two": [
+      "fresh:006_cutover_constraints.sql:000\t2ed24cd6c173efafa06ddeb66b15c040527ebc587ade4f8a6142a342a391a5af\t6",
+      "fresh:006_cutover_defaults.sql:000\tcc093dc8fc2952cb5c6a420b174079745c1214fee3ad2eefbfe5364911da36d4\t4",
+      "fresh:006_legacy_receipt_proof.sql:000\t04c69c9449ced880240b5299101a6a240b597a115f3f71c3456ee5f8b1c4b159\t1"
+    ]
+  }
+}

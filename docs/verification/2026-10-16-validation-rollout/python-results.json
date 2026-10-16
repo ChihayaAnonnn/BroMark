@@ -1,0 +1,23 @@
+{
+  "tools": {
+    "tests": 27,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "log": "/tmp/phase6-tools-final.log"
+  },
+  "cutover": {
+    "tests": 9,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "log": "/tmp/phase6-cutover-delivery-final.log"
+  },
+  "baseMigrations": {
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "log": "/tmp/phase6-release-validation/maven.log"
+  }
+}

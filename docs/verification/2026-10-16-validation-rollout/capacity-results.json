@@ -1,0 +1,93 @@
+{
+  "singleRunPassed": false,
+  "sent": 59983,
+  "received": 59983,
+  "accepted": 11982,
+  "completed": 11982,
+  "rejected": 14,
+  "unconfirmed": 14,
+  "overloadRejected": 0,
+  "businessRejected": 0,
+  "unknown": 0,
+  "pending": 0,
+  "orphanCompletions": 0,
+  "queryLatencyMs": {
+    "p50": 1.806881,
+    "p95": 9.43401,
+    "p99": 58.747018
+  },
+  "acceptanceLatencyMs": {
+    "p50": 25.310276,
+    "p95": 114.183908,
+    "p99": 846.175029
+  },
+  "completionLatencyMs": {
+    "p50": null,
+    "p95": null,
+    "p99": null
+  },
+  "pollObservationDelayMs": {
+    "p50": null,
+    "p95": null,
+    "p99": null
+  },
+  "oldestAge": 90.5205,
+  "drainSeconds": 67.4687249660492,
+  "estimatedDrainSeconds": null,
+  "differences": 0,
+  "checkedScopes": [
+    "CREDIT",
+    "QUOTA",
+    "STOCK",
+    "DELIVERY",
+    "PAYMENT",
+    "SIGNIN"
+  ],
+  "droppedIterations": 18,
+  "safeCapacityCandidate": false,
+  "gateFailures": [
+    "artifact/config/resource manifest incomplete",
+    "clock calibration missing/out of bounds",
+    "load generator missed arrivals/unverified",
+    "backlog growing/unverified",
+    "load-period backlog growth/unmeasured",
+    "recovery processing does not exceed new arrivals",
+    "unfinished/unknown/orphan results",
+    "rejection ratio exceeds declared ceiling",
+    "invalid/missing latency evidence",
+    "acceptance P99 exceeds 500ms",
+    "completion P99 exceeds 5s/unmeasured",
+    "three actual matching successful runs required"
+  ],
+  "serverDrawDeliveryLatencyMs": {
+    "p50": 18799.52597618103,
+    "p95": 88256.62803649902,
+    "p99": 95634.90414619446
+  },
+  "completedDrawsDuringLoad": 5320,
+  "observedDrawsAfterDrain": 5993,
+  "rawClockCalibration": {
+    "clockSkewMs": 25.083065032958984,
+    "clockCalibrationUncertaintyMs": 27.238011360168457,
+    "clockSamples": {
+      "clientBefore": 1792128036.697546,
+      "server": 1792128036.749867,
+      "clientAfter": 1792128036.752022
+    }
+  },
+  "outboxBacklogMax": 1301,
+  "physicalConnectionsMax": 21,
+  "polling": {
+    "pollRequests": 17564,
+    "pollErrors": 0,
+    "observedTerminals": 5993
+  },
+  "serverDrawConfirmationLatencyMs": {
+    "p50": 15148.91004562378,
+    "p95": 88009.99593734741,
+    "p99": 94987.06698417664
+  },
+  "outboxDrainSeconds": 79.29039096832275,
+  "drainMeaning": "time from k6 return to tracker observing all accepted draw orders delivered; includes polling observation delay",
+  "fullBacklogZeroUpperBoundSeconds": 77.69470000267029
+}

@@ -1,0 +1,16 @@
+{
+  "passed": true,
+  "testsPassed": true,
+  "tests": 166,
+  "checkedScopes": [
+    "CREDIT",
+    "QUOTA",
+    "STOCK",
+    "DELIVERY",
+    "PAYMENT",
+    "SIGNIN"
+  ],
+  "financialChecked": true,
+  "releaseAuthorized": false,
+  "reason": null
+}

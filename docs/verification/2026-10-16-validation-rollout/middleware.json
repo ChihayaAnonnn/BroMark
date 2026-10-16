@@ -1,0 +1,32 @@
+{
+  "mysqlVariables": [
+    "innodb_flush_log_at_trx_commit\t1",
+    "log_bin\tON",
+    "max_connections\t80",
+    "sync_binlog\t1",
+    "time_zone\tSYSTEM",
+    "transaction_isolation\tREPEATABLE-READ",
+    "version\t8.0.46"
+  ],
+  "rabbitQueues": [
+    "bromark.it.phase6.r61016b.notifications\tquorum\ttrue\t0\t0",
+    "bromark.it.phase6.r61016b.workflow\tquorum\ttrue\t0\t0"
+  ],
+  "rabbitNodes": 1,
+  "mysqlReplicas": 0,
+  "redisClusterMasters": 3,
+  "redisClusterReplicas": 0,
+  "appInstances": 2,
+  "appCpuLimitEach": 1,
+  "appMemoryLimitEachBytes": 536870912,
+  "jdkHeapEach": "128m..320m",
+  "poolMaxEach": 8,
+  "logicalPoolsEach": 3,
+  "replicaPoolMax": 48,
+  "reservedConnections": 20,
+  "physicalConnectionLimit": 100,
+  "workerConcurrencyEach": 8,
+  "prefetchEach": 16,
+  "pollMs": 250,
+  "sharedHostOtherProjects": true
+}

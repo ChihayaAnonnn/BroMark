@@ -1,0 +1,13 @@
+{
+  "trackerExit": 0,
+  "samplerExit": 0,
+  "collectionComplete": true,
+  "k6Exit": 0,
+  "startedAt": 1792127112.003058,
+  "loadEndedAt": 1792127713.711051,
+  "endedAt": 1792127837.105879,
+  "runId": "p6-sustained-100",
+  "rate": 100,
+  "durationSeconds": 600,
+  "scenario": "mixed"
+}

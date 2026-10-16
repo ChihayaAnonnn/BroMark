@@ -1,0 +1,22 @@
+{
+  "passed": true,
+  "faults": [
+    {
+      "fault": "broker STOP + app1 SIGKILL",
+      "orderId": "DR-01.000-app-2660",
+      "sourceBefore": "ACCEPTED",
+      "survivingInstanceState": "ACCEPTED",
+      "recordedAt": 1792123027.165169,
+      "finalState": "DELIVERED",
+      "originalOrderReplay": true,
+      "awardCreditRows": 1
+    },
+    {
+      "fault": "two independent application processes",
+      "orderId": "DR-01.000-app-7847",
+      "uniqueOrders": 1,
+      "recordedAt": 1792123094.371335
+    }
+  ],
+  "databaseConnectionFault": "DatabaseDisconnectV2Test.mysqlKillBeforeCommitCannotPublishUncommittedAssetsOrOutbox"
+}

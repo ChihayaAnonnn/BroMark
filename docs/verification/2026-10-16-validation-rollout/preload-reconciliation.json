@@ -1,0 +1,69 @@
+{
+  "checkedScopes": [
+    "CREDIT",
+    "QUOTA",
+    "STOCK",
+    "DELIVERY",
+    "PAYMENT",
+    "SIGNIN"
+  ],
+  "differences": {
+    "CREDIT": 0,
+    "QUOTA": 0,
+    "STOCK": 0,
+    "DELIVERY": 0,
+    "PAYMENT": 0,
+    "SIGNIN": 0
+  },
+  "totalDifferences": 0,
+  "unresolvedReviews": 0,
+  "unfinishedOrders": 0,
+  "pendingTasks": 0,
+  "counts": {
+    "router_perf_it_r61016b_one": {
+      "000": {
+        "draws": 88,
+        "signins": 0,
+        "creditLedgers": 207
+      },
+      "001": {
+        "draws": 177,
+        "signins": 0,
+        "creditLedgers": 266
+      },
+      "002": {
+        "draws": 85,
+        "signins": 0,
+        "creditLedgers": 175
+      },
+      "003": {
+        "draws": 84,
+        "signins": 0,
+        "creditLedgers": 144
+      }
+    },
+    "router_perf_it_r61016b_two": {
+      "000": {
+        "draws": 84,
+        "signins": 0,
+        "creditLedgers": 144
+      },
+      "001": {
+        "draws": 84,
+        "signins": 0,
+        "creditLedgers": 144
+      },
+      "002": {
+        "draws": 114,
+        "signins": 0,
+        "creditLedgers": 173
+      },
+      "003": {
+        "draws": 84,
+        "signins": 0,
+        "creditLedgers": 144
+      }
+    }
+  },
+  "passed": true
+}

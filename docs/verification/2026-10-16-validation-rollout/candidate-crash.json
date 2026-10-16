@@ -1,0 +1,18 @@
+{
+  "passed": true,
+  "orderId": "DR-01.000-app-21001",
+  "frozenVersion": "phase6-r61016b",
+  "frozenCandidate": {
+    "type": "CREDIT",
+    "amount": "1.00",
+    "awardId": 101,
+    "quantity": 1,
+    "configHash": "72d51012bdb836fd4d8184093d919d078db262b05662ce7946aed9237bd66d70",
+    "stockPoolId": "phase6-r61016b"
+  },
+  "stateBefore": "CANDIDATE_FIXED",
+  "stateAfter": "DELIVERED",
+  "candidateUnchanged": true,
+  "awardRows": 1,
+  "fault": "row-lock barrier then application SIGKILL; survivor resumes"
+}

@@ -1,0 +1,57 @@
+{
+  "cutover_allowed": true,
+  "database": "router_cutover_it_3e9dddb21b38",
+  "errors": [],
+  "execute": true,
+  "identity_check": {
+    "checksum": "b248bb539b9a6a08ec9c5fd277fdf0c367ff8c820afce55849502572a036e20d",
+    "count": 1,
+    "expected": 1,
+    "matches": true
+  },
+  "identity_count": 1,
+  "input_sha256": "8cb5805ec6be6ff90e91fa59b32fdf8f3dc7cdf4fa203ef50b2d0cc5c81eaab4",
+  "migration_sha256": {
+    "001_asset_additive.sql": "7f2cf64b23ee6fe2d7a7ec7411781324852963d796dc02449c0d9f9a49571cef",
+    "001_outbox_base.sql": "57e7a7e8f896792f560d3d2fd1655d49e1e318a97367e2bddaf52c1fb4cbd467",
+    "002_signin_exchange.sql": "8bcb96bb3bf76d2fd2a899dd7b5eb89e4b08ca469f6e201811a30bc1b6d7e1f5",
+    "003_messaging_recovery.sql": "c7a92c380de1129110a255e048cbda0410f6ea84c6b4fdb50cfe3fa3d432ccf0",
+    "003_recovery_guard.sql": "59dadb1c06484cae72f642299ea27dbf9193fbbc70d44098ed59bddefbaeb983",
+    "006_cutover_constraints.sql": "2ed24cd6c173efafa06ddeb66b15c040527ebc587ade4f8a6142a342a391a5af",
+    "006_cutover_defaults.sql": "cc093dc8fc2952cb5c6a420b174079745c1214fee3ad2eefbfe5364911da36d4",
+    "006_legacy_receipt_proof.sql": "04c69c9449ced880240b5299101a6a240b597a115f3f71c3456ee5f8b1c4b159"
+  },
+  "phase": "prepare",
+  "progress": 10,
+  "proof_check": {
+    "checksum": "45dee0c96bc530cd529774ad4cc877caac0d1e13eef4070ab98da1ca972e72a4",
+    "count": 1,
+    "expected": 1,
+    "matches": true
+  },
+  "rows": {
+    "raffle_activity_account": 1,
+    "user_credit_account": 1,
+    "user_credit_ledger_001": 1
+  },
+  "tables": {
+    "raffle_activity_account": {
+      "checksum": "471431316012e26ba256d1342698919f10e56b9e9a1168d71d37def479b549e9",
+      "count": 1,
+      "expected": 1,
+      "matches": true
+    },
+    "user_credit_account": {
+      "checksum": "9b8f9ba0f77041d9c4263a0756a944b71ca5d7e0c84e07f28b289dc2176aa429",
+      "count": 1,
+      "expected": 1,
+      "matches": true
+    },
+    "user_credit_ledger_001": {
+      "checksum": "9e0b885a2c423dce0151e6d1f13f5f3f6e74b6e26cb8dc1f1c9aac555e7cd46b",
+      "count": 1,
+      "expected": 1,
+      "matches": true
+    }
+  }
+}
