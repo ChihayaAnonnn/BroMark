@@ -23,6 +23,7 @@ def key_for(table):
                 'sign_in_order':('user_id','business_date'),
                 'sign_in_reward':('sign_in_order_id','reward_item_id'),
                 'user_request_receipt':('user_id','operation','request_id'),
+                'credit_exchange_order':('user_id','request_id'),
                 'consumer_inbox':('consumer_name','event_id'), 'consumer_receipt':('consumer_name','operation_key')}
     if table in ('consumer_inbox','consumer_receipt'): return families[table]
     for family, keys in families.items():
@@ -46,11 +47,16 @@ def precheck(data):
         errors.append('global old writes and workers must be stopped and drained')
     if not data.get('tables') or 'user_credit_account' not in data['tables']:
         errors.append('audited accounts required')
+    if data.get('logical_db') not in ('01','02'):errors.append('audited logical user database required')
     for table,rows in data.get('tables',{}).items():
         try: keys=key_for(table)
         except ValueError as e: errors.append(str(e)); continue
         seen=set()
         for row in rows:
+            if row.get('user_id'):
+                slot=route_slot(row['user_id'])
+                if slot[:2]!=data.get('logical_db') or (re.search(r'_00[0-3]$',table) and table[-3:]!=slot[3:]):
+                    errors.append('audited user row is on wrong logical database/table')
             identity=tuple(str(row.get(k,'')) for k in keys)
             if '' in identity or identity in seen: errors.append('null/duplicate identity: '+table)
             seen.add(identity)

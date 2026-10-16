@@ -92,3 +92,13 @@ class CompleteBacklogScope(unittest.TestCase):
         from collect_v2_results import backlog_evidence
         self.assertFalse(backlog_evidence({'loadStartedAt':100,'loadEndedAt':700,
               'backlogSamples':[{'observedAt':100,'backlog':0},{'observedAt':400,'backlog':0},{'observedAt':700,'backlog':0}]}))
+
+class LegacyImportLayout(unittest.TestCase):
+    def test_old_exchange_order_can_be_imported_with_original_request_identity(self):
+        self.assertEqual(('user_id','request_id'),m.key_for('credit_exchange_order_001'))
+    def test_wrong_logical_database_blocks_audited_account_import(self):
+        import importlib.util
+        spec=importlib.util.spec_from_file_location('cutover_fixtures',ROOT/'dev-ops/mysql/tests/test_cutover.py')
+        fixture=importlib.util.module_from_spec(spec);spec.loader.exec_module(fixture)
+        data=fixture.CutoverValidation().fixture();data['identities']=[];data['logical_db']='01'
+        self.assertFalse(m.precheck(data)['cutover_allowed'])
