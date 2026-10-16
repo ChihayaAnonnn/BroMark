@@ -10,7 +10,9 @@
 
 **Spec:** [Outbox Relay与恢复补发优化设计](../specs/2026-10-16-outbox-relay-recovery-optimization-design.md)。同时阅读[原交易设计](../specs/2026-10-15-concurrent-credit-payment-raffle-design.md)和[延迟定位证据](../../verification/2026-10-16-latency-analysis/README.md)。
 
-**Status:** 计划待执行；用户本轮要求撰写计划，不包含开始实现。代码基线`ad83092`，包含待评审设计和诊断证据；本计划不将Phase6的NO-GO改为通过。
+**Status:** 执行中，整份计划尚未完成。Task 1 已实现并验证，代码提交 `1817012`；Task 2—10 尚未执行。实施起点 `638227b`，分支 `feat/outbox-relay-recovery-optimization`。Phase6 仍为 NO-GO。
+
+执行检查点：隔离工作区 `/tmp/bromark-outbox-relay-20261016`。Task 1 最终聚焦回归15项、V2/Router回归175项，failures/errors/skipped均为0；真实迁移回归4项通过。原始日志保存在该工作区 `.superpowers/sdd/2026-10-16-outbox-relay-recovery-optimization/`。数据库许可和连接池大小未修改。bounded启动时校验Hikari获取连接及MySQL连接/网络读超时；连接获取仍可能超过调用剩余时间至多一个池等待上限，不能宣称硬实时取消。runner在实际commit前校验deadline，拒绝自定义事务管理器子类以防忽略其行为。下一步为Task 2的007迁移及批量租约仓储。
 
 ## Global Constraints
 
@@ -70,7 +72,7 @@ V2_TEST_SELECTOR='本任务测试类选择器' docs/operations/verify-java25.sh
 
 **Interfaces:** `RelayPolicy(int claimLimit,int publishWindow,int expiredReserve,int fairnessSlots,Duration idlePoll,Duration lease,Duration claimTimeout,Duration publishTimeout,Duration settleTimeout,Duration batchTimeout,Duration safetyMargin)`，`validate(int lanes,int publisherLimit):void`。两ConfigurationProperties分别绑定`bm.v2.messaging.relay`和`bm.v2.recovery.redrive`，mode默认legacy，全部默认值复制Global Constraints。现有`UserTransactionRunner`三种in方法签名不变。
 
-- [ ] **Step1 — 写RED。** `RelayBudgetV2Test`：默认校验通过；窗口9×2、批次128/窗口8、lease=22秒被拒绝；过期许可等待不进入事务；1秒预算下真实`SELECT SLEEP(3)`不能提交；并发不同deadline不互相修改超时；异常后路由、事务和连接可再次使用。
+- [x] **Step1 — 写RED。** `RelayBudgetV2Test`：默认校验通过；窗口9×2、批次128/窗口8、lease=22秒被拒绝；过期许可等待不进入事务；1秒预算下真实`SELECT SLEEP(3)`不能提交；并发不同deadline不互相修改超时；异常后路由、事务和连接可再次使用。
 关键测试方法：`rejectsOversizedWindowAndUnsafeLease`；核心断言如下，变量由该方法的上述fixture或实际探针创建，不是生产接口：
 
 ```java
@@ -78,10 +80,10 @@ assertThatThrownBy(() -> oversizedWindow.validate(2, 16)).isInstanceOf(IllegalAr
 assertThatThrownBy(() -> lease22Seconds.validate(2, 16)).isInstanceOf(IllegalArgumentException.class);
 ```
 
-- [ ] **Step2 — 验证RED。** 选择器`RelayBudgetV2Test,AdmissionDeadlineV2Test`；保存行为失败或新增类型编译失败的输出。
-- [ ] **Step3 — 实现。** 配置校验同时考虑单批20秒和完整租约公式，非法模式/零或负参数拒绝启动。RoutedTransactionRunner每次调用使用独立TransactionTemplate，保留嵌套同route/work约束；按剩余时间设置事务/Statement超时，执行前及提交前重验deadline。隔离JDBC URL显式设置connectTimeout/socketTimeout=1000ms，bounded模式启动时验证有效网络读超时，不能只在Java future上计时；不全局修改共享JdbcTemplate超时。记录超时与清理耗时，未确认提交按不确定结果处理。
-- [ ] **Step4 — 验证GREEN。** 同选择器通过，补跑`RoutingTransactionV2Test,DatabaseBudgetV2Test,TradeBudgetIsolationV2Test`；核对RC、permit先于连接、超时回滚及无ThreadLocal残留。超时取消/清理开销也纳入租约实测，不能用理论公式替代。
-- [ ] **Step5 — 提交。** `git diff --check`，仅暂存本任务Files，`git commit -m "feat: validate relay budgets and database deadlines"`。
+- [x] **Step2 — 验证RED。** 选择器`RelayBudgetV2Test,AdmissionDeadlineV2Test`；保存行为失败或新增类型编译失败的输出。
+- [x] **Step3 — 实现。** 配置校验同时考虑单批20秒和完整租约公式，非法模式/零或负参数拒绝启动。RoutedTransactionRunner每次调用使用独立TransactionTemplate，保留嵌套同route/work约束；按剩余时间设置事务/Statement超时，执行前及提交前重验deadline。隔离JDBC URL显式设置connectTimeout/socketTimeout=1000ms，bounded模式启动时验证有效网络读超时，不能只在Java future上计时；不全局修改共享JdbcTemplate超时。记录超时与清理耗时，未确认提交按不确定结果处理。
+- [x] **Step4 — 验证GREEN。** 同选择器通过，补跑`RoutingTransactionV2Test,DatabaseBudgetV2Test,TradeBudgetIsolationV2Test`；核对RC、permit先于连接、超时回滚及无ThreadLocal残留。超时取消/清理开销也纳入租约实测，不能用理论公式替代。
+- [x] **Step5 — 提交。** `git diff --check`，仅暂存本任务Files，`git commit -m "feat: validate relay budgets and database deadlines"`。
 
 ## Task 2: 007结构与批量租约仓储
 
@@ -277,4 +279,4 @@ self.assertFalse(incomplete_report["safeCapacityCandidate"])
 | HTTP/Relay/DB分段观察、真实崩溃、切换/回滚 | 8 |
 | 旧/均匀用户分布、完整统计及参数、真实矩阵 | 9、10 |
 
-代码与工具交付完成不等于容量通过；Task10保留未达标即NO-GO的合法终态，完整Phase6退出条件仍按实际证据判断。每项未完成必须留下可恢复的配置、检查点和下一验证动作。本文件完成时所有执行checkbox均保持未勾选。
+代码与工具交付完成不等于容量通过；Task10保留未达标即NO-GO的合法终态，完整Phase6退出条件仍按实际证据判断。每项未完成必须留下可恢复的配置、检查点和下一验证动作。执行checkbox仅在对应步骤已有实际证据时勾选；当前只完成Task 1。
