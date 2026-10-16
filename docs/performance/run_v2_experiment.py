@@ -12,6 +12,11 @@ from track_v2_orders import records
 K6='grafana/k6:1.3.0@sha256:3ddc8b1a33a2c3d8edc6e99b6a762ae36cba08788463458f5e6a7703e14eb77d'
 ROOT=Path(__file__).resolve().parent
 
+def wait_collectors(tracker,sampler,timeout):
+    tracker_exit=tracker.wait(timeout=timeout);sampler_exit=sampler.wait(timeout=timeout)
+    return {'trackerExit':tracker_exit,'samplerExit':sampler_exit,'collectionComplete':tracker_exit==0 and sampler_exit==0}
+
+
 def run(seed_file,out,rate,duration,scenario,run_id):
     out=Path(out).resolve();out.mkdir(parents=True,exist_ok=True)
     if any(out.iterdir()):raise ValueError('new empty run directory required')
@@ -40,10 +45,11 @@ def run(seed_file,out,rate,duration,scenario,run_id):
     start=time.time()
     try:
         with (out/'k6.log').open('w') as f: result=subprocess.run(args,stdout=f,stderr=subprocess.STDOUT)
+        load_end=time.time()
         (out/'requests.jsonl').write_text(''.join(json.dumps(row)+'\n' for row in records(out/'k6-console.jsonl')))
-        tracker.wait(timeout=duration+150);sampler.wait(timeout=duration+150)
-        return {'k6Exit':result.returncode,'startedAt':start,'endedAt':time.time(),'runId':run_id,
-                'rate':rate,'durationSeconds':duration,'scenario':scenario}
+        collection=wait_collectors(tracker,sampler,duration+150)
+        return dict(collection,k6Exit=result.returncode,startedAt=start,loadEndedAt=load_end,endedAt=time.time(),runId=run_id,
+                rate=rate,durationSeconds=duration,scenario=scenario)
     finally:
         for child in (tracker,sampler):
             if child.poll() is None:child.terminate();child.wait(timeout=10)

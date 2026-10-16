@@ -13,6 +13,7 @@ class CapacityStatistics(unittest.TestCase):
         completions=[{'orderId':str(i),'state':'DELIVERED','kind':'draw','serverAcceptedAt':100,
                       'serverCompletedAt':101,'observedAt':110} for i in range(550)]
         metadata={'durationSeconds':600,'repeats':3,'clockSkewMs':1,'clockMaxSkewMs':10,
+                  'loadStartedAt':100,'loadEndedAt':700,'backlogSamples':[{'observedAt':100,'backlog':0},{'observedAt':400,'backlog':0},{'observedAt':700,'backlog':0}],
                   'arrivalRate':100,'loadGeneratorHealthy':True,'resourceBudgetOk':True,
                   'backlogStart':0,'backlogEnd':50,'oldestAgeSeconds':10,'incomingPerSecond':20,
                   'processingPerSecond':10,'drainSeconds':None,
@@ -40,7 +41,7 @@ class CapacityStatistics(unittest.TestCase):
     def test_complete_bounded_zero_difference_run_can_be_candidate(self):
         r,c,meta=self.fixture();r=r[:550];meta.update(backlogEnd=0,processingPerSecond=30,
               incomingPerSecond=20,drainSeconds=0,arrivalRate=550/600)
-        result=m.collect(r,c,meta);self.assertTrue(result['safeCapacityCandidate'],result['gateFailures'])
+        result=m.collect(r,c,meta);self.assertTrue(result['singleRunPassed'],result['gateFailures']);self.assertFalse(result['safeCapacityCandidate'])
     def test_missing_terminal_timestamp_cannot_claim_latency(self):
         r,c,meta=self.fixture();r=r[:550];c[0].pop('serverCompletedAt');meta['backlogEnd']=0
         self.assertFalse(m.collect(r,c,meta)['safeCapacityCandidate'])

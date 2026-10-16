@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """独立增量查单。仅从环境提供的token映射读取身份；每次轮询额外计数。"""
 import argparse
+import http.client
 import json
 import os
 from pathlib import Path
@@ -46,7 +47,7 @@ def track(accepted,base,out,seconds,interval,max_rps=50):
                             'state':value.get('state'),'observedAt':time.time(),'pollStatus':response.status}
                     f.write(json.dumps(record)+'\n');f.flush()
                     if value.get('state') in TERMINAL:done.add(order)
-                except (urllib.error.URLError,ValueError,KeyError):errors+=1
+                except (urllib.error.URLError,http.client.HTTPException,OSError,ValueError,KeyError):errors+=1
             time.sleep(interval)
     summary={'pollRequests':polls,'pollErrors':errors,'observedTerminals':len(done)}
     out.with_suffix('.polling.json').write_text(json.dumps(summary,indent=2)+'\n');return summary

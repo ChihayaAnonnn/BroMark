@@ -12,7 +12,42 @@ def percentile(values):
     values=sorted(values)
     return {f'p{p}':values[max(0,math.ceil(len(values)*p/100)-1)] if values else None for p in (50,95,99)}
 
-def collect(requests,completions,meta):
+def backlog_evidence(meta):
+    start=meta.get('loadStartedAt');end=meta.get('loadEndedAt')
+    if not isinstance(start,(int,float)) or not isinstance(end,(int,float)) or end<=start:return False
+    samples=[r for r in meta.get('backlogSamples',[]) if start<=r.get('observedAt',-1)<=end]
+    samples.sort(key=lambda r:r['observedAt'])
+    if len(samples)<3 or samples[-1]['observedAt']-samples[0]['observedAt']<(end-start)*.6:return False
+    width=max(1,len(samples)//3)
+    before=sum(r['backlog'] for r in samples[:width])/width
+    after=sum(r['backlog'] for r in samples[-width:])/width
+    return after<=before+max(2,before*.05)
+
+
+def repeat_evidence(meta):
+    paths=meta.get('repeatRunDirs',[])
+    if len(paths)<3 or len({str(Path(p).resolve()) for p in paths})!=len(paths):return False
+    ids=set();fingerprint=meta.get('configurationSha256')
+    if not isinstance(fingerprint,str) or len(fingerprint)!=64:return False
+    try:
+        for directory in paths:
+            root=Path(directory);execution=json.loads((root/'execution.json').read_text())
+            other=json.loads((root/'metadata.json').read_text())
+            if execution.get('runId') in ids or not execution.get('runId'):return False
+            ids.add(execution['runId'])
+            if execution.get('k6Exit')!=0 or execution.get('trackerExit')!=0 or execution.get('samplerExit')!=0:return False
+            if other.get('configurationSha256')!=fingerprint or other.get('arrivalRate')!=meta.get('arrivalRate'):return False
+            if execution.get('loadEndedAt',0)-execution.get('startedAt',0)<600:return False
+            # Recompute from raw records and measured resource window; a results boolean is not proof.
+            other['backlogSamples']=read_jsonl(root/'resources.jsonl')
+            other['loadStartedAt']=execution['startedAt'];other['loadEndedAt']=execution['loadEndedAt']
+            result=collect(read_jsonl(root/'requests.jsonl'),read_jsonl(root/'completions.jsonl'),other,check_repeats=False)
+            if not result['singleRunPassed']:return False
+    except (OSError,ValueError,KeyError,TypeError):return False
+    return len(ids)>=3
+
+
+def collect(requests,completions,meta,check_repeats=True):
     # Same request retry is not additional accepted business. sent remains actual network attempts.
     accepted={};received=rejected=overload=business=unknown=unconfirmed=0
     query_latency=[];trade_latency=[];invalid_latency=0
@@ -22,10 +57,14 @@ def collect(requests,completions,meta):
         received+=1
         if status>=500: unconfirmed+=1
         rejected_state=r.get('state')=='REJECTED'
+        operation=r.get('operation')
+        contracts={'draw':{'ACCEPTED','CANDIDATE_FIXED','RESULT_RECORDED','COMMITTED','DELIVERED','CANCELLING','CANCELLED','REJECTED'},'payment':{'CREATED','PAID','DELIVERED'},'exchange':{'DELIVERED','REJECTED'},'signin':{'DELIVERED','REJECTED'}}
+        invalid_contract=200<=status<300 and operation in contracts and (status not in (200,202) or (not rejected_state and not r.get('orderId')) or r.get('state') not in contracts[operation])
+        if invalid_contract or status<200 or 300<=status<400:unconfirmed+=1
         if status==429: overload+=1
         elif rejected_state or 400<=status<500: business+=1
         if status==429 or rejected_state or status>=400: rejected+=1
-        if 200<=status<300 and not rejected_state and r.get('orderId') and r.get('operation') not in ('query','result'):
+        if 200<=status<300 and not rejected_state and not invalid_contract and r.get('orderId') and r.get('operation') not in ('query','result'):
             accepted.setdefault(str(r['orderId']),r)
         latency=r.get('latencyMs')
         if isinstance(latency,(int,float)) and math.isfinite(latency) and latency>=0:
@@ -53,7 +92,7 @@ def collect(requests,completions,meta):
         if not condition: failures.append(reason)
     q=percentile(query_latency);t=percentile(trade_latency);c=percentile(completion_latency)
     pending=len(accepted)-len(terminal)
-    require(meta.get('durationSeconds',0)>=600 and meta.get('repeats',0)>=3,'duration/repeat evidence incomplete')
+    require(meta.get('durationSeconds',0)>=600,'duration evidence incomplete')
     expected=meta.get('arrivalRate',0)*meta.get('durationSeconds',0)
     require(expected>0 and len(requests)>=math.floor(expected*0.99),'offered arrival rate not achieved')
     require(meta.get('manifestComplete') is True,'artifact/config/resource manifest incomplete')
@@ -62,6 +101,7 @@ def collect(requests,completions,meta):
     require(meta.get('resourceBudgetOk') is True,'resource budget unverified/exceeded')
     require(SCOPES<=set(meta.get('checkedScopes',[])) and meta.get('differences')==0,'six-scope zero-difference evidence missing')
     require(meta.get('backlogEnd') is not None and meta.get('backlogStart') is not None and meta['backlogEnd']<=meta['backlogStart'],'backlog growing/unverified')
+    require(backlog_evidence(meta),'load-period backlog growth/unmeasured')
     require(meta.get('processingPerSecond',0)>meta.get('incomingPerSecond',float('inf')),'recovery processing does not exceed new arrivals')
     require(pending==0 and unknown==0 and unconfirmed==0 and not orphans,'unfinished/unknown/orphan results')
     require(rejected/len(requests)<=meta.get('maxRejectionRatio',0) if requests else False,'rejection ratio exceeds declared ceiling')
@@ -72,7 +112,9 @@ def collect(requests,completions,meta):
     require(not async_orders or c['p99'] is not None and c['p99']<=5000,'completion P99 exceeds 5s/unmeasured')
     processing=meta.get('processingPerSecond',0);incoming=meta.get('incomingPerSecond',0)
     estimate=meta.get('backlogEnd',0)/(processing-incoming) if processing>incoming and meta.get('backlogEnd') is not None else None
-    return {'sent':len(requests),'received':received,'accepted':len(accepted),'completed':len(terminal),
+    single_run_passed=not failures
+    if check_repeats:require(repeat_evidence(meta),'three actual matching successful runs required')
+    return {'singleRunPassed':single_run_passed,'sent':len(requests),'received':received,'accepted':len(accepted),'completed':len(terminal),
             'rejected':rejected,'unconfirmed':unconfirmed,'overloadRejected':overload,'businessRejected':business,'unknown':unknown,
             'pending':pending,'orphanCompletions':len(orphans),'queryLatencyMs':q,'acceptanceLatencyMs':t,
             'completionLatencyMs':c,'pollObservationDelayMs':percentile(observed_delay),
@@ -86,6 +128,10 @@ def read_jsonl(path):
 
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('--run-dir',required=True);a=p.parse_args();root=Path(a.run_dir)
-    result=collect(read_jsonl(root/'requests.jsonl'),read_jsonl(root/'completions.jsonl'),json.loads((root/'metadata.json').read_text()))
+    meta=json.loads((root/'metadata.json').read_text())
+    execution=json.loads((root/'execution.json').read_text())
+    meta.update(backlogSamples=read_jsonl(root/'resources.jsonl'),loadStartedAt=execution['startedAt'],loadEndedAt=execution['loadEndedAt'])
+    if not execution.get('collectionComplete'):meta['manifestComplete']=False
+    result=collect(read_jsonl(root/'requests.jsonl'),read_jsonl(root/'completions.jsonl'),meta)
     (root/'results.json').write_text(json.dumps(result,indent=2)+'\n');print(json.dumps(result,indent=2))
     # A report records failed capacity without pretending script execution failed.

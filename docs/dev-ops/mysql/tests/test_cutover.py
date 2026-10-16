@@ -8,11 +8,16 @@ spec.loader.exec_module(m)
 
 class CutoverValidation(unittest.TestCase):
     def fixture(self):
-        return {'run_id': 'fixture', 'auditor': 'test', 'stopped': True, 'drained': True,
-                'tables': {'user_credit_account': [{'user_id':'u','balance':'12.00','opening_balance':'12.00',
-                           'audit_source':'approved','status':'ACTIVE','version':0}]},
-                'identities': [{'entry':'award','legacy_id':'17','biz_type':'LEGACY_AWARD','biz_id':'award-17',
-                                'request_hash':'a'*64,'evidence':'issued original ledger'}]}
+        biz={'type':'LEGACY_AWARD','id':'award-17','hash':'a'*64}
+        receipt={'bizId':biz,'delta':'12.00','balanceAfter':'12.00'}
+        return {'run_id':'fixture','auditor':'test','stopped':True,'drained':True,'logical_db':'02',
+                'tables':{'user_credit_account':[{'user_id':'u','balance':'12.00','opening_balance':'0.00',
+                           'audit_source':'approved','status':'ACTIVE','version':0}],
+                          'user_credit_ledger_001':[{'user_id':'u','biz_type':'LEGACY_AWARD','biz_id':'award-17',
+                           'request_hash':'a'*64,'delta':'12.00','balance_after':'12.00','receipt':receipt}]},
+                'identities':[{'entry':'award:u','legacy_id':'17','biz_type':'LEGACY_AWARD','biz_id':'award-17',
+                              'request_hash':'a'*64,'evidence':'issued original ledger','user_id':'u',
+                              'route_slot':'02.001','effect_kind':'CREDIT','receipt':receipt}]}
     def test_duplicates_block_instead_of_sum(self):
         d=self.fixture(); d['tables']['user_credit_account'] *= 2
         self.assertFalse(m.precheck(d)['cutover_allowed'])

@@ -17,7 +17,7 @@
 | F11 | 发布成功但任务状态未更新 | `PublisherConfirmV2Test.lostConfirmConnectionIsUnknownEvenWhenBrokerAcceptedMessage`；对应测试源码的SQL/assertions | 测试随机身份，原回执/状态断言；见XML和日志 | 针对性集成；完整证据见本次Surefire |
 | F12 | 消费完成但响应事件丢失后进行业务重放 | `ConsumerInboxV2Test.atomicallyDeduplicatesTransportAndBusinessAndReplaysOriginalResponse`；对应测试源码的SQL/assertions | 测试随机身份，原回执/状态断言；见XML和日志 | 针对性集成；完整证据见本次Surefire |
 | F13 | 任务租约过期后旧Worker恢复 | `OutboxLeaseV2Test.claimsEachSourceOnceAndFencesExpiredOwner`；对应测试源码的SQL/assertions | 测试随机身份，原回执/状态断言；见XML和日志 | 针对性集成；完整证据见本次Surefire |
-| F14 | 固定候选后宕机 | `DrawAcceptanceV2Test.sameRequestConsumesOnceAndCandidateSurvivesDateAndRuleChanges`；对应测试源码的SQL/assertions | 测试随机身份，原回执/状态断言；见XML和日志 | 还需进程SIGKILL/重启演练；单测不能证明真实崩溃 |
+| F14 | 固定候选后宕机 | `DrawAcceptanceV2Test.sameRequestConsumesOnceAndCandidateSurvivesDateAndRuleChanges`；对应测试源码的SQL/assertions | 测试随机身份，原回执/状态断言；见XML和日志 | 实际进程SIGKILL/Rabbit STOP证据见Phase6 faults.json；固定候选点的异常注入与真实崩溃点分开报告 |
 | F15 | 受理后排队跨日、黑名单变化或其他抽奖完成 | `RaffleIntegrationV2Test.freezesBlacklistAndBusinessDayAndRollsBackTechnicalAcceptance`；对应测试源码的SQL/assertions | 测试随机身份，原回执/状态断言；见XML和日志 | 针对性集成；完整证据见本次Surefire |
 | F16 | 库存HELD后用户数据库不可用 | `RaffleFaultV2Test.unavailableUserDatabaseNeverReleasesHeldStock`；对应测试源码的SQL/assertions | 测试随机身份，原回执/状态断言；见XML和日志 | 实际关闭Hikari池，尚非MySQL服务网络中断 |
 | F17 | 取消先提交、预留请求晚到 | `StockProtocolV2Test.cancellationTombstoneAndZeroQuantityAreFinal`；对应测试源码的SQL/assertions | 测试随机身份，原回执/状态断言；见XML和日志 | 针对性集成；完整证据见本次Surefire |
@@ -30,10 +30,10 @@
 | F24 | 数据库路由线程复用与异步扫描 | `RoutingTransactionV2Test.reusesThreadRollsBackAndScansEverySlot`；对应测试源码的SQL/assertions | 测试随机身份，原回执/状态断言；见XML和日志 | 针对性集成；完整证据见本次Surefire |
 | F25 | 业务已进入 REVIEW 后晚到新事件 | `RaffleFaultV2Test.pausedDrawDefersLateReceiptThenAuditedResumeContinuesSameAward`；对应测试源码的SQL/assertions | 测试随机身份，原回执/状态断言；见XML和日志 | 针对性集成；完整证据见本次Surefire |
 | F26 | 普通交易或库存 Worker 占满自身配额 | `TradeBudgetIsolationV2Test.postPreflightAndConfigCannotBorrowReservedQueryCapacity`；对应测试源码的SQL/assertions | 测试随机身份，原回执/状态断言；见XML和日志 | 针对性集成；完整证据见本次Surefire |
-| F27 | MQ不可用、服务滚动重启 | `MessagingApplicationV2Test.applicationCloseKeepsDatabaseOpenUntilConfirmedOutboxUpdateDrains`；对应测试源码的SQL/assertions | 测试随机身份，原回执/状态断言；见XML和日志 | 还需进程SIGKILL/重启演练；单测不能证明真实崩溃 |
+| F27 | MQ不可用、服务滚动重启 | `MessagingApplicationV2Test.applicationCloseKeepsDatabaseOpenUntilConfirmedOutboxUpdateDrains`；对应测试源码的SQL/assertions | 测试随机身份，原回执/状态断言；见XML和日志 | 实际进程SIGKILL/Rabbit STOP证据见Phase6 faults.json；固定候选点的异常注入与真实崩溃点分开报告 |
 | F28 | 支付撤销早于付款通知 | `PaymentFactV2Test.earlyReversalAndWrongCurrencyNeverGrant`；对应测试源码的SQL/assertions | 测试随机身份，原回执/状态断言；见XML和日志 | 针对性集成；完整证据见本次Surefire |
 | F29 | 渠道下单超时或回调早于下单响应 | `PaymentCreationV2Test.callbackBeforeCreateResponseCannotOverwritePaidState`；对应测试源码的SQL/assertions | 测试随机身份，原回执/状态断言；见XML和日志 | 针对性集成；完整证据见本次Surefire |
-| F30 | 迁移期间旧签到或发奖消息重投 | `MigrationRehearsalV2Test.issuedLegacyMessageReplaysOriginalReceiptAndUnknownIdentityRequiresReview`；对应测试源码的SQL/assertions | 测试随机身份，原回执/状态断言；见XML和日志 | 针对性集成；完整证据见本次Surefire |
+| F30 | 迁移期间旧签到或发奖消息重投 | `MigrationRehearsalV2Test.issuedLegacyMessageReplaysImportedOriginalReceiptAndUnknownIdentityRequiresReview`；对应测试源码的SQL/assertions | 测试随机身份，原回执/状态断言；见XML和日志 | 针对性集成；完整证据见本次Surefire |
 
 ## 尚需运行的整体验收
 

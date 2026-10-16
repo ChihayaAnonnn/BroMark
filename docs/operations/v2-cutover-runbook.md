@@ -12,8 +12,10 @@
 | 6 业务开关 | 先共享资产统一V2，再活动抽奖；旧监听器保持关闭，新versioned队列独立启动 | 老消息只走审计适配或核查；原业务回执可重放 | 旧路径混写立即停止受理，不能交回旧代码 |
 | 7 观察放量 | 仅在正确性、长期固定到达率和恢复证据均通过后，依次测试/小范围/完整活动 | release checklist签字、具体镜像digest/配置/迁移hash/指标 | 指标/账实阈值触发rollback runbook |
 
-输入为**规范化目标行**：`run_id,auditor,stopped:true,drained:true,tables:{表名:[完整目标行]},identities:[{entry,legacy_id,biz_type,biz_id,request_hash,evidence}],unresolved:[]`。entry必须带完整业务命名空间（含用户/日期/奖励项需要的部分），不接受同ID不同语义。账务期初与已导入流水不能双计；旧已扣待兑换必须冻结原扣款身份与待发权益，不当作新同步兑换。未知消息不默认成功。
+输入为**规范化目标行**：`run_id,auditor,stopped:true,drained:true,tables:{表名:[完整目标行]},logical_db:"01或02",identities:[{entry,legacy_id,user_id,route_slot,effect_kind:"CREDIT或QUOTA",biz_type,biz_id,request_hash,receipt,evidence}],unresolved:[]`。entry必须带完整业务命名空间（含用户/日期/奖励项需要的部分），不接受同ID不同语义。账务期初与已导入流水不能双计；旧已扣待兑换必须冻结原扣款身份与待发权益，不当作新同步兑换。未知消息不默认成功。
 
 prepare要求目标表首次为空；恢复使用同run_id/同输入hash，禁止换文件覆盖已导入事实。重复账户和非空预检先于006，唯一主键由001建立；存量原表没有规范主键时须转入独立目标表逐行核验，不能对脏原表直接ALTER。脚本不自动从不完整历史推算权益。
 
 旧SKU库存仅核对并退出。真实奖品按实际所有权建立一次库存池，新旧策略共用同池，不复制库存。真实服务切换必须补齐备份、最小权限、所有实例冻结证据；本地演练不等于已完成生产迁移。
+
+每个已发身份必须绑定正确用户分片上导入的原credit/quota ledger和原receipt；只有映射、没有原回执禁止切换。006_legacy_receipt_proof持久化绑定证据，verify对映射与proof逐字段比对，行数相同不能替代checksum。consumer_inbox/consumer_receipt为真实未分表去重表，不使用虚构inbox_00x。未知或无原凭据的旧消息保留核查，不能Ack为成功。

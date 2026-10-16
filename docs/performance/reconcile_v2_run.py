@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """停写后检查专属实验库六域，遇到缺表/异常不输出通过。不会改账或隐藏核查记录。"""
 import argparse
+from decimal import Decimal
 import json
 from pathlib import Path
 from seed_v2_testdata import mysql
@@ -8,7 +9,21 @@ from seed_v2_testdata import mysql
 
 def count(db,query):return int(mysql(db,query))
 def rows(db,table):
-    return [json.loads(line) for line in mysql(db,'SELECT JSON_OBJECT('+','.join("'"+c+"',`"+c+'`' for c in mysql(db,"SELECT COLUMN_NAME FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='"+table+"' ORDER BY ORDINAL_POSITION").splitlines())+') FROM `'+table+'`').splitlines()]
+    return [json.loads(line,parse_float=Decimal) for line in mysql(db,'SELECT JSON_OBJECT('+','.join("'"+c+"',`"+c+'`' for c in mysql(db,"SELECT COLUMN_NAME FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='"+table+"' ORDER BY ORDINAL_POSITION").splitlines())+') FROM `'+table+'`').splitlines()]
+
+def draw_quota_mismatch(order,quota):
+    entries=[q for q in quota if q.get('user_id')==order['user_id'] and q.get('activity_id')==order['activity_id'] and q.get('biz_id')==order['order_id']]
+    consumed=[q for q in entries if q.get('biz_type')=='CONSUME:DRAW']
+    refunded=[q for q in entries if q.get('biz_type')=='REFUND:DRAW']
+    if order['state']=='REJECTED':return bool(consumed or refunded)
+    time=order['snapshot'].get('time',{})
+    expected={'TOTAL':'ALL','DAY':time.get('businessDate'),'MONTH':time.get('businessMonth')}
+    def valid(rows,delta):
+        return len(rows)==3 and {r['bucket_type']:r['bucket_key'] for r in rows}==expected and all(r['delta']==delta for r in rows)
+    if not valid(consumed,-1):return True
+    if order['state']=='CANCELLED':return not valid(refunded,1)
+    return bool(refunded)
+
 
 def reconcile(seed):
     differences={k:0 for k in ('CREDIT','QUOTA','STOCK','DELIVERY','PAYMENT','SIGNIN')};counts={};reviews=0;unfinished=0
@@ -28,6 +43,7 @@ def reconcile(seed):
             records={r['order_id']:r for r in rows(db,'v2_award_record_'+tag)}
             delivery={r['order_id']:r for r in rows(db,'v2_award_delivery_'+tag)}
             for order in orders:
+                differences['QUOTA']+=int(draw_quota_mismatch(order,quota))
                 oid=order['order_id'];snapshot=order['snapshot'];award=snapshot.get('finalAward')
                 ledger=credit_by_biz.get((order['user_id'],'DRAW_AWARD',oid))
                 if order['state']=='DELIVERED':
