@@ -67,6 +67,12 @@
       "scope": "control",
       "shards": 1,
       "sha256": "d1140dc9c7f1a53c40d8bcdf480b3b6ea621761d4c579128faf781dca40e7b67"
+    },
+    {
+      "file": "006_cutover_constraints.sql",
+      "scope": "user",
+      "shards": 1,
+      "sha256": "2ed24cd6c173efafa06ddeb66b15c040527ebc587ade4f8a6142a342a391a5af"
     }
   ]
 }
