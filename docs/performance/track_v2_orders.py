@@ -33,7 +33,8 @@ def track(accepted,base,out,seconds,interval,max_rps=50):
         while time.monotonic()<deadline:
             pending={}
             for row in records(accepted):
-                if 200<=row.get('status',0)<300 and row.get('orderId') and row.get('operation') in ('draw','payment') and row['orderId'] not in done:
+                status=row.get('status',0)
+                if (200<=status<300 or status==503) and row.get('orderId') and row.get('operation') in ('draw','payment') and row['orderId'] not in done:
                     pending[row['orderId']]=row
             for order,row in pending.items():
                 if time.monotonic()>=deadline:break
@@ -44,7 +45,8 @@ def track(accepted,base,out,seconds,interval,max_rps=50):
                 try:
                     with urllib.request.urlopen(request,timeout=6) as response:value=json.load(response)
                     record={'requestId':row['requestId'],'user':row['user'],'orderId':order,'kind':row['operation'],
-                            'state':value.get('state'),'observedAt':time.time(),'pollStatus':response.status}
+                            'state':value.get('state'),'observedAt':time.time(),'pollStatus':response.status,
+                            'originalStatus':row['status']}
                     f.write(json.dumps(record)+'\n');f.flush()
                     if value.get('state') in TERMINAL:done.add(order)
                 except (urllib.error.URLError,http.client.HTTPException,OSError,ValueError,KeyError):errors+=1

@@ -8,8 +8,10 @@ const users=new SharedArray('identities',()=>Object.entries(JSON.parse(open(__EN
 const seed=JSON.parse(open(__ENV.SEED_FILE));
 const sent=new Counter('v2_sent'),accepted=new Counter('v2_accepted'),rejected=new Counter('v2_rejected');
 const scenario=__ENV.SCENARIO || 'mixed';
+const distribution=__ENV.USER_DISTRIBUTION || 'legacy';
 const fixtures=__ENV.NOTIFICATION_FILE ? JSON.parse(open(__ENV.NOTIFICATION_FILE)) : [];
 if(!config.scenarios.includes(scenario)) throw new Error('unknown scenario');
+if(!['legacy','uniform'].includes(distribution)) throw new Error('unknown user distribution');
 export const options={scenarios:{load:{executor:'constant-arrival-rate',
   rate:Number(__ENV.RATE || 100),timeUnit:'1s',duration:__ENV.DURATION || '600s',
   preAllocatedVUs:scenario==='hot-user'?Number(__ENV.HOT_USER_CONCURRENCY || 2):config.preAllocatedVUs,maxVUs:scenario==='hot-user'?Number(__ENV.HOT_USER_CONCURRENCY || 2):config.maxVUs}},
@@ -18,15 +20,21 @@ export const options={scenarios:{load:{executor:'constant-arrival-rate',
 
 export default function() {
   const iteration=exec.scenario.iterationInTest;
-  const userIndex=scenario==='signin-first' ? iteration : scenario==='hot-user' ? 0 : iteration%users.length;
-  if(userIndex>=users.length) throw new Error('insufficient unique identities for first signin');
-  const [user,token]=users[userIndex];
-  const requestId=`${__ENV.RUN_ID || seed.runId}:${exec.scenario.name}:${iteration}`;
   let operation='draw';
-  if(scenario==='mixed') { const n=iteration%10; operation=n<7?'query':n===7?'result':n===8?'exchange':'draw'; }
+  const cycle=Math.floor(iteration/10),slot=iteration%10;
+  if(scenario==='mixed') operation=slot<7?'query':slot===7?'result':slot===8?'exchange':'draw';
   if(scenario.startsWith('signin')) operation='signin';
   if(scenario==='payment-create') operation='payment';
   if(scenario==='payment-replay') operation='notification';
+  let userIndex=scenario==='signin-first' ? iteration : scenario==='hot-user' ? 0 : iteration%users.length;
+  if(scenario==='mixed' && distribution==='uniform') {
+    const offsets={query:0,result:53,exchange:101,draw:149};
+    const ordinal=operation==='query' ? cycle*7+slot : cycle;
+    userIndex=(ordinal+offsets[operation])%users.length;
+  }
+  if(userIndex>=users.length) throw new Error('insufficient unique identities for first signin');
+  const [user,token]=users[userIndex];
+  const requestId=`${__ENV.RUN_ID || seed.runId}:${exec.scenario.name}:${iteration}`;
   let method='POST',path='/api/v2/draws',body={requestId,activityId:seed.activityId};
   if(operation==='query') {method='GET';path=`/api/v2/activities/${seed.activityId}`;body=null;}
   if(operation==='result') {
@@ -50,6 +58,6 @@ export default function() {
   if(response.status>=200 && response.status<300 && value.state!=='REJECTED') accepted.add(1);
   else rejected.add(1);
   // One iteration, one primary request. Polling is a separate program and query budget.
-  console.log(JSON.stringify({requestId,user,operation,status:response.status,orderId:value.orderId || null,
+  console.log(JSON.stringify({requestId,phase:__ENV.PHASE || 'formal',user,operation,status:response.status,orderId:value.orderId || null,
     state:value.state || null,latencyMs:response.timings.duration,observedAt:Date.now()/1000}));
 }

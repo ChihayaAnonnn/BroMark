@@ -1,33 +1,38 @@
-# 隔离容量实验
+# 隔离性能诊断工具
 
-只操作 BroMark 专用容器、全新 `router_perf_it_*` 库。原始输出/JWT/密钥放 `/tmp`；不得提交真实用户数据。生产部署未授权。
+当前简化实验只验证本次 `bromark-relay-20261016-*` 隔离资源上的 mixed 分布与一次 10 rps、120 秒 smoke。`fullCapacityPassed` 和 `releaseAuthorized` 恒为 `false`；600 秒、三轮、完整场景矩阵与发布门禁仍按原容量计划另行执行。smoke 完成或单轮 SLO 良好不能替代容量结论。
 
-1. 启动专用依赖，设置隔离 `V2_MYSQL_PASSWORD,V2_RABBIT_PASSWORD,MAVEN_CACHE_DIR`，先按下一步准备专属数据。完整门禁执行前还需 `V2_RECONCILIATION_SEED=/tmp/SEED/seed.json`、`V2_RECONCILIATION_STOPPED=1`，再执行 `docs/dev-ops/v2-verify.sh --env v2-it`；缺少停写六域对账时即使XML全绿也返回未通过。`validation.json.passed=true`只表示正确性验收，不是容量或发布批准。
-2. 停止本次目标库所有写者后准备：
-   ```sh
-   python3 docs/performance/seed_v2_testdata.py --env v2-it --users 1000 --run-id RUN --out /tmp/SEED --stock 1000000 --stopped
-   ```
-   首次签到必须有足够的独立用户，至少 rate×duration；重复签到另跑。seed导入审计期初，固定100万积分/次数供合成实验，不能套用真实账户。
-3. 只在test/v2-it配置启动两个应用，独立限制CPU/内存、同一新队列prefix与目标库。声明`bm.v2.budget.replica-count=2`，三个逻辑连接池按一个物理MySQL聚合；沙盒凭据仅从环境传入。应用参数必须能覆盖配置。启动前后记录镜像/JAR/迁移hash。
-4. 混合负载的10%结果查询需要给每个测试用户预建一个抽奖订单，并将 `seed.json.resultOrders` 写为 `{user:orderId}`；等待其完成，开跑前对账。预建请求不计入本次主负载。
-5. `export V2_TOKEN_FILE=/tmp/SEED/tokens.json`，独立tracker从此文件读取JWT。每次一个新输出目录：
-   ```sh
-   python3 docs/performance/run_v2_experiment.py --seed /tmp/SEED/seed.json --out /tmp/RUN --rate 100 --duration 600 --scenario mixed --run-id RUN
-   ```
-   初始预热60秒另目录、不计入正式档。逐档100/300/600/1000，每档≥600秒，关键配置重复3次。发现持续积压、未解释差异或资源越界立即停止提升压力，保留恢复预算，记录未通过档及原因。不要在失败档之上继续灌入。
-6. 独立tracker每秒最多50次查单，轮询计入`tracked.polling.json`，不混入主负载。开跑前/后记录MySQL和应用时钟、k6版本；完成耗时取同DB服务端ACCEPTED→DELIVERED或PAID→DELIVERED，HTTP观测延迟另记。`export_v2_stages.py`导出服务器时间；校准不确定度要一同报告。
-7. 等待终态，停止新增但保留Worker排空，最终停止本次两个应用后：
-   ```sh
-   python3 docs/performance/reconcile_v2_run.py --seed /tmp/SEED/seed.json --out /tmp/RUN/reconciliation.json --stopped
-   python3 docs/performance/export_v2_stages.py --seed /tmp/SEED/seed.json --requests /tmp/RUN/requests.jsonl --completions /tmp/RUN/tracked.jsonl --out /tmp/RUN/completions.jsonl
-   python3 docs/performance/collect_v2_results.py --run-dir /tmp/RUN
-   ```
-   metadata.json按报告模板填**实际证据**，不可猜填true。聚合复测报告时附三个run的原始路径/hash和波动，不能将一次运行的repeats手填成3。`results.json.safeCapacityCandidate=false`是合法的未达标报告，发布仍NO-GO。
+先从当前 `/tmp/bromark-relay-20261016.env` 注入环境变量。`V2_MYSQL_CONTAINER`、`V2_TARGET_RUN_ID`、`V2_APP_CONTAINER_1`、`V2_ACTIVE_RABBIT_CONTAINER`、`V2_TEST_DOCKER_NETWORK` 和 `V2_TOKEN_FILE` 必须指向本次拥有的容器、三库、fresh Rabbit 与外部 token 文件；runner 会核容器 ID、网络、127.0.0.1:19871 端口、应用绑定的三库与 broker 及真实库名。所有密钥只留仓库外，不打印完整容器 Env。不要运行旧 `sample_v2_runtime.py` 或 `fault_v2_runtime.py`：它们仍含 phase6 目标。
 
-场景：mixed为70查询/10结果/10兑换/10抽奖；hot-activity为同活动抽奖；hot-user在指定2/8/32 VU同用户；signin-first与signin-repeat区分身份；payment-create只创建付款订单，必须另由测试沙盒驱动有效付款再跟踪到账，未付款不能算完成；payment-replay输入环境`V2_NOTIFICATION_FILE`指向预先签名的原付款事实，重复通知不新增权益。版本切换在独立受控发布器切换同池概率版本，不能重置库存；recovery-with-arrivals在持续主流量下运行故障脚本/采样，处理速率必须高于新增。
+seed 只对全新 `router_perf_it_<run>_{control,one,two}` 应用 manifest 中的 001–007；`scope=all` 覆盖三库。原历史 fixture、预置查单订单、60 秒读写暖机需要各自独立证据，不能将新 seed 称为旧历史基线。mixed 的 result 查询要求 `seed.json.resultOrders` 为每个用户提供已完成预置订单。在已启动并核验拥有的双应用与 fresh Rabbit 后，先独立预置并保存请求/查单原始回执：
 
-真实故障：`fault_v2_runtime.py --env v2-it --seed /tmp/SEED/seed.json --out /tmp/faults.json`仅识别拥有当前目标库的两个应用，停止专用Rabbit、SIGKILL应用1并由应用2接管，再恢复依赖。数据库连接故障由DatabaseDisconnectV2Test实际KILL MySQL连接验证。整机/副本整体丢失不在此故障模型。
+```sh
+python3 docs/performance/prepare_v2_results.py --seed /tmp/SEED/seed.json --out /tmp/RUN-precreate
+```
 
-报告必须披露本机同时运行的其他项目、压测端与服务端共享硬件、单节点MySQL/Rabbit；这样的本地诊断不能当作独立压测机或生产安全容量。有限库存耗尽后的兜底区间单列，查询/受理/完成分别统计。
+此 helper 为每个 token 用户复用确定的 `pre:<seedRun>:<index>` 请求 ID；503 带/不带订单 ID、网络未知都会留原始 journal，同一原请求 ID 重试，不能换新请求偷偷补齐。只有每单查询到 DELIVERED 才原子写入 seed 的 `resultOrders`。简化 Task10 的 20 用户 seed 需预置 20 单；200 用户均匀性已由独立合成 k6 探针验证。预置目录、暖机和正式负载使用不同目录与请求 ID；仅正式目录的请求进入正式分母。例如：
 
-已知延期：runner的hot-user当前只传默认2个VU；8/32必须直接k6设置HOT_USER_CONCURRENCY，未通过runner验收。完整积压采样现包含ORDER/OUTBOX/RETRY/BROKER；早期只采Outbox的旧记录不能满足该门禁。
+```sh
+python3 docs/performance/run_v2_experiment.py --seed /tmp/SEED/seed.json --out /tmp/RUN-warm \
+  --rate 10 --duration 60 --scenario mixed --run-id RUN-warm --phase warmup --user-distribution uniform
+python3 docs/performance/run_v2_experiment.py --seed /tmp/SEED/seed.json --out /tmp/RUN-formal \
+  --rate 10 --duration 120 --scenario mixed --run-id RUN-formal --phase formal --user-distribution uniform
+```
+
+`--user-distribution` 默认 `legacy` 以保留旧对照。`uniform` 使用 k6 全局 iteration，把 mixed 每十次固定为 query/result/exchange/draw = 7/1/1/1；query 连续编号与其余三类独立编号分别加 offset 后映射用户。`test_relay_optimization.py` 用真实多 VU Docker k6 和本地合成 HTTP 服务检查 200 用户覆盖；该探针不访问业务容器，不代表容量。
+
+runner 只发送 k6 请求并启动独立查单 tracker，不启动旧采样器。`execution.json.collectionComplete=false`、`task8SamplerRequired=true` 明示四域证据缺失；Task 10 另用 Task 8 `sample_relay_optimization.py` 的 owned 容器 sampler 保存负载期 ORDER/OUTBOX/RETRY/BROKER，排空期独立标记。Rabbit 管理计数没有精确最老消息时间，Broker age 为 `null` 并附原因。停写后的排空不能证明持续流量下恢复速度。
+
+正式追踪后，在相同三库读取受理订单的 `ACCEPTED`、`confirmed_at`、`delivered_at`：
+
+```sh
+python3 docs/performance/export_v2_stages.py --seed /tmp/SEED/seed.json \
+  --requests /tmp/RUN-formal/requests.jsonl --completions /tmp/RUN-formal/tracked.jsonl \
+  --out /tmp/RUN-formal/completions.jsonl
+```
+
+导出器只查正式请求中具有原 orderId 的 draw/payment，保留 503 带 orderId 的原回执查询；503 无 orderId 与网络未知单列，不能假定拒绝。新受理的 draw 订单用同库服务端 `ACCEPTED→confirmed_at` 和 `ACCEPTED→delivered_at` 计算确认、交付延迟；HTTP 延迟来自客户端 k6，轮询观测延迟另列。`clock-before.json` 在负载开始前记录 client/server/client 与采样不确定度。确认是订单达到 COMMITTED 的持久事实；Relay confirm 指标是每 attempt 的应用观察时长，不能互换，也不能把各 P99 相加。
+
+`collect_v2_results.py` 的 `sent/received/accepted/completed/pending/rejected/unconfirmed/unknown/http503WithOrderId/http503WithoutOrderId` 均为**请求或去重订单数**；`queryLatencyMs`、`acceptanceLatencyMs`、`serverDrawConfirmationLatencyMs`、`serverDrawDeliveryLatencyMs`、`completionLatencyMs` 为毫秒 P50/P95/P99；`pollObservationDelayMs` 为毫秒；`oldestAge` 与 `drainSeconds` 为秒。`userCountsByOperation` 是每操作唯一用户数；`requestsByDatabase` 是按用户 Java 路由的请求数，查询接口实际还会读控制库。`transportRetries` 是相同事件身份的运输重试次数；`redriveEmitted` 是新增恢复事件数，`redriveSuppressed` 是抑制次数，缺原始证据时均为 `null`，不写成零。`smokeDataComplete` 只说明这一份请求与订单追踪数据完整；`smokeTechnicalPassed` 还要求实际120秒到达、k6/tracker退出码、运行前后资源身份、零 dropped、资源预算、时钟、负载期四域非增长、停写对账和本轮 SLO，缺一项即 false 并列入 `smokeFailures`。运行目录 `metadata.json.task8SampleFiles` 可列出 Task8 每个真实 `sample.json` 路径，且 `reconciliation` 和 `resourceBudgetOk` 必须来自本轮独立证据；缺失不补零。旧 `safeCapacityCandidate` 仍按完整 600 秒、三轮与六域/四域/时钟门禁计算。`fullCapacityPassed=false` 和 `releaseAuthorized=false` 始终保留。
+
+`python3 -m unittest discover -s docs/performance -p 'test_*.py'` 运行工具回归。测试里的合成 JWT 字符串和 HTTP server 只检查分布及解析行为；真实业务结果必须另存原始请求、阶段、四域采样、停写六域对账和文件 SHA256。热点 8/32 参数扩展、006 历史基线恢复、完整 Java 容量类和正式压力矩阵在本次精简范围外。
