@@ -19,3 +19,5 @@
 拒绝率上限在开跑前声明，默认0；不能事后放宽阈值以通过。只有满足上述证据的具体版本/环境可开放，功能测试通过不是上线批准。
 
 2026-10-16审阅包见../verification/2026-10-16-validation-rollout/README.md：正确性通过，容量NO-GO，以上清单不是部署批准。
+
+2026-10-17 Relay 优化精简运行见[验收报告](../verification/2026-10-16-relay-optimization/README.md)：同 JAR 的开发正确性证据及本轮停写六域对账成立；10 rps×120 秒正式 smoke 有原请求技术异常、P99 超限、Broker 负载期增长及 dropped/时钟证据缺口，`smokePassed=false`。完整容量矩阵、独立压测机、迁移/发布审阅仍未执行；本清单保持全未勾，Phase6/发布均 NO-GO。
