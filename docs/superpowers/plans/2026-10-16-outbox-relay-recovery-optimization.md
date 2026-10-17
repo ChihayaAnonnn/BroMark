@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 消除发布前的持续积压与不必要补发，在保持账务、库存及恢复正确性的前提下，重新验证100请求/秒档的延迟与完成能力。
+**Goal:** 完成发布与恢复优化，在保持账务、库存及恢复正确性的前提下，交付必要观测、可信统计与小规模运行验证；完整容量验收另行执行。
 
 **Architecture:** 两条有界发布通道复用现有Relay执行器，按库/类型轮转、批量领取、分波发布和批量fencing完成。业务恢复通过所有者库的持久冷却记录收敛，已发布但未完成的Retry由目标库重投原运输身份；所有性能声明以隔离双实例实验和六域对账为依据。
 
@@ -10,9 +10,11 @@
 
 **Spec:** [Outbox Relay与恢复补发优化设计](../specs/2026-10-16-outbox-relay-recovery-optimization-design.md)。同时阅读[原交易设计](../specs/2026-10-15-concurrent-credit-payment-raffle-design.md)和[延迟定位证据](../../verification/2026-10-16-latency-analysis/README.md)。
 
-**Status:** 执行中，整份计划尚未完成。Task 1 已实现并验证，代码提交 `1817012`；Task 2—10 尚未执行。实施起点 `638227b`，分支 `feat/outbox-relay-recovery-optimization`。Phase6 仍为 NO-GO。
+**Status:** 执行中。Task 1–7 已提交，最近提交 `16ab7a7`；Task 8 已有实现及多项真实故障证据，最终回归与有效连续到达恢复实验待完成；Task 9–10 待实施。分支 `feat/outbox-relay-recovery-optimization`，隔离工作区 `/tmp/bromark-outbox-relay-20261016`。Phase6 仍为 NO-GO。
 
-执行检查点：隔离工作区 `/tmp/bromark-outbox-relay-20261016`。Task 1 最终聚焦回归15项、V2/Router回归175项，failures/errors/skipped均为0；真实迁移回归4项通过。原始日志保存在该工作区 `.superpowers/sdd/2026-10-16-outbox-relay-recovery-optimization/`。数据库许可和连接池大小未修改。bounded启动时校验Hikari获取连接及MySQL连接/网络读超时；连接获取仍可能超过调用剩余时间至多一个池等待上限，不能宣称硬实时取消。runner在实际commit前校验deadline，拒绝自定义事务管理器子类以防忽略其行为。下一步为Task 2的007迁移及批量租约仓储。
+**范围调整（2026-10-17，用户要求精简 Task 8–10）：** 下述精简任务取代原 Task 8–10 的本轮交付范围；设计中完整观测、消融与容量矩阵保留为后续验收，不能因延期视为通过。Task 1–7 的实现、安全边界与资源约束保持原要求。已有失败、原始证据和修复记录均保留，不因调整范围改写结果。
+
+执行检查点：原始日志与审查记录见本工作区 `.superpowers/sdd/2026-10-16-outbox-relay-recovery-optimization/`。已提交版本的 V2/Router 回归为257项通过；Task 8 当前版本仍待最终完整回归，不能沿用旧版本结果。Task 8 的连续到达实验曾因主机睡眠失去连续性，必须保留 INVALID_CONTINUITY 并重测。执行代理额度耗尽后已停止，恢复实施时先检查资源与检查点。
 
 ## Global Constraints
 
@@ -62,7 +64,7 @@ V2_TEST_SELECTOR='本任务测试类选择器' docs/operations/verify-java25.sh
 | 7 | 目标库Retry原事件运输修复 | 4、5、6 |
 | 8 | 分段观测、真实故障与回滚演练 | 6、7 |
 | 9 | 用户分布、统计与实验工具修订 | 8 |
-| 10 | 单变量诊断、三轮容量及Phase6退出裁定 | 9 |
+| 10 | 小规模运行验证与交付裁定；完整容量延期 | 9 |
 
 任务5可在代码依赖允许时独立开发，但本计划默认顺序执行；不因为表格中的独立性自动启动代理。
 
@@ -213,57 +215,42 @@ assertThat(after.attempt()).isEqualTo(before.attempt());
 - [ ] **Step4 — 验证GREEN。** 同选择器通过；真实Rabbit发送header仍是原failure_count，重复消息被Inbox吸收；旧批次token/旧generation回写不能覆盖修复后的任务。
 - [ ] **Step5 — 提交。** 仅暂存本任务Files，`git commit -m "feat: recover published retries without resetting identity"`。
 
-## Task 8: 分段观测、故障证据与切换回滚
+## Task 8: 故障正确性与必要观测收尾（精简）
 
-**Files:** Create `bm-domain/src/main/java/com/jay/domain/task/service/RelayObservation.java`、`bm-infrastructure/src/main/java/com/jay/infrastructure/event/MicrometerRelayObservation.java`；Modify `bm-domain/src/main/java/com/jay/domain/task/service/BoundedOutboxRelay.java`、Task5/6/7恢复服务及`bm-app/src/main/java/com/jay/config/V2MetricsConfig.java`；Modify `bm-trigger/src/main/java/com/jay/trigger/http/v2/DrawController.java`、`bm-trigger/src/main/java/com/jay/trigger/http/v2/CreditExchangeController.java`、`bm-domain/src/main/java/com/jay/domain/raffle/service/DrawService.java`、`bm-domain/src/main/java/com/jay/domain/exchange/service/ExchangeService.java`用于HTTP阶段观察；Create `docs/performance/fault_relay_optimization.py`、`docs/operations/v2-relay-optimization-runbook.md`；Test `bm-app/src/test/java/com/jay/test/v2/RelayOptimizationFaultV2Test.java`、`bm-app/src/test/java/com/jay/test/v2/RelayObservationV2Test.java`。 Modify: `bm-app/src/main/java/com/jay/config/V2RabbitConfig.java`, `bm-app/src/main/java/com/jay/config/V2RaffleConfig.java`, `bm-app/src/main/java/com/jay/config/V2PaymentConfig.java`.
+**Files:** 保留当前 RelayObservation、MicrometerRelayObservation、BoundedOutboxRelay 及 HTTP/事务观测接入；测试 `RelayObservationV2Test`、`RelayOptimizationFaultV2Test`、`RelayFaultProbe`；工具 `docs/performance/fault_relay_optimization.py`、`sample_relay_optimization.py` 及对应 Python 测试；文档 `docs/operations/v2-relay-optimization-runbook.md`、`docs/verification/2026-10-17-relay-observability/task8-evidence.md`。
 
-**Interfaces:** `RelayObservation.duration(String stage,RouteSlot slot,String eventType,String outcome,long nanos):void`、`count(String action,RouteSlot slot,String eventType,String reason,long n):void`，提供NOOP；stage/action/reason必须枚举有限白名单。BoundedOutboxRelay新增带RelayObservation的构造器，保留Task3四参数构造器委托NOOP，旧调用不能因观测接入改变行为。新故障脚本CLI：`--env v2-it --seed PATH --out PATH`，先校验本次专属容器/目标库，只停止自己启动的应用或依赖。
+**Interfaces:** 保留现有有限标签 duration/count 与 NOOP 兼容；故障 CLI 仅操作经所有权校验的隔离容器与本轮三库。不扩大生产接口或新增实验开关。
 
-- [ ] **Step1 — 写RED。** 相同order/event不产生指标标签；claim/confirm/settle/permit/HTTP准入及事务可区分，UNKNOWN不记完成。真实confirm后SIGKILL、MySQL完成事务连接KILL、Rabbit中断、旧token晚写、暂停后晚回执均有前后SQL和原身份。未全停旧恢复器时runbook precheck拒绝guarded；Relay退回legacy而guarded保留时仍能收敛。
-关键测试方法：`replaysOriginalIdentityAfterConfirmCrash`；核心断言如下，变量由该方法的上述fixture或实际探针创建，不是生产接口：
+- [ ] **Step1 — 收拢已有证据。** 复用已审真实 confirm 后 SIGKILL、MySQL 提交前 KILL、旧 token 晚写、暂停晚回执和 legacy Relay＋guarded 回滚证据，不为同一通过项重复重跑；记录原身份、账本唯一性、前后 SQL、版本与 hash，失败及独立补救分开。
+- [ ] **Step2 — 完成唯一剩余故障实验。** fresh run 重测 Rabbit 中断/恢复，沿用已审脚本的6秒基线、12秒中断、45秒恢复窗口与1秒请求间隔。恢复期间继续发送，真实最大请求间隔≤3秒、实际到达率≥0.8/s，处理速率高于到达且积压下降；主机睡眠、缺样本或停写排空均不能替代通过。保存四域原始采样；Broker 无可靠最老年龄时记 null 及原因。
+- [ ] **Step3 — 最终回归与提交。** 运行现有标准完整 V2/Router 选择器及 performance Python 全套，要求实际执行、零失败/错误/跳过；停写六域对账及任务检查通过。仅修影响本轮门禁的问题，保留失败日志。必要监控限 claim/confirm/settle、完成/丢租约/释放、redrive 与四域积压；已有额外指标保留，完整10.1指标采集不再阻塞本轮。审查通过后提交本任务。
 
-```java
-assertThat(replayedEventId).isEqualTo(originalEventId);
-assertThat(awardLedgerRowsForOriginalBusinessId).isEqualTo(1);
-assertThat(sixScopeDifferences).isZero();
-```
+## Task 9: 最小可信压测工具（精简）
 
-- [ ] **Step2 — 验证RED。** 选择器`RelayObservationV2Test,RelayOptimizationFaultV2Test`；故障脚本不存在/边界错误应失败，不能只用抛异常代替SIGKILL。
-- [ ] **Step3 — 实现。** 覆盖设计10.1全部有限标签指标，orderId/eventId仅进结构化抽样日志，不改变事件hash/schema。HTTP准入、配置读取、DB许可及资产事务分别计时。脚本保留原bizId、阶段时间、窗口/模式/镜像hash，连接KILL与进程崩溃分别记录。runbook列环境、schema、全实例旧写者、互斥、配置、共同关闭deadline、停止条件和回退点；目标明确为隔离环境，真实发布需另行授权。
-- [ ] **Step4 — 验证GREEN。** 聚焦测试及真实双实例故障脚本通过；故障结束停写后以现有reconcile_v2_run检查六域、未终态/核查/任务，输出原始路径与hash。所有模式切换/回滚过程保留dispatch、attempt与账务事实；连接失败不能生成伪成功报告。
-- [ ] **Step5 — 提交。** 仅暂存本任务Files，`git commit -m "test: prove relay faults and guarded rollback"`。
+**Files:** 按需修改 `docs/performance/v2-load.js`、`run_v2_experiment.py`、`collect_v2_results.py`、`seed_v2_testdata.py`、`README.md`；新增 `test_relay_optimization.py`。不扩展通用采样框架或新增 Java 容量测试类。
 
-## Task 9: 修正用户分布并补齐统计边界
+**Interfaces:** `--user-distribution legacy|uniform`，默认 legacy；输出用户分布、受理数、终态数、未完成数、错误/拒绝/UNKNOWN、接口延迟与订单确认/交付耗时。结果明确 `fullCapacityPassed=false`、`releaseAuthorized=false`，本轮 smoke 通过不得覆盖原完整容量门禁。
 
-**Files:** Modify `docs/performance/v2-load.js`、`docs/performance/v2-load-config.json`、`docs/performance/run_v2_experiment.py`、`docs/performance/collect_v2_results.py`、`docs/performance/sample_v2_runtime.py`、`docs/performance/export_v2_stages.py`、`docs/performance/seed_v2_testdata.py`、`docs/performance/README.md`（同目录）；Create `docs/performance/test_relay_optimization.py`；Modify `docs/dev-ops/v2-verify.sh`、`docs/dev-ops/verify_v2_reports.py`；Test新增`bm-app/src/test/java/com/jay/test/v2/RelayCapacityEvidenceV2Test.java`。
+- [ ] **Step1 — 修正分布并验证。** mixed 继续7/1/1/1；uniform 按全局 iteration 的 cycle/slot 分配，query序号 cycle×7+slot，其余 cycle，offset 0/53/101/149，再模用户数。保留 legacy。用一个短小真实多VU k6探针核验200身份覆盖和比例，Python测试直接调用实际工具逻辑，不复制公式自证。
+- [ ] **Step2 — 保住统计边界。** 预置及预热不入正式分母，所有受理订单追踪至终态或明确未完成；503带订单身份必须查原回执，无身份拒绝与未知分别保留。缺数据不得当0，负载期积压与停写排空分开；重复运输和新增 redrive 分开。沿用 Task 8 四域采样，不另造平台；仅在目标新库应用007，保留容器/库所有权检查。
+- [ ] **Step3 — 验证与提交。** `python3 -m unittest discover -s docs/performance -p 'test_*.py'` 通过，真实 k6 探针与报告原始输出保留，README 写明单位与 smoke 边界。审查通过后提交。热点参数扩展、006基线恢复及完整阶段导出延期。
 
-**Interfaces:** runner新增`--user-distribution legacy|uniform`并转发`USER_DISTRIBUTION`，默认legacy维持旧对照；hot-user转发HOT_USER_CONCURRENCY=2/8/32。结果新增`firstPrepareCreatedToPublishedMs,relayByTypeMs,serverDrawConfirmationLatencyMs,serverDrawDeliveryLatencyMs,eventAmplification,redriveEmitted,redriveSuppressed,userCountsByOperation,requestsByDatabase`；旧计数/四域/时钟/三轮门禁保留。所有JSON字段的单位写入README。seed新增`--migration-through 006|007`，默认007，仅对新的隔离库生效，用于原版本及DDL写放大对照。
+## Task 10: 小规模验收与交付报告（精简）
 
-- [ ] **Step1 — 写RED。** 200个身份下legacy只有20个抽奖用户，uniform每类连续200次请求覆盖200个用户且每10次业务仍7/1/1/1；k6多VU不依赖本地可变计数。runner实际传8/32并保留默认2。构造202无终态、503有/无原回执、最后排空但负载期增长、单轮伪填repeats=3、PAYMENT/SIGNIN零人口，均不能认定完整容量通过；重复运输与新增恢复事件分开计数。
-关键测试方法：`test_uniform_distribution_and_incomplete_evidence_fail_closed`；核心断言如下，变量由该方法的上述fixture或实际探针创建，不是生产接口：
+**Files:** 创建 `docs/verification/2026-10-16-relay-optimization/README.md`、`capacity-report.md`；按需更新 `docs/operations/v2-release-checklist.md` 与本计划。Phase6 原容量标准保留，不勾选未验证项。
 
-```python
-self.assertEqual(200, measured_uniform_draw_users)
-self.assertEqual(20, measured_legacy_draw_users)
-self.assertFalse(incomplete_report["safeCapacityCandidate"])
-```
+**Interfaces:** 复用 Task 9 runner、Task 8 sampler 与现有 reconcile；只运行最终 bounded＋guarded 配置。报告分别给出 developmentValidationPassed、smokePassed、fullCapacityPassed=false、releaseAuthorized=false。
 
-- [ ] **Step2 — 验证RED。** `python3 -m unittest discover -s docs/performance -p test_relay_optimization.py`；Java选择器`RelayCapacityEvidenceV2Test,CapacityEvidenceV2Test`。新增Python测试必须实际调用k6探针核验分配公式，不能仅在Python复制公式后自证通过。
-- [ ] **Step3 — 实现。** mixed使用全局iteration计算cycle=iteration/10、slot=iteration%10；query序号=cycle×7+slot，result/exchange/draw序号=cycle，分别用固定offset 0/53/101/149再模用户数，不用各VU的局部counter。其他场景保留其用户语义。原始JSONL仍无token。warmup读写60秒与正式目录分离；记录操作用户数和分库，预置订单不入正式分母。基于同DB时间分别导出确认（用户订单COMMITTED/confirmed_at）/交付（DELIVERED）/Relay区间；firstPrepare仅取本轮实际受理抽奖的首条原事件，不把额外补发、预置订单混入其分位数，全部类型另报relayByTypeMs。客户端观察需要跑前校准；正常六事件放大率单独计算。v2-verify迁移上限改007并实际检查schema，校验新测试计数；seed/migration scope=all支持所有隔离库，不能hardcode三个旧库后声称新实验已迁移。
-- [ ] **Step4 — 验证GREEN。** 全部`python3 -m unittest discover -s docs/performance -p 'test_*.py'`及聚焦Java通过；执行两个短小真实k6探针核对用户分布和hot-user参数，这些探针只验证工具，不认定容量。六域+四域+时钟+三轮缺一仍NO-GO。
-- [ ] **Step5 — 提交。** 仅暂存本任务Files，`git commit -m "perf: measure relay stages and independent user distribution"`。
+- [ ] **Step1 — 一次运行验证。** 新隔离数据，固定既有双实例各1CPU/512MiB、Xmx320m及原池/许可/MQ；预热60秒与正式数据分开，确认起始积压为0。uniform mixed 以10请求/秒运行120秒，仅做运行 smoke。所有受理请求有明确归宿，技术失败/拒绝/dropped为0、负载期积压无持续增长；查询P99≤200ms、受理P99≤500ms、确认/交付P99≤5秒作为本档检查，样本不足标未验证。任一失败保留证据并停止，不升压、不修改资源掩盖结果。
+- [ ] **Step2 — 正确性验收。** 复用 Task 8 同一最终源码版本的完整回归结果；如后续有 Java/配置修改则重新验证。停写本轮写者后运行六域对账，要求真实检查、差异及未解释未终态为0。支付/签到可引用 Task 8 独立非零正确性证据，但明确不属于本轮 mixed 压测分母或容量证明。
+- [ ] **Step3 — 保存裁定与提交。** 报告实际通过/失败/未执行、版本/配置/hash、共享主机限制及下一步。失败可形成明确 NO-GO 验证结论，不能勾成测试通过。证据移出临时 SDD 目录并保留索引后，只停止本次拥有服务、保留卷与账务事实；`git diff --check` 后提交报告。最终独立代码审查收尾，不 merge/push。
 
-## Task 10: 单变量实验、完整门禁与退出裁定
+### 后续容量验收（本轮延期，未通过）
 
-**Files:** Create `docs/verification/2026-10-16-relay-optimization/README.md`、`docs/verification/2026-10-16-relay-optimization/ablation-matrix.md`、`docs/verification/2026-10-16-relay-optimization/capacity-report.md`（JSON证据由实际执行生成）；Modify `docs/operations/v2-release-checklist.md`、`docs/superpowers/plans/2026-10-15-phase-6-validation-rollout.md`、`docs/superpowers/plans/2026-10-15-credit-payment-raffle-implementation-index.md`（后两者同plans目录）。
-
-**Interfaces:** 复用`v2-verify.sh --env v2-it`、`run_v2_experiment.py --seed PATH --out PATH --rate N --duration 600 --scenario mixed --run-id ID --user-distribution legacy|uniform`、故障脚本、独立tracker和六域对账。结果中releaseAuthorized保持false；容量通过与发布授权分别裁定。
-
-- [ ] **Step1 — 建立失败对照。** 原始基线使用ad83092对应运行包与006结构，最终实现和消融使用相同007结构。新隔离数据复制原合成数据规模和历史行数；固定双实例各1CPU/512MiB、Xmx320m、持久化/副本、许可、用户分配和镜像。复测未优化配置，若不能重现则记录差异并重新定位，不引用旧95秒作为本轮A/B起点。启动前读写暖机60秒且待发排空，保存开跑前六域与时钟证据。
-- [ ] **Step2 — 执行可归因实验。** 最终完整配置作为共同对照，逐次只关闭一项优化：①诊断补丁在非空轮后也等待250ms；②临时BatchOutboxRepository适配旧claim接口，保持相同批次/窗口及其他配置；③临时settle适配器逐条调用旧complete/retry；④guarded→legacy（只在全新隔离库切换且停止全部旧决策）；⑤类型查询只把FORCE pending_type改回pending。适配器必须保留原任务身份、generation和fencing，先通过聚焦正确性测试再压测。只在仓库外一次性诊断checkout制作这些补丁，保存完整patch/源hash/镜像hash，不把实验开关或适配器合入产品。每对只有一个关闭项，不将所有关闭项相互比较后伪称单变量；另用原ad83092运行包及006数据集复测原始未优化基线，007单独对照记录DDL写放大。索引Explain可先做副本探针，端到端必须同数据/资源。不得为消融而在真实环境混跑旧/新恢复器；只用新的隔离队列/库。运行失败立即停止升压并保留拒绝、UNKNOWN、积压和恢复证据。
-- [ ] **Step3 — 执行正确性完整门禁。** 停本次目标库写者，设置`V2_RECONCILIATION_SEED`、`V2_RECONCILIATION_STOPPED=1`、`V2_EVIDENCE_DIR`后运行`docs/dev-ops/v2-verify.sh --env v2-it`。要求目标测试实际执行、零skip、六域检查真实完成、未解释差异0；旧演示fork timeout仍单列，不能改写成全套绿灯。证据包含迁移007及二进制hash。
-- [ ] **Step4 — 执行容量与恢复验收。** 在legacy用户分配和uniform场景分别按100/s、600秒、三轮运行；不得复制一次结果冒充三轮。查询P99≤200ms、受理≤500ms、确认及交付≤5s，技术失败/入口过载拒绝/dropped iterations=0，四域负载期无持续增长，正常固定CREDIT无耗尽场景事件放大率1.00且自动新增恢复事件0，六域差异0。持续到达下实际故障恢复处理速率须高于新增，不能用停写排空代替。首档不通过即明确NO-GO；首档通过才按Phase6继续300/600/1000、热点2/8/32、签到/支付/版本切换与各自三轮要求。独立压测机、权限审计或其他原退出条件未具备时，仍分别记录未完成，不能宣布生产安全容量。
-- [ ] **Step5 — 保存裁定并提交。** 报告列每项通过/失败/未执行、源版本/镜像/配置、SQL/故障原身份、raw hash、时钟、拒绝逐请求解析及共享硬件限制；更新Phase6只能勾选真实已满足项。关闭本次拥有的隔离服务，保留账务及恢复证据。`git diff --check`，只提交本任务证据摘要和清单：`git commit -m "perf: record relay optimization validation and capacity verdict"`。不得因预算或时间不足把目标标完成。
+- 原始 ad83092＋006 与最终007的同资源/历史数据 A/B，及007 DDL写放大对照。
+- 五项单变量消融：忙轮等待250ms、旧逐条 claim、逐条 settle、legacy recovery、pending_type 索引对照；仅在外部诊断 checkout、新库/新队列实施。
+- legacy/uniform 各100/s、600秒、三次独立运行；首档通过后才测试300/600/1000、热点2/8/32、支付/签到/切版本等矩阵。
+- 设计10.1完整分段监控、独立压测机及原Phase6其他退出条件。后续开启前另行编写执行计划。
 
 ## 设计覆盖与最终交付
 
@@ -277,6 +264,7 @@ self.assertFalse(incomplete_report["safeCapacityCandidate"])
 | 唯一Draw/Stock入口、PAID恢复、全库表固定上界游标 | 6 |
 | Retry PUBLISHED运输修复、原eventId/generation、耗尽 | 7 |
 | HTTP/Relay/DB分段观察、真实崩溃、切换/回滚 | 8 |
-| 旧/均匀用户分布、完整统计及参数、真实矩阵 | 9、10 |
+| 旧/均匀用户分布、最小可信统计及运行 smoke | 9、10 |
+| 完整消融、100/s三轮及后续容量矩阵 | 后续容量验收（延期，未通过） |
 
-代码与工具交付完成不等于容量通过；Task10保留未达标即NO-GO的合法终态，完整Phase6退出条件仍按实际证据判断。每项未完成必须留下可恢复的配置、检查点和下一验证动作。执行checkbox仅在对应步骤已有实际证据时勾选；当前只完成Task 1。
+代码与工具交付完成不等于容量通过。精简 Task 8–10 仅裁定开发正确性与小规模运行，完整 Phase6 保持 NO-GO。每项延期必须留下下一验证动作；checkbox 仅在对应步骤已有实际证据时勾选，历史 Task 2–7 的勾选需在最终整理时逐项关联提交与证据。

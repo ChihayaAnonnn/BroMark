@@ -3,6 +3,7 @@ package com.jay.test.v2;
 import static org.assertj.core.api.Assertions.*;
 
 import com.jay.domain.asset.model.*;
+import com.jay.domain.raffle.model.DrawCommand;
 import com.jay.domain.raffle.service.*;
 import com.jay.domain.task.model.*;
 import com.jay.domain.task.service.*;
@@ -12,6 +13,37 @@ import java.util.*;
 import org.junit.Test;
 
 public class GuardedWorkflowRecoveryV2Test {
+  private static final ThreadLocal<io.micrometer.core.instrument.simple.SimpleMeterRegistry>
+      TEST_METRICS = ThreadLocal.withInitial(io.micrometer.core.instrument.simple.SimpleMeterRegistry::new);
+  @org.junit.Rule public org.junit.rules.TestName observationTestName = new org.junit.rules.TestName();
+
+  @org.junit.Before
+  public void resetObservationRegistry() {
+    TEST_METRICS.set(new io.micrometer.core.instrument.simple.SimpleMeterRegistry());
+  }
+
+  private static RelayObservation testObservation() {
+    return new com.jay.infrastructure.event.MicrometerRelayObservation(TEST_METRICS.get());
+  }
+
+  @org.junit.After
+  public void saveActualFixtureObservations() throws Exception {
+    var values = new ArrayList<Map<String, Object>>();
+    for (var meter : TEST_METRICS.get().getMeters()) {
+      if (!(meter instanceof io.micrometer.core.instrument.Counter counter)) continue;
+      var tags = new TreeMap<String, String>();
+      meter.getId().getTags().forEach(tag -> tags.put(tag.getKey(), tag.getValue()));
+      values.add(Map.of("metric", meter.getId().getName(), "tags", tags, "count", counter.count()));
+    }
+    var directory = java.nio.file.Path.of("target/task8-recovery-observations");
+    java.nio.file.Files.createDirectories(directory);
+    java.nio.file.Files.writeString(directory.resolve(observationTestName.getMethodName() + ".json"),
+        new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(Map.of(
+            "testMethod", observationTestName.getMethodName(), "counters", values,
+            "provenance", "actual SQL integration fixture; includes deliberate stale/count/failure setup; not runtime workload")));
+    TEST_METRICS.remove();
+  }
+
   static WorkflowRedrive guarded(AssetTestSupport h) {
     var ds = h.j.getDataSource();
     var recovery =
@@ -33,7 +65,7 @@ public class GuardedWorkflowRecoveryV2Test {
                 .toInstant(ZoneOffset.UTC),
         Duration.ofSeconds(30),
         Duration.ofSeconds(30),
-        12);
+        12).withObservation(testObservation());
   }
 
   @Test
@@ -80,6 +112,45 @@ public class GuardedWorkflowRecoveryV2Test {
           assertThat(StockProtocolV2Test.control(h, () -> stocks.fact(before.orderId())))
               .isEqualTo(held);
         });
+  }
+
+  @Test
+  public void actualCooldownAndRemoteRetryEmitFiniteCounters() {
+    AssetTestSupport.run(h -> {
+      DrawAcceptanceV2Test.schema(h);
+      RelayOptimizationTestSupport.schema(h);
+      String user = "observed-reasons-" + UUID.randomUUID();
+      long activity = DrawAcceptanceV2Test.publish(h, null);
+      DrawAcceptanceV2Test.grant(h, user, activity);
+      var accepted = DrawAcceptanceV2Test.service(h).create(new DrawCommand(user,
+          UUID.randomUUID().toString(), activity, new Deadline(Instant.now().plusSeconds(30))));
+      stale(h, user, accepted.orderId());
+      var recovery = service(h);
+      var emitted = recovery.inspect(accepted.orderId()).actions().getFirst();
+      assertThat(emitted.eventType()).isEqualTo("PrepareDraw");
+      h.tx(user, () -> { published(h, accepted.orderId()); return null; });
+      assertThat(recovery.inspect(accepted.orderId()).actions()).isEmpty();
+      assertThat(TEST_METRICS.get().get("bm.v2.relay.count").tag("action", "suppressed")
+          .tag("reason", "cooldown").counter().count()).isEqualTo(1);
+      String remoteUser = "observed-remote-" + UUID.randomUUID();
+      var candidate = DrawCancellationV2Test.accepted(h, remoteUser, activity);
+      stale(h, remoteUser, candidate.orderId());
+      var remoteCommand = recovery.inspect(candidate.orderId()).actions().getFirst();
+      assertThat(remoteCommand.eventType()).isEqualTo("ReserveAward");
+      h.tx(remoteUser, () -> { published(h, candidate.orderId()); return null; });
+      StockProtocolV2Test.control(h, () -> {
+        new MySqlRetryJobRepository(h.j.getDataSource(), h.runner)
+            .schedule(remoteCommand, 1, Instant.now().plusSeconds(100));
+        return null;
+      });
+      assertThat(recovery.inspect(candidate.orderId()).actions()).isEmpty();
+      assertThat(TEST_METRICS.get().get("bm.v2.relay.count").tag("action", "suppressed")
+          .tag("reason", "remote_retry").counter().count()).isEqualTo(1);
+      assertThat(TEST_METRICS.get().get("bm.v2.relay.count").tag("action", "redriven")
+          .tag("event_type", "PrepareDraw").counter().count()).isEqualTo(1);
+      assertThat(h.tx(user, () -> new MySqlDrawRepository(h.j.getDataSource())
+          .find(accepted.orderId(), false).state())).isEqualTo("ACCEPTED");
+    });
   }
 
   @Test
@@ -758,6 +829,17 @@ public class GuardedWorkflowRecoveryV2Test {
           assertThat(service(h).inspect(cancel.orderId()).actions())
               .extracting(EventEnvelope::eventType)
               .containsExactly("CancelReservation");
+          StockProtocolV2Test.control(h, () -> StockProtocolV2Test.service(h).cancel(
+              new com.jay.domain.stock.model.CancelCommand(cancel.orderId(), user,
+                  cancel.identityHash(), cancel.requestHash())));
+          h.tx(user, () -> {
+            published(h, cancel.orderId());
+            h.j.update("update v2_recovery_dispatch set next_redrive_at=UTC_TIMESTAMP(6)-interval 1 second,"
+                + "last_redrive_at=UTC_TIMESTAMP(6)-interval 60 second where aggregate_id=?", cancel.orderId());
+            return null;
+          });
+          assertThat(service(h).inspect(cancel.orderId()).actions())
+              .extracting(EventEnvelope::eventType).containsExactly("ReservationCancelled");
           assertThat(h.tx(user, () -> repo.find(r.orderId(), false)).candidate())
               .isEqualTo(r.candidate());
         });
@@ -810,7 +892,7 @@ public class GuardedWorkflowRecoveryV2Test {
                           .toInstant(ZoneOffset.UTC),
                   Duration.ofSeconds(30),
                   Duration.ofSeconds(30),
-                  12);
+                  12).withObservation(testObservation());
           var service =
               new DrawRecoveryService(
                   h.runner,
@@ -863,7 +945,7 @@ public class GuardedWorkflowRecoveryV2Test {
                           .toInstant(ZoneOffset.UTC),
                   Duration.ofSeconds(30),
                   Duration.ofSeconds(30),
-                  12);
+                  12).withObservation(testObservation());
           var service =
               new DrawRecoveryService(
                   h.runner, draws, new MySqlStockRepository(ds), h.codec, writer, guard);

@@ -18,6 +18,7 @@ public final class WorkflowRedrive {
   private final Supplier<Instant> clock;
   private final RecoveryRedriveGuard guard;
   private final Duration stale, interval;
+  private RelayObservation observation = RelayObservation.NOOP;
 
   public WorkflowRedrive(
       UserTransactionRunner tx,
@@ -38,6 +39,12 @@ public final class WorkflowRedrive {
     this.stale = stale;
     this.interval = interval;
     guard = new RecoveryRedriveGuard(stale, interval, max);
+  }
+
+  /** 仅在装配期设置；原构造器保持测试和 legacy 调用兼容。 */
+  public WorkflowRedrive withObservation(RelayObservation observation) {
+    this.observation = Objects.requireNonNull(observation);
+    return this;
   }
 
   public void conflict(String type, String id, String reason) {
@@ -86,6 +93,9 @@ public final class WorkflowRedrive {
             local.uncertain() || remote.uncertain(),
             local.conflicting() || remote.conflicting());
     var decision = guard.decide(saved, state, version, progress, all, now);
+    var slot = event.routeSlot();
+    var eventType = event.eventType();
+    observation.count("checked", slot, eventType, "success", 1);
     if (decision == RedriveDecision.EXHAUSTED) {
       var frozen =
           evidence
@@ -96,9 +106,28 @@ public final class WorkflowRedrive {
     } else if (decision == RedriveDecision.CONFLICT)
       recovery.pauseInCurrentTransaction(
           type, id, RecoveryStatus.REVIEW, "Recovery evidence digest conflict");
-    if (decision != RedriveDecision.EMIT) return new RecoveryDecision(List.of());
+    if (decision != RedriveDecision.EMIT) {
+      if (decision == RedriveDecision.EXHAUSTED)
+        observation.count("exhausted", slot, eventType, "review", 1);
+      else observation.count("suppressed", slot, eventType, suppressionReason(decision), 1);
+      return new RecoveryDecision(List.of());
+    }
     out.append(event);
     dispatch.record(type, id, state, version, event, now, interval, progress);
+    observation.count("redriven", slot, eventType, "success", 1);
     return new RecoveryDecision(List.of(event));
+  }
+
+  private static String suppressionReason(RedriveDecision decision) {
+    return switch (decision) {
+      case FRESH -> "no_progress";
+      case LOCAL_IN_FLIGHT, OBSERVATION_WINDOW -> "active_task";
+      case REMOTE_RETRY -> "remote_retry";
+      case COOLDOWN -> "cooldown";
+      case PAUSED -> "paused";
+      case UNKNOWN -> "uncertain_fact";
+      case CONFLICT -> "review";
+      default -> throw new IllegalArgumentException("Not suppressed: " + decision);
+    };
   }
 }

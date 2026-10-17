@@ -29,9 +29,11 @@ public class V2TransactionConfig {
       BoundedDatabaseBudget budget,
       V2BudgetProperties properties,
       V2RelayProperties relay,
-      io.micrometer.core.instrument.MeterRegistry metrics) {
+      io.micrometer.core.instrument.MeterRegistry metrics,
+      com.jay.domain.task.service.RelayObservation observation) {
     if ("bounded".equals(relay.getMode())) validateNetworkTimeouts(ds, relay.policy());
-    return new RoutedTransactionRunner(ds, tm, codec, budget, properties.getPhysical(), metrics);
+    return new RoutedTransactionRunner(
+        ds, tm, codec, budget, properties.getPhysical(), metrics, observation);
   }
 
   /** 读取驱动实际属性，拒绝仅有 future 超时但 JDBC 网络无限等待的配置。 */

@@ -213,7 +213,6 @@ public class V2RabbitConfig {
         .dedicatedWorkflows("guarded".equals(policy.getMode()));
   }
 
-  @Bean
   public WorkflowRedrive workflowRedrive(
       DataSource ds,
       UserTransactionRunner tx,
@@ -253,6 +252,17 @@ public class V2RabbitConfig {
         Duration.ofSeconds(policy.getStaleSeconds()),
         Duration.ofSeconds(policy.getIntervalSeconds()),
         policy.getMaxPerStage());
+  }
+
+  @Bean
+  public WorkflowRedrive observedWorkflowRedrive(
+      DataSource ds,
+      UserTransactionRunner tx,
+      RecoveryService recovery,
+      MySqlOutboxWriter writer,
+      V2RecoveryRedriveProperties policy,
+      RelayObservation observation) {
+    return workflowRedrive(ds, tx, recovery, writer, policy).withObservation(observation);
   }
 
   @Bean
@@ -332,8 +342,7 @@ public class V2RabbitConfig {
   }
 
   @Bean
-  @ConditionalOnProperty(
-      prefix = "bm.v2.recovery.redrive", name = "mode", havingValue = "guarded")
+  @ConditionalOnProperty(prefix = "bm.v2.recovery.redrive", name = "mode", havingValue = "guarded")
   public RetryTransportRecoveryJob v2RetryTransportRecoveryJob(
       DataSource ds,
       UserTransactionRunner tx,
@@ -354,8 +363,7 @@ public class V2RabbitConfig {
             return null;
           });
     var service =
-        new RetryTransportRecovery(
-            tx, retries, new MySqlDeliveryEvidenceRepository(ds), recovery);
+        new RetryTransportRecovery(tx, retries, new MySqlDeliveryEvidenceRepository(ds), recovery);
     service.budget(
         policy.getCandidateLimit(),
         policy.getEmissionLimit(),
@@ -376,16 +384,17 @@ public class V2RabbitConfig {
       MySqlRetryJobRepository retryRepo,
       V2ConfirmedEventPublisher publisher,
       FaultInjector faults,
+      RelayObservation observation,
       V2RelayProperties relay,
       @Qualifier("v2RelayExecutor") ExecutorService executor,
       V2Transport transport) {
     var outboxBounded =
         "bounded".equals(relay.getMode())
-            ? new BoundedOutboxRelay(outboxRepo, publisher, relay.policy(), faults)
+            ? new BoundedOutboxRelay(outboxRepo, publisher, relay.policy(), faults, observation)
             : null;
     var retryBounded =
         "bounded".equals(relay.getMode())
-            ? new BoundedOutboxRelay(retryRepo, publisher, relay.policy(), faults)
+            ? new BoundedOutboxRelay(retryRepo, publisher, relay.policy(), faults, observation)
             : null;
     return new MessagingWorkers(
         listener,

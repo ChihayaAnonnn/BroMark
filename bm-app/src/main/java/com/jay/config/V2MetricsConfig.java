@@ -1,6 +1,8 @@
 package com.jay.config;
 
 import cn.bugstack.middleware.db.router.dynamic.DynamicDataSource;
+import com.jay.domain.task.service.RelayObservation;
+import com.jay.infrastructure.event.MicrometerRelayObservation;
 import com.zaxxer.hikari.HikariDataSource;
 import com.zaxxer.hikari.metrics.micrometer.MicrometerMetricsTrackerFactory;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -12,6 +14,11 @@ import org.springframework.context.annotation.*;
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnProperty(name = "bm.v2.enabled", havingValue = "true")
 public class V2MetricsConfig {
+  @Bean
+  public RelayObservation relayObservation(MeterRegistry metrics) {
+    return new MicrometerRelayObservation(metrics);
+  }
+
   @Bean
   public SmartInitializingSingleton v2ConnectionMetrics(
       DataSource dataSource,

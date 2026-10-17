@@ -3,6 +3,7 @@
 import argparse
 from decimal import Decimal
 import json
+import os
 from pathlib import Path
 from seed_v2_testdata import mysql
 
@@ -26,6 +27,7 @@ def draw_quota_mismatch(order,quota):
 
 
 def reconcile(seed):
+    os.environ['V2_TARGET_RUN_ID']=seed['runId']
     differences={k:0 for k in ('CREDIT','QUOTA','STOCK','DELIVERY','PAYMENT','SIGNIN')};counts={};reviews=0;unfinished=0
     sqls=(Path(__file__).parents[1]/'verification/2026-10-15-assets-signin-exchange/reconciliation.sql').read_text().split(';')
     credit_by_biz={};all_draws=[]

@@ -10,6 +10,7 @@ import com.jay.domain.task.repository.BatchOutboxRepository;
 import java.time.*;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /** 领取提交后分波发布；只有确定未调用发布器的本地记录才允许回退领取次数。 */
 public final class BoundedOutboxRelay {
@@ -18,6 +19,7 @@ public final class BoundedOutboxRelay {
   private final ConfirmedEventPublisher publisher;
   private final RelayPolicy policy;
   private final FaultInjector faults;
+  private final RelayObservation observation;
   private boolean accepting = true;
   private int active;
   private final List<CompletionStage<PublishOutcome>> outstanding = new ArrayList<>();
@@ -28,26 +30,46 @@ public final class BoundedOutboxRelay {
       ConfirmedEventPublisher publisher,
       RelayPolicy policy,
       FaultInjector faults) {
+    this(repo, publisher, policy, faults, RelayObservation.NOOP);
+  }
+
+  public BoundedOutboxRelay(
+      BatchOutboxRepository repo,
+      ConfirmedEventPublisher publisher,
+      RelayPolicy policy,
+      FaultInjector faults,
+      RelayObservation observation) {
     policy.validate(2, publisher.capacity());
     this.repo = Objects.requireNonNull(repo);
     this.publisher = Objects.requireNonNull(publisher);
     this.policy = policy;
     this.faults = Objects.requireNonNull(faults);
+    this.observation = Objects.requireNonNull(observation);
   }
 
   public int runOnce(RouteSlot slot) {
+    faults.beforeClaim();
     synchronized (this) {
       if (!accepting || active > 0 || physicalPending()) return 0;
       active++;
     }
     long start = System.nanoTime(), batchEnd = start + policy.batchTimeout().toNanos();
     var unsent = new LinkedHashMap<String, ClaimedPublish>();
+    boolean batchSucceeded = false;
     try {
-      var tasks =
-          repo.claimBatch(
-              slot, policy, deadline(Math.min(batchEnd, start + policy.claimTimeout().toNanos())));
+      long claimStart = System.nanoTime();
+      List<ClaimedPublish> tasks;
+      String claimOutcome = "error";
+      try {
+        tasks = repo.claimBatch(slot, policy, deadline(Math.min(batchEnd, start + policy.claimTimeout().toNanos())));
+        claimOutcome = "success";
+      } finally {
+        observation.duration("claim", slot, "OTHER", claimOutcome, System.nanoTime() - claimStart);
+      }
+      for (var task : tasks)
+        observation.count("claimed", slot, knownType(task.eventType()), "success", 1);
       tasks.forEach(t -> unsent.put(t.eventId(), t));
-      if (tasks.isEmpty()) return 0;
+      if (tasks.isEmpty()) { batchSucceeded = true; return 0; }
       // DB采样点位于claim调用内部，以调用开始作为锚点扣除全部采样不确定度。
       Instant sample =
           tasks.stream().map(ClaimedPublish::claimedAt).max(Instant::compareTo).orElseThrow();
@@ -62,82 +84,171 @@ public final class BoundedOutboxRelay {
         if (batchEnd - now < waveCost || leaseLeft < waveCost + policy.safetyMargin().toNanos())
           break;
         long waveEnd = Math.min(batchEnd, now + policy.publishTimeout().toNanos());
-        Deadline publishDeadline = deadline(waveEnd);
-        var attempts = new ArrayList<CompletionStage<PublishOutcome>>();
-        var submitted = new ArrayList<ClaimedPublish>();
-        int stop = Math.min(tasks.size(), offset + policy.publishWindow());
-        for (; offset < stop && accepting(); offset++) {
-          var task = tasks.get(offset);
-          EventEnvelope event;
-          try {
-            event = decode(task);
-          } catch (Exception malformed) {
-            if (repo.quarantineMalformed(
-                task,
-                "Invalid persisted event identity or payload hash",
-                deadline(Math.min(batchEnd, System.nanoTime() + policy.settleTimeout().toNanos()))))
-              unsent.remove(task.eventId());
-            continue;
-          }
-          // 解析/核查可能耗时，每条调用前重验单调预算，绝不启动已过期的波次。
-          if (System.nanoTime() >= waveEnd) break;
-          unsent.remove(task.eventId());
-          submitted.add(task);
-          try {
-            var attempt =
-                Objects.requireNonNull(
-                    publisher.publishAttempt(
-                        event, task.leaseToken(), task.failureCount(), publishDeadline));
-            attempts.add(attempt);
-            synchronized (this) {
-              outstanding.add(attempt);
+        long waveStarted = System.nanoTime();
+        String waveOutcome = "error";
+        observation.count("started", slot, "OTHER", "success", 1);
+        try {
+          Deadline publishDeadline = deadline(waveEnd);
+          var attempts = new ArrayList<CompletionStage<PublishOutcome>>();
+          var submitted = new ArrayList<ClaimedPublish>();
+          var invocationStarts = new ArrayList<Long>();
+          var observedCompletions = new ArrayList<AtomicBoolean>();
+          int stop = Math.min(tasks.size(), offset + policy.publishWindow());
+          for (; offset < stop && accepting(); offset++) {
+            var task = tasks.get(offset);
+            EventEnvelope event;
+            try {
+              event = decode(task);
+            } catch (Exception malformed) {
+              if (repo.quarantineMalformed(
+                  task,
+                  "Invalid persisted event identity or payload hash",
+                  deadline(Math.min(batchEnd, System.nanoTime() + policy.settleTimeout().toNanos()))))
+                unsent.remove(task.eventId());
+              continue;
             }
-          } catch (Exception unknown) {
-            // 调用已发生，即使抛错也无法证明未发送。
-            invocationUncertain = true;
-            attempts.add(CompletableFuture.completedFuture(PublishOutcome.UNKNOWN));
-            break;
+            // 解析/核查可能耗时，每条调用前重验单调预算，绝不启动已过期的波次。
+            if (System.nanoTime() >= waveEnd) break;
+            unsent.remove(task.eventId());
+            submitted.add(task);
+            long invocationStart = System.nanoTime();
+            var observedCompletion = new AtomicBoolean();
+            invocationStarts.add(invocationStart);
+            observedCompletions.add(observedCompletion);
+            try {
+              var attempt =
+                  Objects.requireNonNull(
+                      publisher.publishAttempt(
+                          event, task.leaseToken(), task.failureCount(), publishDeadline));
+              attempts.add(attempt);
+              attempt.whenComplete(
+                  (value, failure) ->
+                      recordConfirm(
+                          slot,
+                          task,
+                          invocationStart,
+                          observedCompletion,
+                          failure == null ? value : PublishOutcome.UNKNOWN));
+              synchronized (this) {
+                outstanding.add(attempt);
+              }
+            } catch (Exception unknown) {
+              // 调用已发生，即使抛错也无法证明未发送。
+              invocationUncertain = true;
+              attempts.add(CompletableFuture.completedFuture(PublishOutcome.UNKNOWN));
+              recordConfirm(slot, task, invocationStart, observedCompletion, PublishOutcome.UNKNOWN);
+              break;
+            }
           }
-        }
-        var results = new ArrayList<PublishResolution>();
-        for (int i = 0; i < attempts.size(); i++) {
-          PublishOutcome outcome = await(attempts.get(i), waveEnd);
-          if (outcome == PublishOutcome.CONFIRMED) faults.hit("relay.after-confirm");
-          results.add(new PublishResolution(submitted.get(i), outcome, outcome.name()));
-        }
-        if (!results.isEmpty()) {
-          long settleStart = System.nanoTime();
-          var report =
-              repo.settleBatch(
-                  slot,
-                  results,
+          var results = new ArrayList<PublishResolution>();
+          for (int i = 0; i < attempts.size(); i++) {
+            PublishOutcome outcome = await(attempts.get(i), waveEnd);
+            recordConfirm(
+                slot, submitted.get(i), invocationStarts.get(i), observedCompletions.get(i), outcome);
+            if (outcome == PublishOutcome.CONFIRMED) {
+              var task = submitted.get(i);
+              faults.hit(
+                  "relay.after-confirm",
+                  task.eventId(),
+                  task.aggregateId(),
+                  task.leaseToken(),
+                  task.attempt());
+            }
+            results.add(new PublishResolution(submitted.get(i), outcome, outcome.name()));
+          }
+          if (!results.isEmpty()) {
+            long settleStart = System.nanoTime();
+            BatchSettleReport report;
+            String settleOutcome = "error";
+            try {
+              report = repo.settleBatch(slot, results,
                   deadline(Math.min(batchEnd, settleStart + policy.settleTimeout().toNanos())));
-          // 不确定提交直接退出，不产生本地成功计数。新样本不能使保守的DB当前时间倒退。
-          Instant previousUpper = sample.plusNanos(settleStart - sampleStart);
-          if (!report.databaseNow().isBefore(previousUpper)) {
-            sample = report.databaseNow();
-            sampleStart = settleStart;
+              settleOutcome = "success";
+            } finally {
+              observation.duration("settle", slot, "OTHER", settleOutcome, System.nanoTime() - settleStart);
+            }
+            for (var result : results) {
+              var eventType = knownType(result.task().eventType());
+              var id = result.task().eventId();
+              if (report.completed().contains(id))
+                observation.count("completed", slot, eventType, "confirmed", 1);
+              if (report.lost().contains(id))
+                observation.count("lost_lease", slot, eventType, "lease_lost", 1);
+            }
+            // 不确定提交直接退出，不产生本地成功计数。新样本不能使保守的DB当前时间倒退。
+            Instant previousUpper = sample.plusNanos(settleStart - sampleStart);
+            if (!report.databaseNow().isBefore(previousUpper)) {
+              sample = report.databaseNow();
+              sampleStart = settleStart;
+            }
           }
+          waveOutcome = results.stream().anyMatch(r -> r.outcome() == PublishOutcome.UNKNOWN)
+              ? "UNKNOWN" : results.stream().anyMatch(r -> r.outcome() == PublishOutcome.RETURNED)
+              ? "returned" : results.stream().anyMatch(r -> r.outcome() == PublishOutcome.NACKED)
+              ? "nacked" : results.isEmpty() ? "empty" : "confirmed";
+          // UNKNOWN仅为调用者结果，不能当作物理结束。逐attempt判断不会串行化另一通道。
+          if (physicalPending()) break;
+          if (Thread.currentThread().isInterrupted()) break;
+        } finally {
+          observation.duration("wave", slot, "OTHER", waveOutcome, System.nanoTime() - waveStarted);
         }
-        // UNKNOWN仅为调用者结果，不能当作物理结束。逐attempt判断不会串行化另一通道。
-        if (physicalPending()) break;
-        if (Thread.currentThread().isInterrupted()) break;
       }
+      batchSucceeded = true;
       return tasks.size();
     } finally {
+      boolean cleanupSucceeded = false;
       try {
-        if (!unsent.isEmpty())
-          repo.releaseUnsent(
-              slot,
-              List.copyOf(unsent.values()),
-              new Deadline(Instant.now().plus(policy.settleTimeout())));
+        if (!unsent.isEmpty()) {
+          var released =
+              repo.releaseUnsent(
+                  slot,
+                  List.copyOf(unsent.values()),
+                  new Deadline(Instant.now().plus(policy.settleTimeout())));
+          for (var task : unsent.values())
+            if (released.contains(task.eventId()))
+              observation.count(
+                  "released_unsent", slot, knownType(task.eventType()), "not_sent", 1);
+        }
+        cleanupSucceeded = true;
       } finally {
         synchronized (this) {
           active--;
           notifyAll();
         }
+        long elapsed = System.nanoTime() - start;
+        boolean timedOut = elapsed >= policy.batchTimeout().toNanos();
+        // finished仅表示loop及release正常返回；运输结果由wave/confirm/settle分别说明。
+        observation.duration("batch", slot, "OTHER",
+            !batchSucceeded || !cleanupSucceeded ? "error" : timedOut ? "deadline" : "finished", elapsed);
+        if (timedOut) observation.count("timeout", slot, "OTHER", "deadline", 1);
       }
     }
+  }
+
+  private static String knownType(String type) {
+    return EventRouting.CONTROL.contains(type)
+            || EventRouting.USER.contains(type)
+            || EventRouting.NOTIFICATIONS.contains(type)
+        ? type
+        : "OTHER";
+  }
+
+  private void recordConfirm(
+      RouteSlot slot,
+      ClaimedPublish task,
+      long started,
+      AtomicBoolean recorded,
+      PublishOutcome outcome) {
+    if (!recorded.compareAndSet(false, true)) return;
+    observation.duration(
+        "confirm",
+        slot,
+        knownType(task.eventType()),
+        outcome == PublishOutcome.CONFIRMED
+            ? "confirmed"
+            : outcome == PublishOutcome.RETURNED ? "returned"
+            : outcome == PublishOutcome.NACKED ? "nacked" : "UNKNOWN",
+        System.nanoTime() - started);
   }
 
   private EventEnvelope decode(ClaimedPublish task) throws Exception {

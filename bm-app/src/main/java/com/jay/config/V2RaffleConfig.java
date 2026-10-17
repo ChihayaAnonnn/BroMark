@@ -72,9 +72,10 @@ public class V2RaffleConfig {
       BlockOrderIdGenerator ids,
       DataSource ds,
       FaultInjector faults,
+      com.jay.domain.task.service.RelayObservation observation,
       MySqlOutboxWriter writer) {
     return new DrawService(
-        tx, assets, quota, accounts, draws, strategies, codec, ids, writer, faults);
+        tx, assets, quota, accounts, draws, strategies, codec, ids, writer, faults, observation);
   }
 
   @Bean

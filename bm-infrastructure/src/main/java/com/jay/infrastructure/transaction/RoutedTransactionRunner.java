@@ -4,6 +4,8 @@ import cn.bugstack.middleware.db.router.DBContextHolder;
 import com.jay.domain.asset.model.*;
 import com.jay.domain.asset.repository.UserTransactionRunner;
 import com.jay.domain.asset.service.RouteCodec;
+import com.jay.domain.task.service.RelayObservation;
+import com.jay.domain.task.service.RelayObservationContext;
 import java.util.function.Supplier;
 import javax.sql.DataSource;
 import org.springframework.transaction.*;
@@ -15,6 +17,7 @@ public final class RoutedTransactionRunner implements UserTransactionRunner {
   private final com.jay.domain.asset.service.DatabaseBudget budget;
   private final java.util.Map<String, String> physical;
   private final io.micrometer.core.instrument.MeterRegistry metrics;
+  private final RelayObservation observation;
 
   private record Execution(RouteSlot slot, WorkClass work, Deadline deadline) {}
 
@@ -45,10 +48,22 @@ public final class RoutedTransactionRunner implements UserTransactionRunner {
       com.jay.domain.asset.service.DatabaseBudget budget,
       java.util.Map<String, String> physical,
       io.micrometer.core.instrument.MeterRegistry metrics) {
+    this(ds, manager, codec, budget, physical, metrics, RelayObservation.NOOP);
+  }
+
+  public RoutedTransactionRunner(
+      DataSource ds,
+      PlatformTransactionManager manager,
+      RouteCodec codec,
+      com.jay.domain.asset.service.DatabaseBudget budget,
+      java.util.Map<String, String> physical,
+      io.micrometer.core.instrument.MeterRegistry metrics,
+      RelayObservation observation) {
     this.codec = codec;
     this.budget = budget;
     this.physical = java.util.Map.copyOf(physical);
     this.metrics = metrics;
+    this.observation = observation;
     if (manager.getClass() != org.springframework.jdbc.datasource.DataSourceTransactionManager.class
         || ((org.springframework.jdbc.datasource.DataSourceTransactionManager) manager)
                 .getDataSource()
@@ -115,6 +130,7 @@ public final class RoutedTransactionRunner implements UserTransactionRunner {
       DBContextHolder.setRoute(slot.dbKey(), slot.tableKey());
       current.set(new Execution(slot, work, deadline));
       long start = System.nanoTime();
+      String assetType = RelayObservationContext.currentAssetEventType();
       String outcome = "committed";
       boolean[] actionCompleted = {false};
       long[] actionEnd = {0};
@@ -153,6 +169,13 @@ public final class RoutedTransactionRunner implements UserTransactionRunner {
         metrics
             .timer("bm.v2.database.transaction", "work", work.name(), "result", outcome)
             .record(System.nanoTime() - start, java.util.concurrent.TimeUnit.NANOSECONDS);
+        if (assetType != null && work == WorkClass.TRADE)
+          observation.duration(
+              "asset_tx",
+              slot,
+              assetType,
+              outcome.equals("committed") ? "success" : "error",
+              System.nanoTime() - start);
       }
     } finally {
       current.remove();

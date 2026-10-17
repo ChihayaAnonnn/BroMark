@@ -17,13 +17,20 @@ import org.junit.Test;
 public class RaffleIntegrationV2Test {
   @Test
   public void fullApplicationTransportsSevenTransactionsAndProtectsHttpIdentity() throws Exception {
-    AssetTestSupport.run(h -> DrawAcceptanceV2Test.schema(h));
+    AssetTestSupport.run(h -> {
+      DrawAcceptanceV2Test.schema(h);
+      RelayOptimizationTestSupport.schema(h);
+    });
     var settings = new HashMap<String, Object>();
     settings.put("spring.profiles.active", "v2-it");
     settings.put("bm.v2.enabled", true);
     settings.put("bm.v2.asset-write-mode", "V2");
     settings.put("bm.v2.messaging.enabled", true);
     settings.put("bm.v2.raffle.enabled", true);
+    // 共享 SQL fixture 保留历史工作流；显式验证 guarded 切换，
+    // 避免 legacy 扫描为本 HTTP 测试持续生成无关的历史流量。
+    settings.put("bm.v2.recovery.redrive.mode", "guarded");
+    settings.put("bm.v2.messaging.relay.mode", "legacy");
     settings.put("bm.v2.cancel-rps", 100);
     settings.put("bm.v2.cancel-max-in-flight", 4);
     settings.put("bm.v2.messaging.prefix", "bromark.it.raffle." + UUID.randomUUID());
@@ -43,6 +50,11 @@ public class RaffleIntegrationV2Test {
                 settings.entrySet().stream()
                     .map(e -> "--" + e.getKey() + "=" + e.getValue())
                     .toArray(String[]::new))) {
+      assertThat(ctx.getBean(com.jay.config.V2RecoveryRedriveProperties.class).getMode())
+          .isEqualTo("guarded");
+      assertThat(ctx.getBean(WorkflowRedrive.class)).isNotNull();
+      assertThat(ctx.getBean(com.jay.trigger.job.v2.RetryTransportRecoveryJob.class)).isNotNull();
+      assertThat(ctx.getBean(com.jay.config.V2RelayProperties.class).getMode()).isEqualTo("legacy");
       var tx = ctx.getBean(com.jay.domain.asset.repository.UserTransactionRunner.class);
       var ds = ctx.getBean(javax.sql.DataSource.class);
       var j = new org.springframework.jdbc.core.JdbcTemplate(ds);
@@ -121,6 +133,23 @@ public class RaffleIntegrationV2Test {
               .getContentAsString();
       String order =
           new com.fasterxml.jackson.databind.ObjectMapper().readTree(body).get("orderId").asText();
+      var metrics = ctx.getBean(io.micrometer.core.instrument.MeterRegistry.class);
+      for (String stage : List.of("http_admission", "config", "asset_tx"))
+        assertThat(metrics.find("bm.v2.relay.duration").tag("stage", stage).timer())
+            .as("draw stage " + stage)
+            .isNotNull();
+      assertThat(
+              metrics
+                  .find("bm.v2.relay.duration")
+                  .tag("stage", "http_admission")
+                  .tag("event_type", "PrepareDraw")
+                  .timer()
+                  .count())
+          .isEqualTo(1);
+      assertThat(metrics.find("bm.v2.database.permit.wait").tag("work", "TRADE").timer())
+          .isNotNull();
+      assertThat(metrics.find("bm.v2.database.transaction").tag("work", "TRADE").timer())
+          .isNotNull();
       var draws = ctx.getBean(DrawService.class);
       try {
         org.awaitility.Awaitility.await()

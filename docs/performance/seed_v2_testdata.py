@@ -11,6 +11,23 @@ import subprocess
 import time
 
 ROOT=Path(__file__).resolve().parents[2]
+_owned_mysql_id = None
+
+
+def owned_mysql_id():
+    """锁定本次专属容器 ID，后续 exec 不通过可被替换的名称寻址。"""
+    global _owned_mysql_id
+    if _owned_mysql_id is not None:
+        return _owned_mysql_id
+    name = os.environ.get('V2_MYSQL_CONTAINER')
+    if name != 'bromark-relay-20261016-mysql-1':
+        raise ValueError('Task8 requires owned relay MySQL container')
+    raw = subprocess.run(['docker','inspect',name],text=True,capture_output=True,check=True).stdout
+    state = json.loads(raw)[0]
+    if state['Name'] != '/'+name or not state['State']['Running'] or 'bromark-relay-20261016_default' not in state['NetworkSettings']['Networks']:
+        raise ValueError('MySQL container ownership/network mismatch')
+    _owned_mysql_id = state['Id']
+    return _owned_mysql_id
 
 def sql(v):
     if isinstance(v,(dict,list)):v=json.dumps(v,separators=(',',':'))
@@ -18,9 +35,13 @@ def sql(v):
 
 def mysql(db,statement):
     if db and not re.fullmatch(r'router_perf_it_[a-z0-9_]+',db):raise ValueError('isolated databases only')
-    cmd=['docker','exec','-i','-e','MYSQL_PWD','bromark-v2-mysql',
-         'mysql','--batch','--skip-column-names','-uroot']+([db] if db else [])
-    return subprocess.run(cmd,input=statement,text=True,capture_output=True,check=True,env=dict(os.environ,MYSQL_PWD=os.environ['V2_MYSQL_PASSWORD'])).stdout.strip()
+    run = os.environ.get('V2_TARGET_RUN_ID')
+    if not run or not re.fullmatch(r'[a-z0-9_]{1,16}',run) or (db and db not in {f'router_perf_it_{run}_{part}' for part in ('control','one','two')}):
+        raise ValueError('target run/database ownership mismatch')
+    container = owned_mysql_id()
+    cmd=['docker','exec','-i','-e','MYSQL_PWD',container,
+         'mysql','--batch','--raw','--skip-column-names','-uroot']+([db] if db else [])
+    return subprocess.run(cmd,input=statement,text=True,capture_output=True,check=True,env=dict(os.environ,MYSQL_PWD=os.environ['V2_MYSQL_PASSWORD'])).stdout.rstrip('\r\n')
 
 def route(user):
     h=0
@@ -38,6 +59,7 @@ def token(private,user):
 
 def seed(run,users,out,stock):
     if not re.fullmatch(r'[a-z0-9_]{1,16}',run) or not 1<=users<=100000 or stock<1:raise ValueError('invalid seed size/run')
+    os.environ['V2_TARGET_RUN_ID'] = run
     out=Path(out).resolve()
     if out==ROOT or ROOT in out.parents:raise ValueError('secrets must stay outside git workspace')
     if out.exists() and any(out.iterdir()):raise ValueError('output directory must be empty')
@@ -86,6 +108,7 @@ def seed(run,users,out,stock):
     for db,statements in batch.items():mysql(db,'START TRANSACTION;'+';'.join(statements)+';COMMIT;')
     tokens=out/'tokens.json';tokens.write_text(json.dumps(mapping));tokens.chmod(0o600)
     manifest={'runId':run,'users':users,'databases':dbs,'activityId':activity,'sku':61,'version':version,
+              'writerAssertion':'stopped-before-fresh-seed',
               'stockPool':pool,'allocatedSlots':stock,'tokenFile':str(tokens),
               'publicKey':base64.b64encode(public.read_bytes()).decode(),
               'migrationHashes':{e['file']:e['sha256'] for e in manifest['scripts']},

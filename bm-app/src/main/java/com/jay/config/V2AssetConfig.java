@@ -89,9 +89,19 @@ public class V2AssetConfig {
       RouteCodec codec,
       BlockOrderIdGenerator ids,
       FaultInjector faults,
+      com.jay.domain.task.service.RelayObservation observation,
       MySqlOutboxWriter writer) {
     return new ExchangeService(
-        tx, assets, quota, new MySqlExchangeRepository(ds), admission, codec, ids, writer, faults);
+        tx,
+        assets,
+        quota,
+        new MySqlExchangeRepository(ds),
+        admission,
+        codec,
+        ids,
+        writer,
+        faults,
+        observation);
   }
 
   @Bean

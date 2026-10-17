@@ -3,6 +3,7 @@ package com.jay.domain.activity.service;
 import com.jay.domain.activity.repository.AdmissionRepository;
 import com.jay.domain.asset.model.*;
 import com.jay.domain.asset.repository.UserTransactionRunner;
+import com.jay.domain.task.service.RelayObservation;
 import java.time.LocalDate;
 
 public final class AdmissionService {
@@ -26,9 +27,36 @@ public final class AdmissionService {
   }
 
   public AdmissionSnapshot forExchange(String user, long sku, String version, Deadline deadline) {
-    var s =
-        tx.inControl(WorkClass.TRADE, deadline, () -> repo.exchange(user, sku, version, deadline));
-    limiter.checkActivity(Long.toString(s.activityId()), deadline);
+    return forExchange(user, sku, version, deadline, RelayObservation.NOOP);
+  }
+
+  public AdmissionSnapshot forExchange(
+      String user, long sku, String version, Deadline deadline, RelayObservation observation) {
+    long start = System.nanoTime();
+    String outcome = "error";
+    AdmissionSnapshot s;
+    try {
+      s =
+          tx.inControl(
+              WorkClass.TRADE, deadline, () -> repo.exchange(user, sku, version, deadline));
+      outcome = "success";
+    } finally {
+      observation.duration(
+          "config", RouteSlot.control(), "ExchangeCompleted", outcome, System.nanoTime() - start);
+    }
+    start = System.nanoTime();
+    outcome = "error";
+    try {
+      limiter.checkActivity(Long.toString(s.activityId()), deadline);
+      outcome = "success";
+    } finally {
+      observation.duration(
+          "activity_admission",
+          RouteSlot.control(),
+          "ExchangeCompleted",
+          outcome,
+          System.nanoTime() - start);
+    }
     return s;
   }
 

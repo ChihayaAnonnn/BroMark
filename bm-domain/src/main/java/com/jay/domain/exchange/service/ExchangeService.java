@@ -8,6 +8,7 @@ import com.jay.domain.exchange.model.*;
 import com.jay.domain.exchange.repository.ExchangeRepository;
 import com.jay.domain.task.model.EventEnvelope;
 import com.jay.domain.task.repository.OutboxWriter;
+import com.jay.domain.task.service.RelayObservation;
 import java.util.*;
 
 public final class ExchangeService {
@@ -20,6 +21,7 @@ public final class ExchangeService {
   private final OrderIdGenerator ids;
   private final OutboxWriter out;
   private final FaultInjector faults;
+  private final RelayObservation observation;
 
   public ExchangeService(
       UserTransactionRunner tx,
@@ -31,6 +33,20 @@ public final class ExchangeService {
       OrderIdGenerator ids,
       OutboxWriter out,
       FaultInjector faults) {
+    this(tx, assets, quota, repo, admission, codec, ids, out, faults, RelayObservation.NOOP);
+  }
+
+  public ExchangeService(
+      UserTransactionRunner tx,
+      AssetKernel assets,
+      QuotaKernel quota,
+      ExchangeRepository repo,
+      AdmissionService admission,
+      RouteCodec codec,
+      OrderIdGenerator ids,
+      OutboxWriter out,
+      FaultInjector faults,
+      RelayObservation observation) {
     this.tx = tx;
     this.assets = assets;
     this.quota = quota;
@@ -40,6 +56,7 @@ public final class ExchangeService {
     this.ids = ids;
     this.out = out;
     this.faults = faults;
+    this.observation = observation;
   }
 
   private RequestIdentity identity(ExchangeCommand c) {
@@ -60,49 +77,53 @@ public final class ExchangeService {
     var identity = identity(c);
     var old = tx.inUser(c.userId(), WorkClass.TRADE, c.deadline(), () -> repo.request(identity));
     if (old.isPresent()) return old.get();
-    var snapshot = admission.forExchange(c.userId(), c.sku(), c.configVersion(), c.deadline());
+    var snapshot =
+        admission.forExchange(c.userId(), c.sku(), c.configVersion(), c.deadline(), observation);
     ids.prefetch();
     String order = codec.newOrderId("EX", c.userId());
     String event = codec.newEventId();
-    return tx.inUser(
-        c.userId(),
-        WorkClass.TRADE,
-        c.deadline(),
-        () -> {
-          var time = assets.lockAccounts(c.userId(), List.of(snapshot.activityId()));
-          var repeat = repo.request(identity);
-          if (repeat.isPresent()) return repeat.get();
-          ExchangeResult result;
-          var biz = new BusinessId("EXCHANGE", order, identity.requestHash());
-          if (!snapshot.accepts(time) || !snapshot.version().equals(c.configVersion()))
-            result = new ExchangeResult(order, "REJECTED", null, null, "ACTIVITY_UNAVAILABLE");
-          else {
-            var debit = assets.debit(c.userId(), biz, snapshot.creditCost());
-            if (debit.isEmpty())
-              result = new ExchangeResult(order, "REJECTED", null, null, "INSUFFICIENT_CREDIT");
+    try (var observed =
+        com.jay.domain.task.service.RelayObservationContext.asset("ExchangeCompleted")) {
+      return tx.inUser(
+          c.userId(),
+          WorkClass.TRADE,
+          c.deadline(),
+          () -> {
+            var time = assets.lockAccounts(c.userId(), List.of(snapshot.activityId()));
+            var repeat = repo.request(identity);
+            if (repeat.isPresent()) return repeat.get();
+            ExchangeResult result;
+            var biz = new BusinessId("EXCHANGE", order, identity.requestHash());
+            if (!snapshot.accepts(time) || !snapshot.version().equals(c.configVersion()))
+              result = new ExchangeResult(order, "REJECTED", null, null, "ACTIVITY_UNAVAILABLE");
             else {
-              faults.hit("exchange.after-debit");
-              var grant =
-                  quota.grant(c.userId(), snapshot.activityId(), biz, snapshot.quota(), time);
-              result = new ExchangeResult(order, "DELIVERED", debit.get(), grant, null);
+              var debit = assets.debit(c.userId(), biz, snapshot.creditCost());
+              if (debit.isEmpty())
+                result = new ExchangeResult(order, "REJECTED", null, null, "INSUFFICIENT_CREDIT");
+              else {
+                faults.hit("exchange.after-debit");
+                var grant =
+                    quota.grant(c.userId(), snapshot.activityId(), biz, snapshot.quota(), time);
+                result = new ExchangeResult(order, "DELIVERED", debit.get(), grant, null);
+              }
             }
-          }
-          repo.save(identity, snapshot, time, result);
-          if ("DELIVERED".equals(result.state()))
-            out.append(
-                new EventEnvelope(
-                    event,
-                    "ExchangeCompleted",
-                    order,
-                    biz,
-                    c.userId(),
-                    codec.routeUser(c.userId()),
-                    identity.requestHash(),
-                    1,
-                    1,
-                    com.jay.domain.asset.service.ReceiptJson.write(result)));
-          return result;
-        });
+            repo.save(identity, snapshot, time, result);
+            if ("DELIVERED".equals(result.state()))
+              out.append(
+                  new EventEnvelope(
+                      event,
+                      "ExchangeCompleted",
+                      order,
+                      biz,
+                      c.userId(),
+                      codec.routeUser(c.userId()),
+                      identity.requestHash(),
+                      1,
+                      1,
+                      com.jay.domain.asset.service.ReceiptJson.write(result)));
+            return result;
+          });
+    }
   }
 
   public ExchangeResult get(String user, String order) {

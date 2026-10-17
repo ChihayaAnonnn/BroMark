@@ -348,8 +348,10 @@ public class RelayLifecycleV2Test {
               .getWebServer()
               .getPort();
       java.nio.file.Files.writeString(
-          directory.resolve("ready"),
+          directory.resolve("ready.tmp"),
           ProcessHandle.current().pid() + ":" + executor.getActiveCount() + ":" + port);
+      java.nio.file.Files.move(directory.resolve("ready.tmp"), directory.resolve("ready"),
+          java.nio.file.StandardCopyOption.ATOMIC_MOVE);
     }
   }
 
