@@ -10,11 +10,11 @@
 
 **Spec:** [Outbox Relay与恢复补发优化设计](../specs/2026-10-16-outbox-relay-recovery-optimization-design.md)。同时阅读[原交易设计](../specs/2026-10-15-concurrent-credit-payment-raffle-design.md)和[延迟定位证据](../../verification/2026-10-16-latency-analysis/README.md)。
 
-**Status:** Task 1–7 已提交；Task 8 在 `67495e11` 以 Java 269/269、真实故障和停写六域对账完成精简验收；Task 9 在 `caf2484` 以 Python 66/66、真实 k6 多 VU 工具 probe 完成。Task 10 实际执行 10 rps×120 秒 smoke，技术异常与长尾使 smoke 未通过，见[真实运行报告](../../verification/2026-10-16-relay-optimization/README.md)。分支 `feat/outbox-relay-recovery-optimization`，隔离工作区 `/tmp/bromark-outbox-relay-20261016`。完整容量与 Phase6 保持 NO-GO。
+**Status:** 精简 Task 8–10 开发、工具、实际运行报告和独立审查均已交付。Task 1–7 已提交；Task 8 在 `67495e11` 以 Java 269/269、真实故障和停写六域对账完成；Task 9 在 `caf2484` 以 Python 66/66、真实 k6 多 VU 工具 probe 完成；Task 10 在 `bee2d94` 记录一次 10 rps×120 秒真实 smoke 的失败裁定。Task 10 与全分支审查无阻断问题，但 smoke 未通过，见[真实运行报告](../../verification/2026-10-16-relay-optimization/README.md)。分支 `feat/outbox-relay-recovery-optimization`；完整容量与 Phase6 保持 NO-GO。
 
 **范围调整（2026-10-17，用户要求精简 Task 8–10）：** 下述精简任务取代原 Task 8–10 的本轮交付范围；设计中完整观测、消融与容量矩阵保留为后续验收，不能因延期视为通过。Task 1–7 的实现、安全边界与资源约束保持原要求。已有失败、原始证据和修复记录均保留，不因调整范围改写结果。
 
-执行检查点：Task 8/9 的原始日志与审查记录见本工作区 `.superpowers/sdd/2026-10-16-outbox-relay-recovery-optimization/`，已提交索引见 `docs/verification/2026-10-17-relay-observability/`。Task 8 早期主机休眠的 INVALID_CONTINUITY 与后续有效 fresh Rabbit 运行分别保留。Task 10 失败编排与真实业务实验也分别保留，不把补救请求改写为正式入口成功。历史 Task 2–7 未核对逐步骤原始证据的 checkbox 保持未勾，已提交代码不自动等于每项验证成立。
+执行检查点：完整 SDD 工作记录与原始证据永久保存于 `/Users/vivix/Desktop/workspace/BroMark-relay-evidence-20261017`，索引为 `raw-index.json`、`decisions.md` 和 `SHA256SUMS.json`；Task 8/9 已提交摘要见 `docs/verification/2026-10-17-relay-observability/` 与本计划 SDD 报告。Task 8 早期主机休眠的 INVALID_CONTINUITY 与后续有效 fresh Rabbit 运行分别保留；Task 10 失败编排与真实业务实验分别保留，不把补救请求改写为正式入口成功。历史 Task 2–7 未核对逐步骤原始证据的 checkbox 保持未勾，已提交代码不自动等于每项验证成立。
 
 ## Global Constraints
 
@@ -243,9 +243,9 @@ assertThat(after.attempt()).isEqualTo(before.attempt());
 
 - [ ] **Step1 — 一次运行验证。** 新隔离数据，固定既有双实例各1CPU/512MiB、Xmx320m及原池/许可/MQ；预热60秒与正式数据分开，确认起始积压为0。uniform mixed 以10请求/秒运行120秒，仅做运行 smoke。所有受理请求有明确归宿，技术失败/拒绝/dropped为0、负载期积压无持续增长；查询P99≤200ms、受理P99≤500ms、确认/交付P99≤5秒作为本档检查，样本不足标未验证。任一失败保留证据并停止，不升压、不修改资源掩盖结果。
 - [x] **Step2 — 正确性验收。** 复用 Task 8 同一最终源码版本的完整回归结果；如后续有 Java/配置修改则重新验证。停写本轮写者后运行六域对账，要求真实检查、差异及未解释未终态为0。支付/签到可引用 Task 8 独立非零正确性证据，但明确不属于本轮 mixed 压测分母或容量证明。
-- [ ] **Step3 — 保存裁定与提交。** 报告实际通过/失败/未执行、版本/配置/hash、共享主机限制及下一步。失败可形成明确 NO-GO 验证结论，不能勾成测试通过。证据移出临时 SDD 目录并保留索引后，只停止本次拥有服务、保留卷与账务事实；`git diff --check` 后提交报告。最终独立代码审查收尾，不 merge/push。
+- [x] **Step3 — 保存裁定与提交。** 报告实际通过/失败/未执行、版本/配置/hash、共享主机限制及下一步。失败可形成明确 NO-GO 验证结论，不能勾成测试通过。证据移出临时 SDD 目录并保留索引后，只停止本次拥有服务、保留卷与账务事实；`git diff --check` 后提交报告。最终独立代码审查收尾，不 merge/push。
 
-Task 10 Step1 已执行但门禁失败，故保持未勾；实测 3 个原入口技术异常、查询/受理/抽奖确认及交付 P99 超限，时钟偏差超预声明界限，负载期 BROKER 趋势未通过。Step2 只表示已完成真实停写六域对账及复用同 JAR 回归，不表示 smoke/容量通过。Step3 的报告与 NO-GO 证据已准备，提交后仍需最终独立审查，故暂不勾选；详见真实运行报告。
+Task 10 Step1 已执行但门禁失败，故保持未勾；实测 3 个原入口技术异常、查询/受理/抽奖确认及交付 P99 超限，时钟偏差超预声明界限，负载期 BROKER 趋势未通过。Step2 只表示已完成真实停写六域对账及复用同 JAR 回归，不表示 smoke/容量通过。Step3 的 NO-GO 报告已提交、SDD/raw已归档，Task 10 与全分支独立审查均通过且无阻断，因此勾选；这只表示交付收尾，不表示 smoke/容量/发布通过。详见真实运行报告。
 
 ### 后续容量验收（本轮延期，未通过）
 

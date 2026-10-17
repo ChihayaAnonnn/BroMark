@@ -34,3 +34,7 @@ Task 8 最终 Java 269/269（failure/error/skip 0）和 Python 55/55 见 [Task 8
 `cleanup.json` 记录本次自有双应用及 fresh Rabbit 删除且 absent；Rabbit 数据卷保留，隔离三库和账务不清除。旧 phase6、ChatSpace 和共享 daemon 设置未触碰；临时 caffeinate 已停止。本次原始失败与修复分开留档。
 
 **最终：** `developmentValidationPassed=true`，`smokePassed=false`，`fullCapacityPassed=false`，`releaseAuthorized=false`。下一步先排查原 503/无响应与超时、对负载期 BROKER 增长做可重复定位、改进有不确定度界限的时钟测量；需新隔离 run 重测 10 rps smoke。原同资源 A/B、五项消融、100/s×600秒×3轮、后续矩阵、独立压测机与发布审阅清单保持未执行/NO-GO，不对本轮失败升档。
+
+永久保留索引为 [raw-index.json](/Users/vivix/Desktop/workspace/BroMark-relay-evidence-20261017/raw-index.json)；对应原始目录在 `/Users/vivix/Desktop/workspace/BroMark-relay-evidence-20261017/raw/` 下，保留同名失败与正式运行目录。SDD 工作记录和 [完整裁定记录](/Users/vivix/Desktop/workspace/BroMark-relay-evidence-20261017/decisions.md) 同目录保存。独立 [Task 10 审查](/Users/vivix/Desktop/workspace/BroMark-relay-evidence-20261017/sdd/task10-simplified-review.md) 与 [全分支审查](/Users/vivix/Desktop/workspace/BroMark-relay-evidence-20261017/sdd/final-branch-review.md) 对当前精简开发交付均 PASS、无阻断；后者记录两项未在本轮修复的 minor：Publisher cancel/强制 close 缺直接测试，以及持久 Retry 恢复缺完整目的 route 重算。后续分别补聚焦回归与坏路由隔离验证；这两项审查意见不抹去 smoke 失败，也不授权发布。
+
+永久归档 `SHA256SUMS.json` 覆盖 7683 个文件，其 SHA256 为 `064cf93d34e1cca78d30f537ec63ed71eec1bbe1305224f1341e18730fe74bb2`。该归档索引与前述两轮实验各自的 raw manifest 分别保留，不互相替代。
