@@ -310,7 +310,7 @@ public class RaffleIntegrationV2Test {
   }
 
   @Test
-  public void freezesBlacklistAndBusinessDayAndRollsBackTechnicalAcceptance() {
+  public void blacklistedDrawPersistsRejectedWithoutAwardOrOutbox() {
     AssetTestSupport.run(
         h -> {
           DrawAcceptanceV2Test.schema(h);
@@ -327,30 +327,33 @@ public class RaffleIntegrationV2Test {
           var view =
               svc.create(
                   new DrawCommand(u, "frozen", a, new Deadline(Instant.now().plusSeconds(30))));
+          assertThat(view.state()).isEqualTo("REJECTED");
           var repo = new MySqlDrawRepository(h.j.getDataSource());
           var r = h.tx(u, () -> repo.find(view.orderId(), false));
           assertThat(r.ruleInput().blacklisted()).isTrue();
-          StockProtocolV2Test.control(
-              h,
-              () -> {
-                h.j.update("delete from v2_asset_blacklist where user_id=?", u);
-                return null;
-              });
-          h.runner.inUser(
-              u,
-              WorkClass.WORKER,
-              new Deadline(Instant.now().plusSeconds(30)),
-              () -> {
-                new CandidateWorker(
-                        repo,
-                        null,
-                        new com.jay.domain.strategy.service.FrozenRaffleEngine(),
-                        h.codec,
-                        new MySqlOutboxWriter(h.j.getDataSource()))
-                    .prepareFrozen(r.orderId(), r.strategy(), new Random());
-                assertThat(repo.find(r.orderId(), false).candidate().type()).isEqualTo("NONE");
-                return null;
-              });
+          assertThat(r.candidate()).isNull();
+          assertThat(r.fallback()).isNull();
+          assertThat(h.balance(u)).isEqualByComparingTo("0.00");
+          assertThat(
+                  h.tx(
+                      u,
+                      () ->
+                          h.j.queryForObject(
+                              "select total_remaining from raffle_activity_account where"
+                                  + " user_id=? and activity_id=?",
+                              Long.class,
+                              u,
+                              a)))
+              .isEqualTo(10L);
+          assertThat(
+                  h.tx(
+                      u,
+                      () ->
+                          h.j.queryForObject(
+                              "select count(*) from outbox where aggregate_id=?",
+                              Integer.class,
+                              view.orderId())))
+              .isZero();
         });
   }
 }

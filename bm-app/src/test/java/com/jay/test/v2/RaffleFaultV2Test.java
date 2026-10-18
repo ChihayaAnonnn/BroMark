@@ -272,7 +272,8 @@ public class RaffleFaultV2Test {
                   RelayObservation.NOOP,
                   new com.jay.infrastructure.cache.P0AdmissionCache(
                       h.runner, strategies, Duration.ofSeconds(2)),
-                  new com.jay.domain.strategy.service.FrozenRaffleEngine());
+                  new com.jay.domain.strategy.service.FrozenRaffleEngine(),
+                  new P0AdmissionGate());
           assertThatThrownBy(
                   () ->
                       svc.create(

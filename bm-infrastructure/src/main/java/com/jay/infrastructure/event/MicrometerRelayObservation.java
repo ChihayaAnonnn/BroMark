@@ -82,6 +82,15 @@ public final class MicrometerRelayObservation implements RelayObservation {
           "ExchangeCompleted",
           "SignInCompleted",
           "OTHER");
+  private static final Set<String> P0_ADMISSION_RESULTS =
+      Set.of("accepted", "rejected", "ratelimited");
+  private static final Set<String> P0_DELIVERY_RESULTS =
+      Set.of("delivered", "duplicate", "retry", "failed");
+  private static final Set<String> P0_EVENT_RESULTS =
+      Set.of("emitted", "accepted", "rejected", "delivered", "duplicate", "retry", "failed");
+  private static final Set<String> P0_STAGES = Set.of("admission", "reserve", "deliver");
+  private static final Set<String> P0_STAGE_RESULTS =
+      Set.of("success", "error", "ratelimited", "delivered", "duplicate", "retry", "failed");
   private final MeterRegistry registry;
 
   public MicrometerRelayObservation(MeterRegistry registry) {
@@ -135,5 +144,41 @@ public final class MicrometerRelayObservation implements RelayObservation {
             }
           });
     } else counter.increment(n);
+  }
+
+  @Override
+  public void p0Admission(String result) {
+    Counter.builder("p0_admission_total")
+        .tag("result", oneOf(result, P0_ADMISSION_RESULTS))
+        .register(registry)
+        .increment();
+  }
+
+  @Override
+  public void p0Delivery(String result) {
+    Counter.builder("p0_delivery_total")
+        .tag("result", oneOf(result, P0_DELIVERY_RESULTS))
+        .register(registry)
+        .increment();
+  }
+
+  @Override
+  public void p0Event(String type, String result) {
+    String boundedType = EVENTS.contains(type) ? type : "OTHER";
+    Counter.builder("p0_event_total")
+        .tags("type", boundedType, "result", oneOf(result, P0_EVENT_RESULTS))
+        .register(registry)
+        .increment();
+  }
+
+  @Override
+  public void p0Stage(String stage, String result, long nanos) {
+    oneOf(stage, P0_STAGES);
+    oneOf(result, P0_STAGE_RESULTS);
+    if (nanos < 0) throw new IllegalArgumentException("Negative duration");
+    Timer.builder("p0_stage_seconds")
+        .tags("stage", stage, "result", result)
+        .register(registry)
+        .record(nanos, TimeUnit.NANOSECONDS);
   }
 }

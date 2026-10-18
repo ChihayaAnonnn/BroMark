@@ -17,4 +17,16 @@ public interface RelayObservation {
   void duration(String stage, RouteSlot slot, String eventType, String outcome, long nanos);
 
   void count(String action, RouteSlot slot, String eventType, String reason, long n);
+
+  /** P0 受理结果：accepted/rejected/ratelimited。 */
+  default void p0Admission(String result) {}
+
+  /** P0 交付结果：delivered/duplicate/retry/failed。 */
+  default void p0Delivery(String result) {}
+
+  /** P0 事件结果；type 只能是有限事件类型。 */
+  default void p0Event(String type, String result) {}
+
+  /** P0 阶段耗时；stage=admission/reserve/deliver。 */
+  default void p0Stage(String stage, String result, long nanos) {}
 }

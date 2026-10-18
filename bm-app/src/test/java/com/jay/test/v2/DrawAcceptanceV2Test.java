@@ -72,7 +72,8 @@ public class DrawAcceptanceV2Test {
         com.jay.domain.task.service.RelayObservation.NOOP,
         new com.jay.infrastructure.cache.P0AdmissionCache(
             h.runner, strategies, Duration.ofSeconds(2)),
-        new FrozenRaffleEngine());
+        new FrozenRaffleEngine(),
+        new P0AdmissionGate());
   }
 
   static long publish(AssetTestSupport h, String pool) {

@@ -95,6 +95,7 @@ public class V2RaffleConfig {
       com.jay.domain.task.service.RelayObservation observation,
       P0AdmissionCache admission,
       FrozenRaffleEngine engine,
+      P0AdmissionGate gate,
       MySqlOutboxWriter writer) {
     return new DrawService(
         tx,
@@ -108,7 +109,8 @@ public class V2RaffleConfig {
         faults,
         observation,
         admission,
-        engine);
+        engine,
+        gate);
   }
 
   @Bean
@@ -135,8 +137,11 @@ public class V2RaffleConfig {
   }
 
   @Bean
-  public DrawDeliveryService drawDeliveryService(MySqlDrawRepository draws, AssetKernel assets) {
-    return new DrawDeliveryService(draws, assets);
+  public DrawDeliveryService drawDeliveryService(
+      MySqlDrawRepository draws,
+      AssetKernel assets,
+      com.jay.domain.task.service.RelayObservation observation) {
+    return new DrawDeliveryService(draws, assets, observation);
   }
 
   @Bean

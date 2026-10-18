@@ -1,11 +1,16 @@
 package com.jay.config;
 
 import cn.bugstack.middleware.db.router.dynamic.DynamicDataSource;
+import com.jay.domain.raffle.service.P0AdmissionGate;
 import com.jay.domain.task.service.RelayObservation;
 import com.jay.infrastructure.event.MicrometerRelayObservation;
+import com.jay.infrastructure.observability.P0BacklogProbe;
 import com.zaxxer.hikari.HikariDataSource;
 import com.zaxxer.hikari.metrics.micrometer.MicrometerMetricsTrackerFactory;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
+import java.util.List;
 import javax.sql.DataSource;
 import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -17,6 +22,44 @@ public class V2MetricsConfig {
   @Bean
   public RelayObservation relayObservation(MeterRegistry metrics) {
     return new MicrometerRelayObservation(metrics);
+  }
+
+  @Bean
+  public P0AdmissionGate p0AdmissionGate() {
+    return new P0AdmissionGate();
+  }
+
+  @Bean(destroyMethod = "close")
+  public P0BacklogProbe p0BacklogProbe(DataSource dataSource, P0AdmissionGate gate) {
+    return new P0BacklogProbe(dataSource, gate::update);
+  }
+
+  @Bean
+  public SmartInitializingSingleton p0Metrics(
+      MeterRegistry metrics, P0BacklogProbe probe, P0AdmissionGate gate) {
+    return () -> {
+      for (String result : List.of("accepted", "rejected", "ratelimited"))
+        Counter.builder("p0_admission_total").tag("result", result).register(metrics);
+      for (String result : List.of("delivered", "duplicate", "retry", "failed"))
+        Counter.builder("p0_delivery_total").tag("result", result).register(metrics);
+      for (String type : List.of("ReserveAward", "ReservationConfirmed"))
+        for (String result : List.of("emitted", "delivered", "duplicate", "retry", "failed"))
+          Counter.builder("p0_event_total")
+              .tags("type", type, "result", result)
+              .register(metrics);
+      Gauge.builder("p0_backlog_orders", probe, p -> p.snapshot().pending())
+          .tag("state", "PENDING_RESERVATION")
+          .description("PENDING_RESERVATION orders across all draw shards")
+          .register(metrics);
+      Gauge.builder("p0_oldest_age_seconds", probe, p -> p.snapshot().oldestAgeSeconds())
+          .tag("state", "PENDING_RESERVATION")
+          .description("Age of the oldest PENDING_RESERVATION order")
+          .baseUnit("seconds")
+          .register(metrics);
+      Gauge.builder("p0_inflight_orders", gate, P0AdmissionGate::inflight)
+          .description("Admission permits currently held by in-flight draws")
+          .register(metrics);
+    };
   }
 
   @Bean

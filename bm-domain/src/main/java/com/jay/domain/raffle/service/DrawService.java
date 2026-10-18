@@ -28,6 +28,7 @@ public final class DrawService {
   private final RelayObservation observation;
   private final DrawAdmissionSource admission;
   private final FrozenRaffleEngine engine;
+  private final P0AdmissionGate gate;
 
   public DrawService(
       UserTransactionRunner tx,
@@ -41,7 +42,8 @@ public final class DrawService {
       FaultInjector faults,
       RelayObservation observation,
       DrawAdmissionSource admission,
-      FrozenRaffleEngine engine) {
+      FrozenRaffleEngine engine,
+      P0AdmissionGate gate) {
     this.tx = tx;
     this.assets = assets;
     this.quota = quota;
@@ -54,6 +56,7 @@ public final class DrawService {
     this.observation = observation;
     this.admission = admission;
     this.engine = engine;
+    this.gate = gate;
   }
 
   public DrawView create(DrawCommand c) {
@@ -64,108 +67,148 @@ public final class DrawService {
             "DRAW",
             c.requestId(),
             new RequestHasher().hash("DRAW", Map.of("activity", Long.toString(c.activityId()))));
+    // 同一 requestId 的重试优先返回原订单，背压和在途限制都不能把重试当成新请求拒绝。
     var old = tx.inUser(c.userId(), WorkClass.TRADE, c.deadline(), () -> repo.request(identity));
     if (old.isPresent()) return get(c.userId(), old.get());
-    long configStart = System.nanoTime();
-    String configOutcome = "error";
-    StrategyVersionRepository.DrawAdmission admitted;
+    long stageStart = System.nanoTime();
+    String stageOutcome = "error";
+    boolean entered = false;
     try {
-      admitted = admission.admit(c.userId(), c.activityId(), c.deadline());
-      configOutcome = "success";
-    } finally {
-      observation.duration(
-          "config",
-          RouteSlot.control(),
-          "PrepareDraw",
-          configOutcome,
-          System.nanoTime() - configStart);
-    }
-    var f = admitted.strategy();
-    ids.prefetch();
-    String order = codec.newOrderId("DR", c.userId());
-    String event = codec.newEventId();
-    try (var observed = com.jay.domain.task.service.RelayObservationContext.asset("PrepareDraw")) {
-      return tx.inUser(
-          c.userId(),
-          WorkClass.TRADE,
-          c.deadline(),
-          () -> {
-            var time = assets.lockAccounts(c.userId(), List.of(c.activityId()));
-            var repeat = repo.request(identity);
-            if (repeat.isPresent()) return repo.find(repeat.get(), false).view();
-            String hash =
-                new RequestHasher()
-                    .hash(
-                        "DRAW_IDENTITY",
-                        Map.of(
-                            "user",
-                            c.userId(),
-                            "order",
+      long configStart = System.nanoTime();
+      String configOutcome = "error";
+      StrategyVersionRepository.DrawAdmission admitted;
+      try {
+        admitted = admission.admit(c.userId(), c.activityId(), c.deadline());
+        configOutcome = "success";
+      } finally {
+        observation.duration(
+            "config",
+            RouteSlot.control(),
+            "PrepareDraw",
+            configOutcome,
+            System.nanoTime() - configStart);
+      }
+      var f = admitted.strategy();
+      boolean blacklisted = admitted.blacklisted();
+      if (!blacklisted) {
+        if (!gate.tryEnter(c.userId(), c.activityId(), c.requestId())) {
+          // 网关拒绝前再确认一次：并发重试可能在这期间已经落单。
+          var existing =
+              tx.inUser(c.userId(), WorkClass.TRADE, c.deadline(), () -> repo.request(identity));
+          if (existing.isPresent()) {
+            stageOutcome = "success";
+            return get(c.userId(), existing.get());
+          }
+          observation.p0Admission("ratelimited");
+          stageOutcome = "ratelimited";
+          throw new BudgetExceededException("P0 admission backlog or user inflight limit");
+        }
+        entered = true;
+      }
+      ids.prefetch();
+      String order = codec.newOrderId("DR", c.userId());
+      String event = codec.newEventId();
+      boolean[] inserted = {false};
+      try (var observed = com.jay.domain.task.service.RelayObservationContext.asset("PrepareDraw")) {
+        var view =
+            tx.inUser(
+                c.userId(),
+                WorkClass.TRADE,
+                c.deadline(),
+                () -> {
+                  var time = assets.lockAccounts(c.userId(), List.of(c.activityId()));
+                  var repeat = repo.request(identity);
+                  if (repeat.isPresent()) return repo.find(repeat.get(), false).view();
+                  String hash =
+                      new RequestHasher()
+                          .hash(
+                              "DRAW_IDENTITY",
+                              Map.of(
+                                  "user",
+                                  c.userId(),
+                                  "order",
+                                  order,
+                                  "activity",
+                                  Long.toString(c.activityId()),
+                                  "version",
+                                  f.version(),
+                                  "request",
+                                  identity.requestHash()));
+                  var biz = new BusinessId("DRAW", order, identity.requestHash());
+                  boolean open =
+                      !blacklisted
+                          && "OPEN".equals(f.state())
+                          && !time.instant().isBefore(f.beginsAt())
+                          && time.instant().isBefore(f.endsAt());
+                  if (!blacklisted && time.instant().isAfter(admitted.expiresAt()))
+                    throw new BudgetExceededException("Admission expired");
+                  // 黑名单不扣额度、不写 ReserveAward；只落 REJECTED 供结果查询。
+                  boolean accepted =
+                      open && quota.consume(c.userId(), c.activityId(), biz, time).isPresent();
+                  faults.hit("draw.after-consume");
+                  var state = accounts.quotaState(c.userId(), c.activityId(), time);
+                  var input =
+                      new RuleInputSnapshot(
+                          time.instant(),
+                          state.effective(),
+                          state.dayEffective(),
+                          blacklisted,
+                          f.blacklistVersion());
+                  AwardSnapshot candidate = null;
+                  AwardSnapshot fallback = null;
+                  if (accepted) {
+                    candidate = engine.choose(f, input, new Random());
+                    fallback = engine.fallback(f, new Random());
+                  }
+                  var r =
+                      new DrawRecord(
+                          order,
+                          c.userId(),
+                          c.activityId(),
+                          identity.requestHash(),
+                          hash,
+                          f.version(),
+                          time,
+                          input,
+                          f,
+                          accepted ? "PENDING_RESERVATION" : "REJECTED",
+                          RecoveryStatus.ACTIVE,
+                          0,
+                          candidate,
+                          fallback,
+                          null);
+                  repo.insert(identity, r);
+                  inserted[0] = true;
+                  if (accepted) {
+                    var command =
+                        new ReserveCommand(
                             order,
-                            "activity",
-                            Long.toString(c.activityId()),
-                            "version",
+                            c.userId(),
+                            hash,
+                            identity.requestHash(),
+                            f.strategyId(),
                             f.version(),
-                            "request",
-                            identity.requestHash()));
-            var biz = new BusinessId("DRAW", order, identity.requestHash());
-            boolean open =
-                "OPEN".equals(f.state())
-                    && !time.instant().isBefore(f.beginsAt())
-                    && time.instant().isBefore(f.endsAt());
-            if (time.instant().isAfter(admitted.expiresAt()))
-              throw new BudgetExceededException("Admission expired");
-            boolean accepted =
-                open && quota.consume(c.userId(), c.activityId(), biz, time).isPresent();
-            faults.hit("draw.after-consume");
-            var state = accounts.quotaState(c.userId(), c.activityId(), time);
-            var input =
-                new RuleInputSnapshot(
-                    time.instant(),
-                    state.effective(),
-                    state.dayEffective(),
-                    admitted.blacklisted(),
-                    f.blacklistVersion());
-            AwardSnapshot candidate = null;
-            AwardSnapshot fallback = null;
-            if (accepted) {
-              candidate = engine.choose(f, input, new Random());
-              fallback = engine.fallback(f, new Random());
-            }
-            var r =
-                new DrawRecord(
-                    order,
-                    c.userId(),
-                    c.activityId(),
-                    identity.requestHash(),
-                    hash,
-                    f.version(),
-                    time,
-                    input,
-                    f,
-                    accepted ? "PENDING_RESERVATION" : "REJECTED",
-                    RecoveryStatus.ACTIVE,
-                    0,
-                    candidate,
-                    fallback,
-                    null);
-            repo.insert(identity, r);
-            if (accepted) {
-              var command =
-                  new ReserveCommand(
-                      order,
-                      c.userId(),
-                      hash,
-                      identity.requestHash(),
-                      f.strategyId(),
-                      f.version(),
-                      candidate,
-                      fallback);
-              out.append(
-                  event(r, "ReserveAward", RouteSlot.control(), event, ReceiptJson.write(command)));
-            }
-            return r.view();
-          });
+                            candidate,
+                            fallback);
+                    out.append(
+                        event(
+                            r,
+                            "ReserveAward",
+                            RouteSlot.control(),
+                            event,
+                            ReceiptJson.write(command)));
+                    observation.p0Event("ReserveAward", "emitted");
+                  }
+                  return r.view();
+                });
+        if (inserted[0])
+          observation.p0Admission("REJECTED".equals(view.state()) ? "rejected" : "accepted");
+        stageOutcome = "success";
+        return view;
+      }
+    } finally {
+      if (entered) gate.leave(c.userId());
+      observation.p0Stage("admission", stageOutcome, System.nanoTime() - stageStart);
     }
   }
 
