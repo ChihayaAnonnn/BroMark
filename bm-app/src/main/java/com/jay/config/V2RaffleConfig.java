@@ -135,6 +135,11 @@ public class V2RaffleConfig {
   }
 
   @Bean
+  public DrawDeliveryService drawDeliveryService(MySqlDrawRepository draws, AssetKernel assets) {
+    return new DrawDeliveryService(draws, assets);
+  }
+
+  @Bean
   public CandidateWorker candidateWorker(
       MySqlDrawRepository draws, RouteCodec codec, DataSource ds, MySqlOutboxWriter writer) {
     return new CandidateWorker(draws, null, new FrozenRaffleEngine(), codec, writer);
@@ -169,8 +174,11 @@ public class V2RaffleConfig {
   }
 
   @Bean(name = "ReservationConfirmed")
-  public EventHandler confirmed(DrawProgressService progress) {
-    return progress::handle;
+  public EventHandler confirmed(DrawDeliveryService delivery) {
+    return e -> {
+      delivery.deliver(e);
+      return java.util.List.of();
+    };
   }
 
   @Bean(name = "ReservationCancelled")
