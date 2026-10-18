@@ -2,6 +2,16 @@
 
 当前简化实验只验证本次 `bromark-relay-20261016-*` 隔离资源上的 mixed 分布与一次 10 rps、120 秒 smoke。`fullCapacityPassed` 和 `releaseAuthorized` 恒为 `false`；600 秒、三轮、完整场景矩阵与发布门禁仍按原容量计划另行执行。smoke 完成或单轮 SLO 良好不能替代容量结论。
 
+## P0 两机 benchmark（M5 SUT + 16GB Mac k6）
+
+P0 交付优化另有一套**独立**的两机口径：M5 32GB 做 SUT（Docker VM 8C16G：应用 4C8G、MySQL 3C6G、Rabbit/Redis 1C2G），16GB Mac 用原生 k6；workload 固定 2,000 用户 / 10 活动 / 10 奖 / `query:result:exchange:draw = 7:1:1:1`，10 个 CREDIT 奖各有独立 `stockPoolId`，fallback 固定 `NONE`。
+
+- [P0 两机 benchmark 运行手册（资源切分、seed、k6、重置、取证）](p0-runbook.md)
+- [P0 k6 负载脚本](p0-load.js)
+- [P0 MySQL seed helper](p0_seed.py)
+
+这套脚本与上面的 `bromark-relay-20261016-*` 隔离实验互不复用数字。报告/简历只能写本轮实际资源下的实测值：Docker VM 实际是 8C8G 就不能写成 8C16G；smoke、单轮或 Wi-Fi 结果必须单独标注，不能当容量结论。当前仓库没有新的 P0 实测吞吐结论。
+
 先从当前 `/tmp/bromark-relay-20261016.env` 注入环境变量。`V2_MYSQL_CONTAINER`、`V2_TARGET_RUN_ID`、`V2_APP_CONTAINER_1`、`V2_ACTIVE_RABBIT_CONTAINER`、`V2_TEST_DOCKER_NETWORK` 和 `V2_TOKEN_FILE` 必须指向本次拥有的容器、三库、fresh Rabbit 与外部 token 文件；runner 会核容器 ID、网络、127.0.0.1:19871 端口、应用绑定的三库与 broker 及真实库名。所有密钥只留仓库外，不打印完整容器 Env。不要运行旧 `sample_v2_runtime.py` 或 `fault_v2_runtime.py`：它们仍含 phase6 目标。
 
 seed 只对全新 `router_perf_it_<run>_{control,one,two}` 应用 manifest 中的 001–007；`scope=all` 覆盖三库。原历史 fixture、预置查单订单、60 秒读写暖机需要各自独立证据，不能将新 seed 称为旧历史基线。mixed 的 result 查询要求 `seed.json.resultOrders` 为每个用户提供已完成预置订单。在已启动并核验拥有的双应用与 fresh Rabbit 后，先独立预置并保存请求/查单原始回执：
