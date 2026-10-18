@@ -155,6 +155,27 @@ public final class PostgresSql {
                     + unit.toLowerCase(Locale.ROOT)
                     + "')");
           }
+          case "TIMESTAMPDIFF" -> {
+            arity(args, 3);
+            String unit = render(args.get(0)).toUpperCase(Locale.ROOT);
+            String divisor =
+                switch (unit) {
+                  case "MICROSECOND" -> "0.000001";
+                  case "SECOND" -> "1";
+                  case "MINUTE" -> "60";
+                  case "HOUR" -> "3600";
+                  case "DAY" -> "86400";
+                  default -> throw new IllegalArgumentException("Unsupported interval " + unit);
+                };
+            out.add(
+                "floor(extract(epoch from ("
+                    + render(functions(args.get(2)))
+                    + " - "
+                    + render(functions(args.get(1)))
+                    + ")) / "
+                    + divisor
+                    + ")");
+          }
           case "IF" -> {
             arity(args, 3);
             out.add("CASE");
