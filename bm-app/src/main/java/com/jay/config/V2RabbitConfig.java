@@ -311,6 +311,11 @@ public class V2RabbitConfig {
       if (handler == null) throw new IllegalStateException("Missing P0 handler: " + type);
       registered.put(type, handler);
     }
+    // Payment is unchanged; its config is conditional, so keep its handlers only when wired.
+    for (String type : List.of("GrantCredit", "CreditGranted")) {
+      var handler = handlers.get(type);
+      if (handler != null) registered.put(type, handler);
+    }
     var j = new JdbcTemplate(ds);
     EventHandler notification =
         e -> {

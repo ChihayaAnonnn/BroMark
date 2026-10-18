@@ -6,8 +6,8 @@ import com.jay.domain.task.model.EventEnvelope;
 import java.util.Set;
 
 public final class EventRouting {
-  public static final Set<String> CONTROL = Set.of("ReserveAward");
-  public static final Set<String> USER = Set.of("ReservationConfirmed");
+  public static final Set<String> CONTROL = Set.of("ReserveAward", "CreditGranted");
+  public static final Set<String> USER = Set.of("ReservationConfirmed", "GrantCredit");
   public static final Set<String> NOTIFICATIONS = Set.of("ExchangeCompleted", "SignInCompleted");
   private final RouteCodec codec;
 

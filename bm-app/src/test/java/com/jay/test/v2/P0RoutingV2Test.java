@@ -58,6 +58,9 @@ public class P0RoutingV2Test {
     assertThat(routing.route(reserveAward())).isEqualTo(RouteSlot.control());
     assertThat(routing.route(reservationConfirmed())).isEqualTo(new RouteSlot("01", "000"));
     assertThat(routing.route(notificationSchemaOne())).isEqualTo(userSlot);
+    assertThat(routing.route(envelope("CreditGranted", RouteSlot.control(), 1)))
+        .isEqualTo(RouteSlot.control());
+    assertThat(routing.route(envelope("GrantCredit", userSlot, 1))).isEqualTo(userSlot);
     assertThatThrownBy(() -> routing.route(prepareDraw()))
         .isInstanceOf(IllegalArgumentException.class);
     assertThatThrownBy(() -> routing.route(envelope("ConfirmReservation", RouteSlot.control(), 1)))
@@ -124,8 +127,8 @@ public class P0RoutingV2Test {
       }
     assertThat(bindings)
         .containsOnlyKeys("p0.reserve", "p0.deliver", "p0.notify")
-        .containsEntry("p0.reserve", Set.of("ReserveAward"))
-        .containsEntry("p0.deliver", Set.of("ReservationConfirmed"))
+        .containsEntry("p0.reserve", Set.of("ReserveAward", "CreditGranted"))
+        .containsEntry("p0.deliver", Set.of("ReservationConfirmed", "GrantCredit"))
         .containsEntry("p0.notify", Set.of("ExchangeCompleted", "SignInCompleted"));
   }
 
