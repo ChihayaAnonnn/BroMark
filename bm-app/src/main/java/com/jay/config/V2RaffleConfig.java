@@ -13,7 +13,6 @@ import com.jay.infrastructure.adapter.repository.v2.*;
 import com.jay.infrastructure.cache.P0AdmissionCache;
 import com.jay.infrastructure.cache.StrategyVersionCache;
 import com.jay.infrastructure.id.BlockOrderIdGenerator;
-import com.jay.trigger.job.v2.DrawRecoveryJob;
 import com.jay.trigger.listener.v2.StockCommandListener;
 import javax.sql.DataSource;
 import org.springframework.beans.factory.annotation.Value;
@@ -169,56 +168,8 @@ public class V2RaffleConfig {
     };
   }
 
-  @Bean
-  public DrawRecoveryService drawRecoveryService(
-      UserTransactionRunner tx,
-      MySqlDrawRepository draws,
-      MySqlStockRepository stocks,
-      RouteCodec codec,
-      DataSource ds,
-      MySqlOutboxWriter writer,
-      WorkflowRedrive guarded,
-      V2RecoveryRedriveProperties policy) {
-    return ("guarded".equals(policy.getMode())
-            ? new DrawRecoveryService(tx, draws, stocks, codec, writer, guarded)
-            : new DrawRecoveryService(tx, draws, stocks, codec, writer))
-        .scanBudget(
-            policy.getCandidateLimit(),
-            policy.getEmissionLimit(),
-            java.time.Duration.ofSeconds(policy.getRoundTimeoutSeconds()));
-  }
-
-  @Bean
-  public com.jay.trigger.job.v2.StockRecoveryJob stockRecoveryJob(
-      UserTransactionRunner tx,
-      MySqlStockRepository stocks,
-      MySqlDrawRepository draws,
-      RouteCodec codec,
-      BlockOrderIdGenerator ids,
-      DataSource ds,
-      MySqlOutboxWriter writer,
-      com.jay.trigger.job.v2.CoalescingJobDispatcher dispatcher,
-      DrawRecoveryService unified,
-      WorkflowRedrive guarded,
-      V2RecoveryRedriveProperties policy) {
-    return ("guarded".equals(policy.getMode())
-            ? new com.jay.trigger.job.v2.StockRecoveryJob(
-                tx, stocks, draws, codec, ids, writer, unified, guarded)
-            : new com.jay.trigger.job.v2.StockRecoveryJob(tx, stocks, draws, codec, ids, writer))
-        .scanBudget(
-            policy.getCandidateLimit(),
-            policy.getEmissionLimit(),
-            java.time.Duration.ofSeconds(policy.getRoundTimeoutSeconds()))
-        .dispatchWith(dispatcher);
-  }
-
-  @Bean
-  public DrawRecoveryJob drawRecoveryJob(
-      DrawRecoveryService r,
-      BlockOrderIdGenerator ids,
-      com.jay.trigger.job.v2.CoalescingJobDispatcher dispatcher) {
-    return new DrawRecoveryJob(r, ids).dispatchWith(dispatcher);
-  }
+  // P0 recovery is outbox relay + retry_job. Legacy DrawRecoveryJob/StockRecoveryJob are
+  // intentionally no longer scheduled; their classes stay until the cleanup task deletes them.
 
   @Bean(name = "STOCK_RECONCILIATION")
   public MySqlReconciliationRecoveryPort stockReconciliationPort(DataSource ds) {
