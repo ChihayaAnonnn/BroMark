@@ -362,6 +362,7 @@ git commit -m "feat(p0): deliver confirmed awards in one user transaction"
 - `EventRouting.CONTROL = Set.of("ReserveAward")`
 - `EventRouting.USER = Set.of("ReservationConfirmed")`
 - `EventRouting.NOTIFICATIONS = Set.of("ExchangeCompleted","SignInCompleted")`
+- `EventRouting.route` 接受 `schemaVersion == 1 || == 2`，拒绝 3/0/-1；删除现有 `schemaVersion != 1` 的硬门槛。
 - 队列：`p0.reserve`（并发 8）、`p0.deliver`（16）、`p0.notify`（4）、`p0.dlq`；exchange `p0.events`。
 - `V2MessageListener` handlers：`ReserveAward`、`ReservationConfirmed`、通知。
 
@@ -371,9 +372,12 @@ git commit -m "feat(p0): deliver confirmed awards in one user transaction"
 @Test public void routesOnlyP0Events() {
   // 测试内定义 reserveAward()/reservationConfirmed()/prepareDraw() 三个 EventEnvelope helper
   var routing = new EventRouting(new RouteCodec(2,4));
-  assertThat(routing.route(reserveAward())).isEqualTo(RouteSlot.control());
-  assertThat(routing.route(reservationConfirmed())).isEqualTo(new RouteSlot("01","000"));
+  assertThat(routing.route(reserveAward())).isEqualTo(RouteSlot.control()); // schema 2
+  assertThat(routing.route(reservationConfirmed())).isEqualTo(new RouteSlot("01","000")); // schema 2
+  assertThat(routing.route(notificationSchemaOne())).isNotNull(); // old schema 1 still routed
   assertThatThrownBy(() -> routing.route(prepareDraw()))
+      .isInstanceOf(IllegalArgumentException.class);
+  assertThatThrownBy(() -> routing.route(withSchema(reserveAward(), 3)))
       .isInstanceOf(IllegalArgumentException.class);
 }
 
@@ -390,6 +394,7 @@ Expected: FAIL，旧路由仍接受六段类型。
 - [ ] **Step 3: 实现**
 
 - `EventRouting` 只保留新集合；未知类型抛 `IllegalArgumentException`。
+- 删除 `EventRouting.route` 中的 `if (e.schemaVersion() != 1) throw ...`，改为 `schemaVersion == 1 || schemaVersion == 2`；否则 Task 1 构造的 v2 事件无法路由。
 - `V2RabbitConfig`：
   - 新 exchange `p0.events`、队列 `p0.reserve`/`p0.deliver`/`p0.notify`/`p0.dlq`，routing key=eventType。
   - `@RabbitListener(id="p0-reserve", queues="${...}.reserve", concurrency="8")` 等；`p0.deliver` 16、`p0.notify` 4。
