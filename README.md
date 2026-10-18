@@ -11,7 +11,7 @@
 ```bash
 git clone https://github.com/ChihayaAnonnn/BroMark.git
 cd BroMark
-git checkout 83c9c4e   # PostgreSQL P0 合并后的 master
+git checkout master   # PostgreSQL P0 已合并
 ```
 
 要求：Docker Desktop、Java 25、Maven、原生 k6、Python 3、`psql`（`brew install postgresql@17` 或使用 `postgres:17` 容器）。
@@ -115,7 +115,7 @@ mvn -q -pl bm-app -am \
   -Dsurefire.failIfNoSpecifiedTests=false test
 ```
 
-首次跑测试前需要给 `pg_control/pg_one/pg_two` 应用 `docs/dev-ops/postgresql/v2-schema.sql`；成功标准是 `0 failures / 0 errors`。
+测试直接复用 seed 创建的 `router_p0_p0run1_*` 三库（已含 schema）；成功标准是 `0 failures / 0 errors`。
 
 ### 7. 迁移已有 MySQL V2 数据
 
