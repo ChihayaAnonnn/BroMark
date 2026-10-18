@@ -52,6 +52,7 @@ ulimit -n 65535              # 负载机尤其重要
 | `bromark-p0-mysql` | 3 | 6G | `--max-connections=300`，`--innodb-buffer-pool-size=3G`，端口 13316 |
 | `bromark-p0-rabbit` | 0.5 | 1G | 与 Redis 合计约 1C/2G；以实际配额记录 |
 | `bromark-p0-redis` | 0.5 | 1G | 仅隔离实例，可 `FLUSHDB` |
+| `bromark-p0-pg` | 0.5 | 1G | 仅 PG 适配器/隔离测试；端口 15432，库 `pg_control`/`pg_one`/`pg_two` |
 
 先设置 Docker Desktop 的 VM 为 8 CPU / 16GB，再启动容器：
 
@@ -68,6 +69,10 @@ docker run -d --name bromark-p0-mysql --network bromark-p0 \
 
 docker run -d --name bromark-p0-rabbit --network bromark-p0 \
   --cpus 0.5 --memory 1g \
+  --tmpfs /tmp:rw,mode=1777 --tmpfs /var/lib/rabbitmq:rw,mode=1777 \
+  -e HOME=/tmp \
+  -e RABBITMQ_MNESIA_BASE=/tmp/rabbitmq/mnesia \
+  -e RABBITMQ_LOG_BASE=/tmp/rabbitmq/log \
   -e RABBITMQ_DEFAULT_USER=bromark_it \
   -e RABBITMQ_DEFAULT_PASS="$V2_RABBIT_PASSWORD" \
   -p 15686:5672 -p 15672:15672 rabbitmq:3.13-management
@@ -75,7 +80,19 @@ docker run -d --name bromark-p0-rabbit --network bromark-p0 \
 docker run -d --name bromark-p0-redis --network bromark-p0 \
   --cpus 0.5 --memory 1g \
   -p 16386:6379 redis:7 --appendonly no
+
+docker run -d --name bromark-p0-pg --network bromark-p0 \
+  --cpus 0.5 --memory 1g \
+  -e POSTGRES_PASSWORD="$V2_PG_PASSWORD" \
+  -p 15432:5432 postgres:17
+
+for db in pg_control pg_one pg_two; do
+  docker exec bromark-p0-pg psql -U postgres -c "CREATE DATABASE $db;" || true
+done
 ```
+
+> 在 macOS/Docker Desktop 上，RabbitMQ 若报 `/var/lib/rabbitmq/.erlang.cookie: eacces`，上面的 `--tmpfs` + `HOME=/tmp` 是已验证的 workaround；管理端口 15672 仅在 management 镜像中可用。
+> PostgreSQL 只用于 PG 适配器/迁移测试，P0 主链路仍走 MySQL；`V2_PG_HOST=host.docker.internal:15432`，测试库名 `pg_control/pg_one/pg_two`。
 
 > Rabbit 与 Redis 的 0.5C/1G 是“合计约 1C/2G”的近似切分；如果实际只能给到别的值，在报告里写实际值，不要照抄本表。
 
