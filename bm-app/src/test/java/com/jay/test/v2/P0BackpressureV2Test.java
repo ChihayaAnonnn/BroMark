@@ -457,7 +457,11 @@ public class P0BackpressureV2Test {
               "insert into v2_draw_order_"
                   + slot.tableKey()
                   + "(order_id,user_id,activity_id,state,snapshot,last_progress_at)"
-                  + " values(?,?,?,?,?,date_sub(utc_timestamp(6), interval ? second))",
+                  + " values(?,?,?,?,?,"
+                  + (AssetTestSupport.postgres()
+                      ? "utc_timestamp(6) - (? * interval '1 second')"
+                      : "date_sub(utc_timestamp(6), interval ? second)")
+                  + ")",
               order,
               "probe-user",
               1L,

@@ -57,6 +57,10 @@ public final class PostgresSql {
                   a ->
                       a.size() == 3 && a.get(1).equals("=") && a.get(0).equalsIgnoreCase(a.get(2)));
       if (noop) return render(functions(tokens)) + " ON CONFLICT DO NOTHING";
+      // outbox duplicate handling is a hash guard: leave the stored row intact and let the
+      // writer read it back; an UPDATE would hide a changed payload behind affected=1.
+      if (table.equals("outbox"))
+        return render(functions(tokens)) + " ON CONFLICT ( event_id ) DO NOTHING";
       String keys = table.matches("v2_award_record_00[0-3]") ? "order_id" : UPDATE_KEYS.get(table);
       if (keys == null)
         throw new IllegalArgumentException("Unsupported V2 PostgreSQL upsert: " + table);
