@@ -126,33 +126,49 @@ public class V2RabbitConfig {
       V2Transport transport,
       @Value("${bm.v2.messaging.prefix:bromark.v2}") String prefix,
       @Value("${bm.v2.messaging.queue-type:quorum}") String queueType) {
+    var declared = p0Topology(prefix, queueType);
+    var objects = declared.getDeclarables();
+    for (Declarable d : objects)
+      if (d instanceof org.springframework.amqp.core.Exchange exchange)
+        transport.admin.declareExchange(exchange);
+      else if (d instanceof org.springframework.amqp.core.Queue queue)
+        transport.admin.declareQueue(queue);
+    for (Declarable d : objects)
+      if (d instanceof Binding binding) transport.admin.declareBinding(binding);
+    for (Declarable d : objects) ((AbstractDeclarable) d).setShouldDeclare(false);
+    return declared;
+  }
+
+  /**
+   * Pure P0 topology: {@code p0.events} fans out to the reserve, deliver and notify stages by
+   * event type; {@code p0.dlq} is declared for operator/recovery review. Kept side-effect free so
+   * the queue names and bindings are verifiable without a broker.
+   */
+  public static Declarables p0Topology(String prefix, String queueType) {
     if (!Set.of("quorum", "classic").contains(queueType) || !prefix.matches("[A-Za-z0-9._-]{1,96}"))
       throw new IllegalArgumentException("Explicit V2 topology");
     var objects = new ArrayList<Declarable>();
     var exchange = new DirectExchange(prefix + ".events", true, false);
     objects.add(exchange);
-    var workflow =
-        new org.springframework.amqp.core.Queue(
-            prefix + ".workflow", true, false, false, Map.of("x-queue-type", queueType));
-    var notifications =
-        new org.springframework.amqp.core.Queue(
-            prefix + ".notifications", true, false, false, Map.of("x-queue-type", queueType));
-    objects.add(workflow);
-    objects.add(notifications);
+    var reserve = queue(prefix + ".reserve", queueType);
+    var deliver = queue(prefix + ".deliver", queueType);
+    var notify = queue(prefix + ".notify", queueType);
+    objects.add(reserve);
+    objects.add(deliver);
+    objects.add(notify);
+    objects.add(queue(prefix + ".dlq", queueType));
     for (String type : EventRouting.CONTROL)
-      objects.add(BindingBuilder.bind(workflow).to(exchange).with(type));
+      objects.add(BindingBuilder.bind(reserve).to(exchange).with(type));
     for (String type : EventRouting.USER)
-      objects.add(BindingBuilder.bind(workflow).to(exchange).with(type));
+      objects.add(BindingBuilder.bind(deliver).to(exchange).with(type));
     for (String type : EventRouting.NOTIFICATIONS)
-      objects.add(BindingBuilder.bind(notifications).to(exchange).with(type));
-    transport.admin.declareExchange(exchange);
-    transport.admin.declareQueue(workflow);
-    transport.admin.declareQueue(notifications);
-    objects.stream()
-        .filter(d -> d instanceof Binding)
-        .forEach(d -> transport.admin.declareBinding((Binding) d));
-    objects.forEach(d -> ((AbstractDeclarable) d).setShouldDeclare(false));
+      objects.add(BindingBuilder.bind(notify).to(exchange).with(type));
     return new Declarables(objects);
+  }
+
+  private static org.springframework.amqp.core.Queue queue(String name, String queueType) {
+    return new org.springframework.amqp.core.Queue(
+        name, true, false, false, Map.of("x-queue-type", queueType));
   }
 
   @Bean(name = "v2MessageContainerFactory")
@@ -165,8 +181,6 @@ public class V2RabbitConfig {
     f.setPhase(Integer.MAX_VALUE - 2);
     f.setAcknowledgeMode(AcknowledgeMode.MANUAL);
     f.setPrefetchCount(props.getPrefetch());
-    f.setConcurrentConsumers(props.getWorkerConcurrency());
-    f.setMaxConcurrentConsumers(props.getWorkerConcurrency());
     f.setDefaultRequeueRejected(false);
     f.setContainerCustomizer(cn -> cn.setShutdownTimeout(10000L));
     return f;
@@ -291,7 +305,12 @@ public class V2RabbitConfig {
       RouteCodec codec,
       Map<String, EventHandler> handlers,
       FaultInjector faults) {
-    var registered = new HashMap<>(handlers);
+    var registered = new HashMap<String, EventHandler>();
+    for (String type : List.of("ReserveAward", "ReservationConfirmed")) {
+      var handler = handlers.get(type);
+      if (handler == null) throw new IllegalStateException("Missing P0 handler: " + type);
+      registered.put(type, handler);
+    }
     var j = new JdbcTemplate(ds);
     EventHandler notification =
         e -> {
@@ -486,7 +505,7 @@ public class V2RabbitConfig {
         executor.execute(outboxWorker);
         executor.execute(retryWorker);
       }
-      for (String id : List.of("v2-workflow", "v2-notification")) {
+      for (String id : List.of("p0-reserve", "p0-deliver", "p0-notify")) {
         var container = registry.getListenerContainer(id);
         if (container == null) throw new IllegalStateException("Missing V2 consumer");
         container.start();
@@ -519,19 +538,30 @@ public class V2RabbitConfig {
     }
 
     @RabbitListener(
-        id = "v2-workflow",
-        queues = "${bm.v2.messaging.prefix:bromark.v2}.workflow",
+        id = "p0-reserve",
+        queues = "${bm.v2.messaging.prefix:bromark.v2}.reserve",
+        concurrency = "8",
         containerFactory = "v2MessageContainerFactory")
-    public void workflow(Message m, com.rabbitmq.client.Channel c) {
-      consume("workflow-v2", "v2-workflow", m, c);
+    public void reserve(Message m, com.rabbitmq.client.Channel c) {
+      consume("workflow-v2", "p0-reserve", m, c);
     }
 
     @RabbitListener(
-        id = "v2-notification",
-        queues = "${bm.v2.messaging.prefix:bromark.v2}.notifications",
+        id = "p0-deliver",
+        queues = "${bm.v2.messaging.prefix:bromark.v2}.deliver",
+        concurrency = "16",
         containerFactory = "v2MessageContainerFactory")
-    public void notification(Message m, com.rabbitmq.client.Channel c) {
-      consume("notification-v2", "v2-notification", m, c);
+    public void deliver(Message m, com.rabbitmq.client.Channel c) {
+      consume("workflow-v2", "p0-deliver", m, c);
+    }
+
+    @RabbitListener(
+        id = "p0-notify",
+        queues = "${bm.v2.messaging.prefix:bromark.v2}.notify",
+        concurrency = "4",
+        containerFactory = "v2MessageContainerFactory")
+    public void notify(Message m, com.rabbitmq.client.Channel c) {
+      consume("notification-v2", "p0-notify", m, c);
     }
 
     private void consume(

@@ -6,16 +6,8 @@ import com.jay.domain.task.model.EventEnvelope;
 import java.util.Set;
 
 public final class EventRouting {
-  public static final Set<String> CONTROL =
-      Set.of("ReserveAward", "ConfirmReservation", "CancelReservation", "CreditGranted");
-  public static final Set<String> USER =
-      Set.of(
-          "PrepareDraw",
-          "ReservationHeld",
-          "ReservationConfirmed",
-          "ReservationCancelled",
-          "AwardDelivery",
-          "GrantCredit");
+  public static final Set<String> CONTROL = Set.of("ReserveAward");
+  public static final Set<String> USER = Set.of("ReservationConfirmed");
   public static final Set<String> NOTIFICATIONS = Set.of("ExchangeCompleted", "SignInCompleted");
   private final RouteCodec codec;
 
@@ -40,7 +32,8 @@ public final class EventRouting {
   }
 
   public RouteSlot route(EventEnvelope e) {
-    if (e.schemaVersion() != 1) throw new IllegalArgumentException("Unknown schema");
+    if (e.schemaVersion() != 1 && e.schemaVersion() != 2)
+      throw new IllegalArgumentException("Unknown schema");
     RouteSlot expected;
     if (CONTROL.contains(e.eventType())) expected = RouteSlot.control();
     else if (USER.contains(e.eventType()) || NOTIFICATIONS.contains(e.eventType()))
