@@ -91,13 +91,9 @@ public final class DrawController {
     }
   }
 
+  /** P0 流程不再支持取消，保留路径只为明确返回 405。 */
   @PostMapping("/{order}/cancel")
   public ResponseEntity<DrawView> cancel(@PathVariable String order) {
-    String u = user.requireUserId();
-    gate.check("v2.draw.cancel");
-    try (var permit = admission.cancel(u, deadline())) {
-      var r = service.cancel(u, order);
-      return ResponseEntity.status(r.state().equals("CANCELLED") ? 200 : 202).body(r);
-    }
+    return ResponseEntity.status(405).build();
   }
 }

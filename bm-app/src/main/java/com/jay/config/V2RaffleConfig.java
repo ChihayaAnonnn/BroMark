@@ -145,49 +145,19 @@ public class V2RaffleConfig {
     return new CandidateWorker(draws, null, new FrozenRaffleEngine(), codec, writer);
   }
 
+  @Bean
+  public StockCommandListener stockCommandListener(
+      StockReservationService stock, RouteCodec codec) {
+    return new StockCommandListener(stock, codec);
+  }
+
   @Bean(name = "ReserveAward")
-  public EventHandler reserve(StockReservationService stock, RouteCodec codec) {
-    return new StockCommandListener(stock, codec)::apply;
-  }
-
-  @Bean(name = "ConfirmReservation")
-  public EventHandler confirm(StockReservationService stock, RouteCodec codec) {
-    return new StockCommandListener(stock, codec)::apply;
-  }
-
-  @Bean(name = "CancelReservation")
-  public EventHandler cancel(StockReservationService stock, RouteCodec codec) {
-    return new StockCommandListener(stock, codec)::apply;
-  }
-
-  @Bean(name = "PrepareDraw")
-  public EventHandler prepare(CandidateWorker worker) {
-    return e -> {
-      worker.prepare(e);
-      return java.util.List.of();
-    };
-  }
-
-  @Bean(name = "ReservationHeld")
-  public EventHandler held(DrawProgressService progress) {
-    return progress::handle;
+  public EventHandler reserve(StockCommandListener listener) {
+    return listener::apply;
   }
 
   @Bean(name = "ReservationConfirmed")
   public EventHandler confirmed(DrawDeliveryService delivery) {
-    return e -> {
-      delivery.deliver(e);
-      return java.util.List.of();
-    };
-  }
-
-  @Bean(name = "ReservationCancelled")
-  public EventHandler cancelled(DrawProgressService progress) {
-    return progress::handle;
-  }
-
-  @Bean(name = "AwardDelivery")
-  public EventHandler deliver(AwardDeliveryService delivery) {
     return e -> {
       delivery.deliver(e);
       return java.util.List.of();
