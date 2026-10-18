@@ -207,7 +207,7 @@ public final class DrawService {
         return view;
       }
     } finally {
-      if (entered) gate.leave(c.userId());
+      if (entered) gate.leave(c.userId(), c.activityId());
       observation.p0Stage("admission", stageOutcome, System.nanoTime() - stageStart);
     }
   }
