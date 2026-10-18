@@ -16,6 +16,9 @@ spring:
     port: ${V2_RABBIT_PORT:15686}
     username: bromark_it
     password: ${V2_RABBIT_PASSWORD}
+    cache:
+      channel:
+        size: 64
     topic:
       send_award: bromark.it.send_award
       send_rebate: bromark.it.send_rebate
