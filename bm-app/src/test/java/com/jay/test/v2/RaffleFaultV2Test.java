@@ -255,6 +255,7 @@ public class RaffleFaultV2Test {
           DrawAcceptanceV2Test.grant(h, u, a);
           var ids = new com.jay.infrastructure.id.BlockOrderIdGenerator(h.runner, h.j, "fault");
           h.codec.withGenerator(ids);
+          var strategies = new MySqlStrategyVersionRepository(h.j.getDataSource());
           var svc =
               new DrawService(
                   h.runner,
@@ -262,13 +263,16 @@ public class RaffleFaultV2Test {
                   new QuotaKernel(h.repo),
                   h.repo,
                   new MySqlDrawRepository(h.j.getDataSource()),
-                  new MySqlStrategyVersionRepository(h.j.getDataSource()),
                   h.codec,
                   ids,
                   new MySqlOutboxWriter(h.j.getDataSource()),
                   p -> {
                     throw new IllegalStateException("crash after consume");
-                  });
+                  },
+                  RelayObservation.NOOP,
+                  new com.jay.infrastructure.cache.P0AdmissionCache(
+                      h.runner, strategies, Duration.ofSeconds(2)),
+                  new com.jay.domain.strategy.service.FrozenRaffleEngine());
           assertThatThrownBy(
                   () ->
                       svc.create(

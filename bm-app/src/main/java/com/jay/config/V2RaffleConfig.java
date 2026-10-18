@@ -10,6 +10,7 @@ import com.jay.domain.strategy.service.*;
 import com.jay.domain.task.repository.*;
 import com.jay.domain.task.service.*;
 import com.jay.infrastructure.adapter.repository.v2.*;
+import com.jay.infrastructure.cache.P0AdmissionCache;
 import com.jay.infrastructure.cache.StrategyVersionCache;
 import com.jay.infrastructure.id.BlockOrderIdGenerator;
 import com.jay.trigger.job.v2.DrawRecoveryJob;
@@ -61,21 +62,44 @@ public class V2RaffleConfig {
   }
 
   @Bean
+  public P0AdmissionCache p0AdmissionCache(
+      UserTransactionRunner tx, MySqlStrategyVersionRepository repo) {
+    return new P0AdmissionCache(tx, repo, java.time.Duration.ofSeconds(2));
+  }
+
+  @Bean
+  public FrozenRaffleEngine frozenRaffleEngine() {
+    return new FrozenRaffleEngine();
+  }
+
+  @Bean
   public DrawService drawService(
       UserTransactionRunner tx,
       AssetKernel assets,
       QuotaKernel quota,
       MySqlAssetRepository accounts,
       MySqlDrawRepository draws,
-      MySqlStrategyVersionRepository strategies,
       RouteCodec codec,
       BlockOrderIdGenerator ids,
       DataSource ds,
       FaultInjector faults,
       com.jay.domain.task.service.RelayObservation observation,
+      P0AdmissionCache admission,
+      FrozenRaffleEngine engine,
       MySqlOutboxWriter writer) {
     return new DrawService(
-        tx, assets, quota, accounts, draws, strategies, codec, ids, writer, faults, observation);
+        tx,
+        assets,
+        quota,
+        accounts,
+        draws,
+        codec,
+        ids,
+        writer,
+        faults,
+        observation,
+        admission,
+        engine);
   }
 
   @Bean

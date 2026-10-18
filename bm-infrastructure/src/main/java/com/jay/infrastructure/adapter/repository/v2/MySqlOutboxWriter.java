@@ -27,21 +27,28 @@ public final class MySqlOutboxWriter implements OutboxWriter {
     String hash =
         new com.jay.domain.asset.service.RequestHasher()
             .hash("EVENT", java.util.Map.of("envelope", payload));
-    j.update(
-        "insert into"
-            + " outbox(event_id,aggregate_id,aggregate_version,event_type,payload,payload_hash,state,attempt,next_attempt_at,created_at)"
-            + " values(?,?,?,?,?,?,'PENDING',0,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6)) ON DUPLICATE KEY"
-            + " UPDATE event_id=event_id",
-        event.eventId(),
-        event.aggregateId(),
-        event.aggregateVersion(),
-        event.eventType(),
-        payload,
-        hash);
-    String stored =
-        j.queryForObject(
-            "select payload_hash from outbox where event_id=?", String.class, event.eventId());
-    if (!hash.equals(stored)) throw new AssetConflictException("Event payload changed");
+    // Connector/J defaults to CLIENT_FOUND_ROWS, so an identical duplicate also reports one
+    // affected row. A differing payload changes payload_hash and reports two; zero is the strict
+    // SQL-mode identical duplicate. Only that duplicate path needs the defensive hash read.
+    int affected =
+        j.update(
+            "insert into"
+                + " outbox(event_id,aggregate_id,aggregate_version,event_type,payload,payload_hash,state,attempt,next_attempt_at,created_at)"
+                + " values(?,?,?,?,?,?,'PENDING',0,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6)) ON DUPLICATE KEY"
+                + " UPDATE payload_hash=values(payload_hash)",
+            event.eventId(),
+            event.aggregateId(),
+            event.aggregateVersion(),
+            event.eventType(),
+            payload,
+            hash);
+    if (affected == 2) throw new AssetConflictException("Event payload changed");
+    if (affected == 0) {
+      String stored =
+          j.queryForObject(
+              "select payload_hash from outbox where event_id=?", String.class, event.eventId());
+      if (!hash.equals(stored)) throw new AssetConflictException("Event payload changed");
+    }
     registerWake(afterCommitWake);
   }
 

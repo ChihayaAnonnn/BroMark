@@ -16,6 +16,21 @@ import org.junit.Test;
 public class DrawAcceptanceV2Test {
   static void schema(AssetTestSupport h) throws Exception {
     FrozenStrategyV2Test.schema(h);
+    h.runner.inControl(
+        WorkClass.RECOVERY,
+        new Deadline(Instant.now().plusSeconds(30)),
+        () -> {
+          try {
+            for (String s :
+                java.nio.file.Files.readString(
+                        java.nio.file.Path.of(
+                            "../docs/dev-ops/mysql/migrations/002_admission_config.sql"))
+                    .split(";")) if (!s.isBlank()) h.j.execute(s);
+          } catch (Exception e) {
+            throw new IllegalStateException(e);
+          }
+          return null;
+        });
     for (String db : List.of("01", "02"))
       for (int i = 0; i < 4; i++) {
         var slot = new RouteSlot(db, String.format("%03d", i));
@@ -43,17 +58,21 @@ public class DrawAcceptanceV2Test {
     var ids = new BlockOrderIdGenerator(h.runner, h.j, "drawtest");
     ids.prefetch();
     h.codec.withGenerator(ids);
+    var strategies = new MySqlStrategyVersionRepository(h.j.getDataSource());
     return new DrawService(
         h.runner,
         h.assets,
         new QuotaKernel(h.repo),
         h.repo,
         new MySqlDrawRepository(h.j.getDataSource()),
-        new MySqlStrategyVersionRepository(h.j.getDataSource()),
         h.codec,
         ids,
         new MySqlOutboxWriter(h.j.getDataSource()),
-        x -> {});
+        x -> {},
+        com.jay.domain.task.service.RelayObservation.NOOP,
+        new com.jay.infrastructure.cache.P0AdmissionCache(
+            h.runner, strategies, Duration.ofSeconds(2)),
+        new FrozenRaffleEngine());
   }
 
   static long publish(AssetTestSupport h, String pool) {
