@@ -6,7 +6,7 @@ BEGIN
     SELECT count(*) INTO actual FROM pg_tables WHERE schemaname = 'public';
     ASSERT actual = 74, format('expected 74 tables, got %s', actual);
     SELECT count(*) INTO actual FROM pg_indexes WHERE schemaname = 'public';
-    ASSERT actual = 116, format('expected 116 indexes, got %s', actual);
+    ASSERT actual = 120, format('expected 120 indexes, got %s', actual);
     SELECT count(*) INTO actual FROM pg_constraint c JOIN pg_namespace n ON n.oid = c.connamespace
       WHERE n.nspname = 'public' AND c.contype IN ('p','u','f','c');
     ASSERT actual = 130, format('expected 130 PK/unique/FK/check constraints, got %s', actual);

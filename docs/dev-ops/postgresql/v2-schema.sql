@@ -564,6 +564,7 @@ CREATE TABLE IF NOT EXISTS v2_draw_order_000 (
     version bigint NOT NULL DEFAULT 0,
     last_progress_at timestamp(6) without time zone NOT NULL DEFAULT (clock_timestamp() AT TIME ZONE 'UTC'),
     confirmed_at timestamp(6) without time zone,
+    reserved_at timestamp(6) without time zone,
     delivered_at timestamp(6) without time zone
 );
 
@@ -577,6 +578,7 @@ CREATE TABLE IF NOT EXISTS v2_draw_order_001 (
     version bigint NOT NULL DEFAULT 0,
     last_progress_at timestamp(6) without time zone NOT NULL DEFAULT (clock_timestamp() AT TIME ZONE 'UTC'),
     confirmed_at timestamp(6) without time zone,
+    reserved_at timestamp(6) without time zone,
     delivered_at timestamp(6) without time zone
 );
 
@@ -590,6 +592,7 @@ CREATE TABLE IF NOT EXISTS v2_draw_order_002 (
     version bigint NOT NULL DEFAULT 0,
     last_progress_at timestamp(6) without time zone NOT NULL DEFAULT (clock_timestamp() AT TIME ZONE 'UTC'),
     confirmed_at timestamp(6) without time zone,
+    reserved_at timestamp(6) without time zone,
     delivered_at timestamp(6) without time zone
 );
 
@@ -603,6 +606,7 @@ CREATE TABLE IF NOT EXISTS v2_draw_order_003 (
     version bigint NOT NULL DEFAULT 0,
     last_progress_at timestamp(6) without time zone NOT NULL DEFAULT (clock_timestamp() AT TIME ZONE 'UTC'),
     confirmed_at timestamp(6) without time zone,
+    reserved_at timestamp(6) without time zone,
     delivered_at timestamp(6) without time zone
 );
 
@@ -815,12 +819,16 @@ CREATE INDEX IF NOT EXISTS deferred_fact_pending_facts ON deferred_fact (aggrega
 CREATE INDEX IF NOT EXISTS award_reservation_reservation_recovery ON award_reservation (recovery_status,state,last_progress_at,draw_order_id);
 CREATE INDEX IF NOT EXISTS v2_draw_order_000_draw_recovery ON v2_draw_order_000 (recovery_status,state,last_progress_at,order_id);
 CREATE INDEX IF NOT EXISTS v2_draw_order_000_draw_user ON v2_draw_order_000 (user_id,activity_id);
+CREATE INDEX IF NOT EXISTS v2_draw_order_000_draw_backlog ON v2_draw_order_000 (state,last_progress_at,order_id);
 CREATE INDEX IF NOT EXISTS v2_draw_order_001_draw_recovery ON v2_draw_order_001 (recovery_status,state,last_progress_at,order_id);
 CREATE INDEX IF NOT EXISTS v2_draw_order_001_draw_user ON v2_draw_order_001 (user_id,activity_id);
+CREATE INDEX IF NOT EXISTS v2_draw_order_001_draw_backlog ON v2_draw_order_001 (state,last_progress_at,order_id);
 CREATE INDEX IF NOT EXISTS v2_draw_order_002_draw_recovery ON v2_draw_order_002 (recovery_status,state,last_progress_at,order_id);
 CREATE INDEX IF NOT EXISTS v2_draw_order_002_draw_user ON v2_draw_order_002 (user_id,activity_id);
+CREATE INDEX IF NOT EXISTS v2_draw_order_002_draw_backlog ON v2_draw_order_002 (state,last_progress_at,order_id);
 CREATE INDEX IF NOT EXISTS v2_draw_order_003_draw_recovery ON v2_draw_order_003 (recovery_status,state,last_progress_at,order_id);
 CREATE INDEX IF NOT EXISTS v2_draw_order_003_draw_user ON v2_draw_order_003 (user_id,activity_id);
+CREATE INDEX IF NOT EXISTS v2_draw_order_003_draw_backlog ON v2_draw_order_003 (state,last_progress_at,order_id);
 CREATE INDEX IF NOT EXISTS payment_order_recovery_scan ON payment_order (recovery_status,state,last_progress_at,order_id);
 CREATE INDEX IF NOT EXISTS provider_inbox_pending ON provider_inbox (state,next_attempt_at,event_id);
 CREATE INDEX IF NOT EXISTS provider_inbox_expired ON provider_inbox (state,lease_until,event_id);
