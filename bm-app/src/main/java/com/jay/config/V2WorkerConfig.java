@@ -25,16 +25,12 @@ public class V2WorkerConfig {
         .getPhysical()
         .forEach(
             (logical, instance) -> {
-              var limits = props.getInstances().get(instance);
-              if (limits == null) throw new IllegalArgumentException("Missing physical budget");
-              long total = limits.values().stream().mapToLong(Integer::longValue).sum();
+              if (props.getInstances().get(instance) == null)
+                throw new IllegalArgumentException("Missing physical budget");
               var source = dynamic.getResolvedDataSources().get("db" + logical);
-              if (!(source instanceof com.zaxxer.hikari.HikariDataSource hikari)
-                  || total >= hikari.getMaximumPoolSize())
-                throw new IllegalArgumentException(
-                    "Budget total must leave spare capacity in every logical pool");
-              measuredPools.put(
-                  logical, ((com.zaxxer.hikari.HikariDataSource) source).getMaximumPoolSize());
+              if (!(source instanceof com.zaxxer.hikari.HikariDataSource hikari))
+                throw new IllegalArgumentException("V2 requires routed Hikari pools");
+              measuredPools.put(logical, hikari.getMaximumPoolSize());
             });
     props.validateConnections(measuredPools);
     return new BoundedDatabaseBudget(props.getInstances(), metrics, props.getTradePermitMaxWait());

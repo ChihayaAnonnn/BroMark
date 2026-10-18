@@ -100,6 +100,16 @@ public class V2BudgetProperties {
           aggregated.merge(
               physical.get(logical), Math.multiplyExact((long) size, replicaCount), Math::addExact);
         });
+    instances.forEach(
+        (instance, limits) -> {
+          long permits = limits.values().stream().mapToLong(Integer::longValue).sum();
+          logicalPoolSizes.forEach(
+              (logical, size) -> {
+                if (instance.equals(physical.get(logical)) && permits >= size)
+                  throw new IllegalArgumentException(
+                      "Budget total must leave spare capacity in every logical pool: " + logical);
+              });
+        });
     aggregated.forEach(
         (instance, total) -> {
           var limit = physicalConnectionLimits.get(instance);

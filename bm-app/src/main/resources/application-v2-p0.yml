@@ -1,0 +1,81 @@
+# P0 交付优化 profile：3 个逻辑库各有 72 个 Hikari 连接。
+# 许可：TRADE 24 + WORKER 28 + QUERY 8 + RELAY 2 + RECOVERY 2 = 64，另加
+# CALLBACK 1（支付回调仍使用该工作类），合计 65 < 72，保留 7 个余量。
+# MySQL 实例需设置 max_connections=300（3×72=216 个池连接 + 20 预留 ≤ 240 物理预算）。
+server:
+  port: 8091
+app:
+  config:
+    api-version: v1
+    cross-origin: http://localhost
+spring:
+  main:
+    allow-bean-definition-overriding: false
+  rabbitmq:
+    host: ${V2_RABBIT_HOST:host.docker.internal}
+    port: ${V2_RABBIT_PORT:15686}
+    username: bromark_it
+    password: ${V2_RABBIT_PASSWORD}
+    topic:
+      send_award: bromark.it.send_award
+      send_rebate: bromark.it.send_rebate
+      activity_sku_stock_zero: bromark.it.sku_stock_zero
+      credit_adjust_success: bromark.it.credit_success
+mini-db-router:
+  jdbc:
+    datasource:
+      dbCount: 2
+      tbCount: 4
+      routerKey: userId
+      default: db00
+      list: db01,db02
+      global:
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        username: root
+        password: ${V2_MYSQL_PASSWORD}
+        pool:
+          maximum-pool-size: 72
+          minimum-idle: 0
+          connection-timeout: 1000
+      db00:
+        url: jdbc:mysql://${V2_MYSQL_HOST:host.docker.internal:13316}/${V2_DB00:router_control}?useSSL=false&allowPublicKeyRetrieval=true&connectTimeout=1000&socketTimeout=1000
+      db01:
+        url: jdbc:mysql://${V2_MYSQL_HOST:host.docker.internal:13316}/${V2_DB01:router_one}?useSSL=false&allowPublicKeyRetrieval=true&connectTimeout=1000&socketTimeout=1000
+      db02:
+        url: jdbc:mysql://${V2_MYSQL_HOST:host.docker.internal:13316}/${V2_DB02:router_two}?useSSL=false&allowPublicKeyRetrieval=true&connectTimeout=1000&socketTimeout=1000
+mybatis:
+  mapper-locations: classpath:/mybatis/mapper/**/*.xml
+redis:
+  sdk:
+    config:
+      host: ${V2_REDIS_HOST:host.docker.internal}
+      port: ${V2_REDIS_PORT:16386}
+      pool-size: 4
+      min-idle-size: 1
+bm:
+  v2:
+    enabled: true
+    messaging:
+      enabled: true
+      prefix: p0
+      relay:
+        mode: bounded
+    budget:
+      instances:
+        mysql-it:
+          TRADE: 24
+          WORKER: 28
+          QUERY: 8
+          RELAY: 2
+          RECOVERY: 2
+          # 支付回调仍使用 CALLBACK；代码默认 1，profile 必须显式保留以满足启动校验。
+          CALLBACK: 1
+      physical-connection-limits:
+        mysql-it: 240
+      reserved-connections: 20
+      prefetch: 8
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
