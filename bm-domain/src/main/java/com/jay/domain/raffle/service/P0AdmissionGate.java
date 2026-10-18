@@ -15,7 +15,8 @@ import java.util.concurrent.atomic.AtomicReference;
  * 新的在途请求拒绝。许可只覆盖受理事务，交付是异步的，不能在交付完成前一直占用。
  *
  * <p>在全局背压和单用户 1 单在途之外，再按活动限制受理在途许可（{@link #MAX_ACTIVITY_INFLIGHT}），
- * 避免单个热点活动占满受理资源。活动许可与用户许可同生命周期：受理成功时各占一个，离场时各还一个。
+ * 避免单个热点活动占满受理资源。活动许可只按新的在途用户占用，同一 requestId 的重试共享用户许可，
+ * 不重复占用活动许可；用户 entry 的最后一个许可释放时归还活动许可。
  */
 public final class P0AdmissionGate {
   public static final long MAX_PENDING = 20_000;
@@ -29,8 +30,8 @@ public final class P0AdmissionGate {
   private final AtomicReference<P0BacklogSnapshot> backlog =
       new AtomicReference<>(new P0BacklogSnapshot(0, 0));
   private final ConcurrentHashMap<String, Entry> inflight = new ConcurrentHashMap<>();
-  /** 活动 -> 受理在途许可数；归零即移除，避免热点活动长期残留空 entry。 */
-  private final ConcurrentHashMap<Long, AtomicInteger> activityInflight = new ConcurrentHashMap<>();
+  /** 活动 -> 受理在途用户数；归零即移除，避免热点活动长期残留空 entry。 */
+  private final ConcurrentHashMap<Long, AtomicInteger> activityPermits = new ConcurrentHashMap<>();
 
   public void update(P0BacklogSnapshot snapshot) {
     backlog.set(Objects.requireNonNull(snapshot));
@@ -48,6 +49,9 @@ public final class P0AdmissionGate {
   /**
    * 受理入口。requestId 非空时，同一 requestId 的并发重试共享在途许可；不同 requestId 仍受
    * 单用户 1 单在途限制。只有 pending 超过保护线或活动许可已满会拒绝；oldestAge 只观测/告警。
+   *
+   * <p>活动许可只在创建新的在途用户 entry 时占用；已有 entry 的同一 requestId 重试只增加用户
+   * 许可，不会重复占用活动许可，因此活动满了也不能拒绝在途请求的重试。
    */
   public boolean tryEnter(String user, long activity, String requestId) {
     Objects.requireNonNull(user);
@@ -55,20 +59,13 @@ public final class P0AdmissionGate {
     var snapshot = backlog.get();
     if (snapshot.pending() > MAX_PENDING) return false;
 
-    // 先占活动许可：活动已满时直接拒绝，不留下任何用户许可。
-    if (!acquireActivity(activity)) return false;
-
-    var entered = tryAcquireUser(user, activity, requestId);
-    if (!entered) releaseActivity(activity);
-    return entered;
-  }
-
-  private boolean tryAcquireUser(String user, long activity, String requestId) {
     var entered = new AtomicBoolean();
     inflight.compute(
         user,
         (key, entry) -> {
           if (entry == null) {
+            // 活动已满时返回 null：不创建用户 entry，也不留下半截用户许可。
+            if (!acquireActivity(activity)) return null;
             entered.set(true);
             return new Entry(requestId, activity, new AtomicInteger(1));
           }
@@ -83,38 +80,36 @@ public final class P0AdmissionGate {
     return entered.get();
   }
 
-  /** 兼容旧调用：同时释放该用户持有的活动许可。 */
+  /** 兼容旧调用：释放用户许可，最后一个许可释放时归还 entry 记录的活动许可。 */
   public void leave(String user) {
     Objects.requireNonNull(user);
-    var activity = new AtomicLong();
-    var released = new AtomicBoolean();
-    inflight.computeIfPresent(
-        user,
-        (key, entry) -> {
-          released.set(true);
-          activity.set(entry.activity());
-          return entry.permits().decrementAndGet() <= 0 ? null : entry;
-        });
-    if (released.get()) releaseActivity(activity.get());
+    release(user);
   }
 
-  /** 释放用户许可及指定活动的许可；用户不存在时不做任何扣减。 */
+  /** 释放用户许可；活动以 entry 记录为准，最后一个许可释放时归还。 */
   public void leave(String user, long activity) {
     Objects.requireNonNull(user);
     if (activity <= 0) throw new IllegalArgumentException("Activity required");
-    var released = new AtomicBoolean();
+    release(user);
+  }
+
+  private void release(String user) {
+    var activity = new AtomicLong();
+    var removed = new AtomicBoolean();
     inflight.computeIfPresent(
         user,
         (key, entry) -> {
-          released.set(true);
-          return entry.permits().decrementAndGet() <= 0 ? null : entry;
+          if (entry.permits().decrementAndGet() > 0) return entry;
+          activity.set(entry.activity());
+          removed.set(true);
+          return null;
         });
-    if (released.get()) releaseActivity(activity);
+    if (removed.get()) releaseActivity(activity.get());
   }
 
   private boolean acquireActivity(long activity) {
     var acquired = new AtomicBoolean();
-    activityInflight.compute(
+    activityPermits.compute(
         activity,
         (key, permits) -> {
           if (permits == null) {
@@ -130,13 +125,17 @@ public final class P0AdmissionGate {
   }
 
   private void releaseActivity(long activity) {
-    activityInflight.computeIfPresent(
-        activity,
-        (key, permits) -> permits.decrementAndGet() <= 0 ? null : permits);
+    activityPermits.computeIfPresent(
+        activity, (key, permits) -> permits.decrementAndGet() <= 0 ? null : permits);
   }
 
   /** 当前在途许可数，供 p0_inflight_orders gauge 使用。 */
   public int inflight() {
     return inflight.values().stream().mapToInt(entry -> entry.permits().get()).sum();
+  }
+
+  /** 当前活动许可数，供诊断与测试使用；同一用户在途重试不重复计数。 */
+  public int activityInflight() {
+    return activityPermits.values().stream().mapToInt(AtomicInteger::get).sum();
   }
 }

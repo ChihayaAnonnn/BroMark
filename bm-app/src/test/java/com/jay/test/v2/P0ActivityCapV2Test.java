@@ -12,29 +12,39 @@ import org.junit.Test;
 public class P0ActivityCapV2Test {
   private static final long ACTIVITY = 11L;
   private static final long OTHER_ACTIVITY = 22L;
+  private static final int CAP = P0AdmissionGate.MAX_ACTIVITY_INFLIGHT;
 
   @Test
   public void rejectsWhenActivityHasFiveThousandInflightAndReleasesOnLeave() {
     var gate = new P0AdmissionGate();
     gate.update(new P0BacklogSnapshot(0, 0));
-    var users = fill(gate, ACTIVITY, P0AdmissionGate.MAX_ACTIVITY_INFLIGHT);
-    assertThat(gate.inflight()).isEqualTo(P0AdmissionGate.MAX_ACTIVITY_INFLIGHT);
+    var users = fill(gate, ACTIVITY, CAP);
+    assertThat(gate.inflight()).isEqualTo(CAP);
+    assertThat(gate.activityInflight()).isEqualTo(CAP);
 
     /** 第 5,001 个被活动上限拒绝，且不在用户维度留下半截许可。 */
     assertThat(gate.tryEnter("activity-full-user", ACTIVITY)).isFalse();
-    assertThat(gate.inflight()).isEqualTo(P0AdmissionGate.MAX_ACTIVITY_INFLIGHT);
+    assertThat(gate.inflight()).isEqualTo(CAP);
+    assertThat(gate.activityInflight()).isEqualTo(CAP);
     assertThat(gate.tryEnter("activity-full-user", OTHER_ACTIVITY)).isTrue();
+    assertThat(gate.activityInflight()).isEqualTo(CAP + 1);
     gate.leave("activity-full-user", OTHER_ACTIVITY);
+    assertThat(gate.activityInflight()).isEqualTo(CAP);
 
     /** 其他活动不受该活动打满的影响。 */
     assertThat(gate.tryEnter("other-activity-user", OTHER_ACTIVITY)).isTrue();
+    assertThat(gate.activityInflight()).isEqualTo(CAP + 1);
     gate.leave("other-activity-user", OTHER_ACTIVITY);
+    assertThat(gate.activityInflight()).isEqualTo(CAP);
 
     /** 释放一个名额后，同活动可以再进一个，随后再次触顶。 */
     gate.leave(users.get(0));
+    assertThat(gate.activityInflight()).isEqualTo(CAP - 1);
     assertThat(gate.tryEnter("released-slot-user", ACTIVITY)).isTrue();
+    assertThat(gate.activityInflight()).isEqualTo(CAP);
     assertThat(gate.tryEnter("overflow-after-release", ACTIVITY)).isFalse();
-    assertThat(gate.inflight()).isEqualTo(P0AdmissionGate.MAX_ACTIVITY_INFLIGHT);
+    assertThat(gate.inflight()).isEqualTo(CAP);
+    assertThat(gate.activityInflight()).isEqualTo(CAP);
   }
 
   @Test
@@ -48,37 +58,75 @@ public class P0ActivityCapV2Test {
     /** 跨活动的用户拒绝不能遗留活动许可。 */
     assertThat(gate.tryEnter("u1", OTHER_ACTIVITY)).isFalse();
     assertThat(gate.inflight()).isEqualTo(2);
+    assertThat(gate.activityInflight()).isOne();
 
-    /** 单参 leave 兼容旧调用，同时归还用户许可和活动许可。 */
+    /** 单参 leave 兼容旧调用；共享重试只在最后一个许可释放时归还活动许可。 */
     gate.leave("u1");
     assertThat(gate.inflight()).isOne();
+    assertThat(gate.activityInflight()).isOne();
     gate.leave("u1", ACTIVITY);
     assertThat(gate.inflight()).isZero();
+    assertThat(gate.activityInflight()).isZero();
 
     /** 归还干净后同一用户仍可重新受理。 */
     gate.leave("u1");
     assertThat(gate.tryEnter("u1", ACTIVITY)).isTrue();
     gate.leave("u1", ACTIVITY);
     assertThat(gate.tryEnter("u1", ACTIVITY)).isTrue();
-    gate.leave("u1");
+    /** 参数与实际 entry 不一致时也以 entry 记录的活动为准，避免活动许可泄漏。 */
+    gate.leave("u1", OTHER_ACTIVITY);
     assertThat(gate.inflight()).isZero();
+    assertThat(gate.activityInflight()).isZero();
+  }
+
+  @Test
+  public void retryAtActivityCapSharesUserPermitWithoutSecondActivityPermit() {
+    var gate = new P0AdmissionGate();
+    gate.update(new P0BacklogSnapshot(0, 0));
+    String retryUser = "activity-cap-retry-user";
+    assertThat(gate.tryEnter(retryUser, ACTIVITY, "retry-request")).isTrue();
+    fill(gate, ACTIVITY, CAP - 1);
+    assertThat(gate.inflight()).isEqualTo(CAP);
+    assertThat(gate.activityInflight()).isEqualTo(CAP);
+    assertThat(gate.tryEnter("overflow", ACTIVITY)).isFalse();
+
+    /** 活动打满时同一 requestId 的重试仍被受理，且不新增活动许可。 */
+    assertThat(gate.tryEnter(retryUser, ACTIVITY, "retry-request")).isTrue();
+    assertThat(gate.inflight()).isEqualTo(CAP + 1);
+    assertThat(gate.activityInflight()).isEqualTo(CAP);
+    assertThat(gate.tryEnter("still-overflow", ACTIVITY)).isFalse();
+
+    /** 只释放共享重试时活动名额仍被原请求占用。 */
+    gate.leave(retryUser, ACTIVITY);
+    assertThat(gate.inflight()).isEqualTo(CAP);
+    assertThat(gate.activityInflight()).isEqualTo(CAP);
+    assertThat(gate.tryEnter("still-full", ACTIVITY)).isFalse();
+
+    /** 最后一个许可释放后才归还活动名额，新用户随即可以进入。 */
+    gate.leave(retryUser);
+    assertThat(gate.inflight()).isEqualTo(CAP - 1);
+    assertThat(gate.activityInflight()).isEqualTo(CAP - 1);
+    assertThat(gate.tryEnter("released-slot", ACTIVITY)).isTrue();
+    assertThat(gate.activityInflight()).isEqualTo(CAP);
   }
 
   @Test
   public void activityPermitsDropToZeroWithoutBlockingRefill() {
     var gate = new P0AdmissionGate();
     gate.update(new P0BacklogSnapshot(0, 0));
-    var users = fill(gate, ACTIVITY, P0AdmissionGate.MAX_ACTIVITY_INFLIGHT);
+    var users = fill(gate, ACTIVITY, CAP);
     users.forEach(gate::leave);
     assertThat(gate.inflight()).isZero();
+    assertThat(gate.activityInflight()).isZero();
 
     /** 计数归零后重新填满，第二次仍然恰好 5,000 个。 */
-    var refilled = fill(gate, ACTIVITY, P0AdmissionGate.MAX_ACTIVITY_INFLIGHT);
+    var refilled = fill(gate, ACTIVITY, CAP);
     assertThat(gate.tryEnter("overflow-again", ACTIVITY)).isFalse();
     refilled.forEach(gate::leave);
     assertThat(gate.tryEnter("after-cleanup", ACTIVITY)).isTrue();
     gate.leave("after-cleanup", ACTIVITY);
     assertThat(gate.inflight()).isZero();
+    assertThat(gate.activityInflight()).isZero();
   }
 
   private static List<String> fill(P0AdmissionGate gate, long activity, int count) {
