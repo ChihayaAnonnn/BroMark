@@ -364,8 +364,8 @@ git commit -m "feat(p0): deliver confirmed awards in one user transaction"
 - Test: `bm-app/src/test/java/com/jay/test/v2/P0RoutingV2Test.java`
 
 **Interfaces:**
-- `EventRouting.CONTROL = Set.of("ReserveAward")`
-- `EventRouting.USER = Set.of("ReservationConfirmed")`
+- `EventRouting.CONTROL = Set.of("ReserveAward", "CreditGranted")`（保留支付控制事件）
+- `EventRouting.USER = Set.of("ReservationConfirmed", "GrantCredit")`（保留支付用户事件）
 - `EventRouting.NOTIFICATIONS = Set.of("ExchangeCompleted","SignInCompleted")`
 - `EventRouting.route` 接受 `schemaVersion == 1 || == 2`，拒绝 3/0/-1；删除现有 `schemaVersion != 1` 的硬门槛。
 - 队列：`p0.reserve`（并发 8）、`p0.deliver`（16）、`p0.notify`（4）、`p0.dlq`；exchange `p0.events`。
@@ -402,9 +402,10 @@ Expected: FAIL，旧路由仍接受六段类型。
 - 删除 `EventRouting.route` 中的 `if (e.schemaVersion() != 1) throw ...`，改为 `schemaVersion == 1 || schemaVersion == 2`；否则 Task 1 构造的 v2 事件无法路由。
 - `V2RabbitConfig`：
   - 新 exchange `p0.events`、队列 `p0.reserve`/`p0.deliver`/`p0.notify`/`p0.dlq`，routing key=eventType。
+  - `p0.reserve` 绑定 `ReserveAward` + `CreditGranted`；`p0.deliver` 绑定 `ReservationConfirmed` + `GrantCredit`；支付事件继续可路由，语义不变。
   - `@RabbitListener(id="p0-reserve", queues="${...}.reserve", concurrency="8")` 等；`p0.deliver` 16、`p0.notify` 4。
   - 从 `v2MessageContainerFactory` 移除 `setConcurrentConsumers`/`setMaxConcurrentConsumers`，并发由 listener 注解控制，避免属性覆盖。
-  - `v2MessageListener` 的 handlers map 只注册新类型 + 通知。
+  - `v2MessageListener` 的 handlers map 注册 `ReserveAward`/`ReservationConfirmed` + 支付 `GrantCredit`/`CreditGranted` + 通知；不注册旧六段 draw 类型。
   - 删除旧 `workflow`/`notifications` 队列与监听方法。
 - 保留 `V2MessageListener` 的 inbox/outbox/retry/ack/DLQ 语义。
 
