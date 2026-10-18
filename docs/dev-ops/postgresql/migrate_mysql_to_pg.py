@@ -182,7 +182,19 @@ def main():
         host, port = args.target_host.rsplit(":", 1)
         args.target_host, args.target_port = host, int(port)
 
-    all_tables = tables()
+    available = set(
+        line.strip()
+        for line in mysql(
+            args,
+            "select table_name from information_schema.tables where table_schema=%s"
+            % quote(args.source_db),
+            None,
+        ).splitlines()
+        if line.strip()
+    )
+    all_tables = [t for t in tables() if t in available]
+    if not all_tables:
+        fail("no matching V2 tables in source database")
     existing = sum(target_count(args, t) for t in all_tables)
     if existing and not args.truncate:
         fail("target is not empty (%d rows); pass --truncate only after a verified backup" % existing)
