@@ -160,11 +160,20 @@ public final class MySqlStockRepository implements StockRepository {
 
   public boolean commit(String p, String order) {
     requireControlTransaction();
+    var rows =
+        j.queryForList(
+            "select available,recovery_status from award_stock where stock_pool_id=? for update",
+            p);
+    if (rows.isEmpty()) throw new AssetConflictException("Stock pool missing");
+    var row = rows.getFirst();
+    if (!"ACTIVE".equals(row.get("recovery_status")))
+      throw new AssetConflictException("Stock pool paused");
+    if (((Number) row.get("available")).longValue() == 0) return false;
     if (j.update(
             "update award_stock set available=available-1,allocated=allocated+1,version=version+1"
-                + " where stock_pool_id=? and recovery_status='ACTIVE' and available>0",
+                + " where stock_pool_id=? and available>0",
             p)
-        != 1) return false;
+        != 1) throw new AssetConflictException("Stock counters disagree");
     log(p, order, "COMMIT", 0, -1, 0, 1, "commit");
     return true;
   }

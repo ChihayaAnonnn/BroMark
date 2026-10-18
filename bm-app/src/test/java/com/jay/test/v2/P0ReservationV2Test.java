@@ -70,6 +70,75 @@ public class P0ReservationV2Test {
   }
 
   @Test
+  public void pausedPoolIsTechnicalFailureNotConfirmedNone() {
+    AssetTestSupport.run(
+        h -> {
+          prepare(h);
+          var svc = StockProtocolV2Test.service(h);
+          String pool = pool(h, 1);
+          var command = cmd(h, pool, new FrozenRaffleEngine());
+          StockProtocolV2Test.control(
+              h,
+              () -> {
+                h.j.update(
+                    "update award_stock set recovery_status='REVIEW' where stock_pool_id=?", pool);
+                return null;
+              });
+          assertThatThrownBy(
+                  () -> StockProtocolV2Test.control(h, () -> svc.confirmOnReserve(command)))
+              .isInstanceOf(AssetConflictException.class)
+              .hasMessageContaining("Stock pool paused");
+          assertThat(
+                  count(
+                      h,
+                      "select count(*) from award_reservation where draw_order_id=? and"
+                          + " state='CONFIRMED'",
+                      command.drawOrderId()))
+              .isZero();
+          assertThat(
+                  count(
+                      h,
+                      "select count(*) from stock_change_log where stock_pool_id=? and"
+                          + " kind='COMMIT'",
+                      pool))
+              .isZero();
+          assertThat(stock(h, pool)).containsEntry("available", 1L).containsEntry("allocated", 0L);
+        });
+  }
+
+  @Test
+  public void missingPoolIsTechnicalFailureNotConfirmedNone() {
+    AssetTestSupport.run(
+        h -> {
+          prepare(h);
+          var svc = StockProtocolV2Test.service(h);
+          String pool = pool(h, 1);
+          var command = cmd(h, pool, new FrozenRaffleEngine());
+          StockProtocolV2Test.control(
+              h,
+              () -> {
+                h.j.update(
+                    "delete from strategy_stock_binding where strategy_id=? and version=?",
+                    command.strategyId(),
+                    command.version());
+                h.j.update("delete from stock_change_log where stock_pool_id=?", pool);
+                h.j.update("delete from award_stock where stock_pool_id=?", pool);
+                return null;
+              });
+          assertThatThrownBy(
+                  () -> StockProtocolV2Test.control(h, () -> svc.confirmOnReserve(command)))
+              .isInstanceOf(AssetConflictException.class)
+              .hasMessageContaining("Stock pool missing");
+          assertThat(
+                  count(
+                      h,
+                      "select count(*) from award_reservation where draw_order_id=?",
+                      command.drawOrderId()))
+              .isZero();
+        });
+  }
+
+  @Test
   public void publicationRejectsInvalidStockAndFallback() {
     AssetTestSupport.run(
         h -> {
@@ -220,6 +289,10 @@ public class P0ReservationV2Test {
               "reserved", ((Number) row.get("reserved")).longValue(),
               "allocated", ((Number) row.get("allocated")).longValue());
         });
+  }
+
+  private static int count(AssetTestSupport h, String sql, Object... args) {
+    return StockProtocolV2Test.control(h, () -> h.j.queryForObject(sql, Integer.class, args));
   }
 
   private static ReserveCommand cmd(

@@ -84,7 +84,7 @@ public class DrawAcceptanceV2Test {
       StockProtocolV2Test.control(
           h,
           () -> {
-            StockProtocolV2Test.service(h).createPool(created, "initial", 0, "no stock");
+            StockProtocolV2Test.service(h).createPool(created, "initial", 100, "default budget");
             return null;
           });
     }
