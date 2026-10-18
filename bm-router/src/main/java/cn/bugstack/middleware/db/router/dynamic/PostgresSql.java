@@ -14,6 +14,7 @@ public final class PostgresSql {
 
   private static final Map<String, String> UPDATE_KEYS =
       Map.of(
+          "outbox", "event_id",
           "retry_job", "event_id",
           "provider_inbox_failure", "provider,account,environment,event_id",
           "payment_scan_cursor", "order_id",
