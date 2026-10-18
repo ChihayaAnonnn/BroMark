@@ -24,7 +24,7 @@ public record EventEnvelope(
         || routeSlot == null
         || requestHash == null
         || !requestHash.matches("[a-f0-9]{64}")
-        || schemaVersion != 1
+        || schemaVersion != 1 && schemaVersion != 2
         || payload == null) throw new IllegalArgumentException("Invalid event");
   }
 }

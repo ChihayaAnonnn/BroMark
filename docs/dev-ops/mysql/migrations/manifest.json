@@ -54,7 +54,7 @@
       "file": "004_user_draw.sql",
       "scope": "user",
       "shards": 4,
-      "sha256": "65ea8d5bf6c7f0d71dad50db212a5d73d4dfbb2d3217661de3e002f90ab89030"
+      "sha256": "c4ad3284135fa9b2b87b339de897beffbdb4c78e4737d6aa18876a23a75e827c"
     },
     {
       "file": "005_payment.sql",
