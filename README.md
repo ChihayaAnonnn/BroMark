@@ -58,7 +58,29 @@ PGPASSWORD="$V2_PG_PASSWORD" python3 docs/performance/p0_seed.py \
 
 seed 会创建 `router_p0_p0run1_control/one/two` 三个 PG 库，按 `docs/dev-ops/postgresql/v2-schema.sql` 建表，写入 10 个 CREDIT 奖/10 个库存池/fallback NONE/2,000 用户/全活动额度/2,000 条结果订单。`seed.json`、`tokens.json`、`private.pem`、`public.der` 只写到 `/tmp` 下，**不要提交 Git**。
 
-如果需要另一台机器已有的精确数据，可安全拷贝整个 seed 目录，并用 `pg_dump -Fc`/`pg_restore` 拷贝 `router_p0_p0run1_*` 三库；只拷 Git 不会包含数据库行或 token。
+仓库已提交 2,000 用户 fixture：`docs/performance/fixtures/p0fullpg/`，包含 seed/tokens/private key 和三个 `pg_dump -Fc` 文件。非生产数据，token/私钥仅用于本地压测。
+
+直接恢复已有数据（跳过 step 3 的 seed）：
+
+```bash
+for part in control one two; do
+  createdb -h 127.0.0.1 -p 15432 -U postgres router_p0_p0fullpg_$part
+  pg_restore -h 127.0.0.1 -p 15432 -U postgres \
+    -d router_p0_p0fullpg_$part \
+    docs/performance/fixtures/p0fullpg/db/router_p0_p0fullpg_$part.dump
+done
+```
+
+然后设置：
+
+```bash
+export V2_DB00=router_p0_p0fullpg_control
+export V2_DB01=router_p0_p0fullpg_one
+export V2_DB02=router_p0_p0fullpg_two
+export BM_V2_AUTH_PUBLIC_KEY="$(python3 -c 'import json;print(json.load(open("docs/performance/fixtures/p0fullpg/seed.json"))["publicKey"])')"
+```
+
+如果目标机器没有这份 fixture，再按上面的 seed 命令重新生成。
 
 ### 4. 启动应用
 
