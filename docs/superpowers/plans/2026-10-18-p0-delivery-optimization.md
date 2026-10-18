@@ -482,6 +482,11 @@ git commit -m "feat(p0): wire reserve/confirm handlers and remove cancellation"
 ```java
 @Test public void acceptsP0PoolAndBudget() {
   var p = new V2BudgetProperties();
+  p.getInstances().get("mysql-it").put(WorkClass.TRADE, 24);
+  p.getInstances().get("mysql-it").put(WorkClass.WORKER, 28);
+  p.getInstances().get("mysql-it").put(WorkClass.QUERY, 8);
+  p.getInstances().get("mysql-it").put(WorkClass.RELAY, 2);
+  p.getInstances().get("mysql-it").put(WorkClass.RECOVERY, 2);
   p.setPhysicalConnectionLimits(Map.of("mysql-it", 240));
   p.validateConnections(Map.of("00",72,"01",72,"02",72)); // 不抛
 }
@@ -501,8 +506,8 @@ Expected: FAIL，默认值仍是 2/1/1/1/1/1 或校验不通过。
 
 - [ ] **Step 3: 实现**
 
-- 修改 `instances` 默认值；`physicalConnectionLimits` 默认 240；`prefetch=8`；`workerConcurrency` 可保留 28（新拓扑用注解并发，不再依赖该值）。
-- `application-v2-p0.yml` 复用 `application-v2-it.yml` 的 URL/凭证占位，pool 改 72，加入 `bm.v2.budget.*`（含 `physical-connection-limits.mysql-it=240`、`reserved-connections=20`、`prefetch=8`）、`bm.v2.messaging.prefix=p0`、`relay.mode=bounded`。
+- **不要改 `V2BudgetProperties` 的代码默认值**：现有 `application-v2-it.yml` 是 pool 8，默认预算 64 会让 `validateConnections` 启动失败。默认值保持旧值，P0 的 64/240 只在 `application-v2-p0.yml` 覆盖。
+- `application-v2-p0.yml` 复用 `application-v2-it.yml` 的 URL/凭证占位，pool 改 72，加入 `bm.v2.budget.*`（`instances.mysql-it.TRADE=24`、`WORKER=28`、`QUERY=8`、`RELAY=2`、`RECOVERY=2`；`physical-connection-limits.mysql-it=240`、`reserved-connections=20`、`prefetch=8`）、`bm.v2.messaging.prefix=p0`、`relay.mode=bounded`。
 - 确保 `V2WorkerConfig.validateConnections` 在 72 池、64 许可、240 限制下通过。
 
 - [ ] **Step 4: 运行测试确认通过**
