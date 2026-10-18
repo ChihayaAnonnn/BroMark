@@ -43,6 +43,10 @@ public final class AssetTestSupport {
     void accept(AssetTestSupport h) throws Exception;
   }
 
+  static boolean postgres() {
+    return Java25RouterIntegrationTest.postgres();
+  }
+
   static void run(CheckedConsumer test) {
     Java25RouterIntegrationTest.databaseContext()
         .run(
@@ -51,6 +55,14 @@ public final class AssetTestSupport {
               var h =
                   new AssetTestSupport(
                       c.getBean(DataSource.class), c.getBean(PlatformTransactionManager.class));
+              if (postgres()) {
+                try {
+                  test.accept(h);
+                } catch (Exception e) {
+                  throw new AssertionError(e);
+                }
+                return;
+              }
               for (String db : new String[] {"01", "02"})
                 for (int i = 0; i < 4; i++) {
                   var slot = new RouteSlot(db, String.format("%03d", i));

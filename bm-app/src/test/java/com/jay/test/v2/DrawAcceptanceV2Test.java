@@ -16,6 +16,7 @@ import org.junit.Test;
 
 public class DrawAcceptanceV2Test {
   static void schema(AssetTestSupport h) throws Exception {
+    if (AssetTestSupport.postgres()) return;
     FrozenStrategyV2Test.schema(h);
     h.runner.inControl(
         WorkClass.RECOVERY,

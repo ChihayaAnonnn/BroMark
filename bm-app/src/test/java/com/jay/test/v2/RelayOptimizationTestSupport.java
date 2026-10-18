@@ -16,6 +16,7 @@ final class RelayOptimizationTestSupport {
   }
 
   static void schema(AssetTestSupport h) throws Exception {
+    if (AssetTestSupport.postgres()) return;
     ConsumerInboxV2Test.schema(h);
     for (var slot : com.jay.trigger.job.v2.OutboxRelayJob.SOURCES)
       h.runner.inSlot(

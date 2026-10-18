@@ -23,11 +23,33 @@ public class Java25RouterIntegrationTest {
   @MapperScan("com.jay.infrastructure.dao")
   public static class DaoConfig {}
 
+  public static boolean postgres() {
+    return "postgres".equalsIgnoreCase(System.getenv("P0_DB_DIALECT"));
+  }
+
   public static ApplicationContextRunner databaseContext() {
+    if (postgres()) return postgresContext();
     String host = System.getenv().getOrDefault("V2_MYSQL_HOST", "host.docker.internal:13316");
     String password =
         java.util.Objects.requireNonNull(
             System.getenv("V2_MYSQL_PASSWORD"), "Set V2_MYSQL_PASSWORD for isolated MySQL");
+    return baseContext()
+        .withPropertyValues(
+            "mini-db-router.jdbc.datasource.global.username=root",
+            "mini-db-router.jdbc.datasource.global.password=" + password,
+            "mini-db-router.jdbc.datasource.global.driver-class-name=com.mysql.cj.jdbc.Driver",
+            "mini-db-router.jdbc.datasource.db00.url=jdbc:mysql://"
+                + host
+                + "/router_control?useSSL=false&allowPublicKeyRetrieval=true",
+            "mini-db-router.jdbc.datasource.db01.url=jdbc:mysql://"
+                + host
+                + "/router_one?useSSL=false&allowPublicKeyRetrieval=true",
+            "mini-db-router.jdbc.datasource.db02.url=jdbc:mysql://"
+                + host
+                + "/router_two?useSSL=false&allowPublicKeyRetrieval=true");
+  }
+
+  private static ApplicationContextRunner baseContext() {
     return new ApplicationContextRunner()
         .withConfiguration(
             AutoConfigurations.of(
@@ -41,21 +63,30 @@ public class Java25RouterIntegrationTest {
             "mini-db-router.jdbc.datasource.routerKey=userId",
             "mini-db-router.jdbc.datasource.default=db00",
             "mini-db-router.jdbc.datasource.list=db01,db02",
-            "mini-db-router.jdbc.datasource.global.username=root",
-            "mini-db-router.jdbc.datasource.global.password=" + password,
-            "mini-db-router.jdbc.datasource.global.driver-class-name=com.mysql.cj.jdbc.Driver",
             "mini-db-router.jdbc.datasource.global.pool.maximum-pool-size=8",
             "mini-db-router.jdbc.datasource.global.pool.minimum-idle=0",
-            "mini-db-router.jdbc.datasource.db00.url=jdbc:mysql://"
-                + host
-                + "/router_control?useSSL=false&allowPublicKeyRetrieval=true",
-            "mini-db-router.jdbc.datasource.db01.url=jdbc:mysql://"
-                + host
-                + "/router_one?useSSL=false&allowPublicKeyRetrieval=true",
-            "mini-db-router.jdbc.datasource.db02.url=jdbc:mysql://"
-                + host
-                + "/router_two?useSSL=false&allowPublicKeyRetrieval=true",
+            "mini-db-router.jdbc.datasource.global.pool.connection-init-sql=SET TIME ZONE 'UTC'",
             "mybatis.mapper-locations=classpath:/mybatis/mapper/**/*.xml");
+  }
+
+  private static ApplicationContextRunner postgresContext() {
+    String host =
+        java.util.Objects.requireNonNull(System.getenv("V2_PG_HOST"), "Set V2_PG_HOST");
+    String password =
+        java.util.Objects.requireNonNull(
+            System.getenv("V2_PG_PASSWORD"), "Set V2_PG_PASSWORD for isolated PostgreSQL");
+    String control = System.getenv().getOrDefault("V2_DB00", "pg_control");
+    String one = System.getenv().getOrDefault("V2_DB01", "pg_one");
+    String two = System.getenv().getOrDefault("V2_DB02", "pg_two");
+    String suffix = "?options=-c%20TimeZone%3DUTC&stringtype=unspecified";
+    return baseContext()
+        .withPropertyValues(
+            "mini-db-router.jdbc.datasource.global.username=postgres",
+            "mini-db-router.jdbc.datasource.global.password=" + password,
+            "mini-db-router.jdbc.datasource.global.driver-class-name=org.postgresql.Driver",
+            "mini-db-router.jdbc.datasource.db00.url=jdbc:postgresql://" + host + "/" + control + suffix,
+            "mini-db-router.jdbc.datasource.db01.url=jdbc:postgresql://" + host + "/" + one + suffix,
+            "mini-db-router.jdbc.datasource.db02.url=jdbc:postgresql://" + host + "/" + two + suffix);
   }
 
   @Test
