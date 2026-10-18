@@ -55,7 +55,7 @@
 | `bm-app/src/main/java/com/jay/config/V2RabbitConfig.java` | `p0.reserve`/`p0.deliver`/`p0.notify` 拓扑与监听器 |
 | `bm-app/src/main/java/com/jay/config/V2RaffleConfig.java` | 新 handler 装配，删除旧六段 beans |
 | `bm-app/src/main/java/com/jay/config/V2BudgetProperties.java` | 新预算默认值 |
-| `bm-app/src/main/resources/application-v2-p0.yml` | pool 72、预算 64、队列前缀 |
+| `bm-app/src/main/resources/application-v2-p0.yml` | pool 72、预算 65、队列前缀 |
 | `docs/dev-ops/mysql/migrations/004_user_draw.sql` | `reserved_at` + 积压索引 |
 | `bm-app/src/test/java/com/jay/test/v2/P0*.java` | 新链路单元/集成测试 |
 | `docs/performance/p0-load.js` | 可移植 k6 脚本 |
@@ -528,9 +528,9 @@ Expected: FAIL，`application-v2-p0.yml` 不存在或缺少 P0 值。
 
 - [ ] **Step 3: 实现**
 
-- **不要改 `V2BudgetProperties` 的代码默认值**：现有 `application-v2-it.yml` 是 pool 8，默认预算 64 会让 `validateConnections` 启动失败。默认值保持旧值，P0 的 64/240 只在 `application-v2-p0.yml` 覆盖。
+- **不要改 `V2BudgetProperties` 的代码默认值**：现有 `application-v2-it.yml` 是 pool 8，默认预算 65 会让 `validateConnections` 启动失败。默认值保持旧值，P0 的 65/240 只在 `application-v2-p0.yml` 覆盖。
 - `application-v2-p0.yml` 复用 `application-v2-it.yml` 的 URL/凭证占位，pool 改 72，加入 `bm.v2.budget.*`（`instances.mysql-it.TRADE=24`、`WORKER=28`、`QUERY=8`、`RELAY=2`、`RECOVERY=2`；`physical-connection-limits.mysql-it=240`、`reserved-connections=20`、`prefetch=8`）、`bm.v2.messaging.prefix=p0`、`relay.mode=bounded`。
-- 确保 `V2WorkerConfig.validateConnections` 在 72 池、64 许可、240 限制下通过。
+- 确保 `V2WorkerConfig.validateConnections` 在 72 池、65 许可、240 限制下通过。
 
 - [ ] **Step 4: 运行测试确认通过**
 
@@ -541,7 +541,7 @@ Expected: PASS。
 
 ```bash
 git add bm-app/src/main/java/com/jay/config/V2BudgetProperties.java bm-app/src/main/java/com/jay/config/V2WorkerConfig.java bm-app/src/main/resources/application-v2-p0.yml bm-app/src/test/java/com/jay/test/v2/P0BudgetV2Test.java
-git commit -m "feat(p0): configure pool 72 and 64-permit budget"
+git commit -m "feat(p0): configure pool 72 and 65-permit budget"
 ```
 
 ---

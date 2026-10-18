@@ -472,7 +472,7 @@ queue: p0.notify
 | 批量事务死锁/长锁 | P99 抖动 | 默认 batch=1；通过测试后开 8；按 user/stockPoolId 排序；死锁回退单条 |
 | 背压阈值不当 | 误拒或积压 | 初始 20,000/120s；按“积压斜率 0”调；只拒新 draw |
 | 单实例内存限流 | 多实例失效 | 本期单实例；多实例改 Redis/DB 计数 |
-| 连接预算与池校验冲突 | 启动失败 | 遵守 `total < pool max`；64 < 72；启动时校验 |
+| 连接预算与池校验冲突 | 启动失败 | 遵守 `total < pool max`；65 < 72；启动时校验 |
 | CREDIT 奖未配置 `stockPoolId` | 积分绕过库存，破坏“积分也有库存” | 发布策略校验所有 `CREDIT` 奖必须有 `stockPoolId`；不满足拒绝发布 |
 | 旧事件/旧数据残留 | 消费失败 | 切换时删除旧队列/旧 outbox；空库重建 |
 
@@ -504,7 +504,7 @@ queue: p0.notify
 - 选奖并入受理事务，删除 `PrepareDraw`。
 - 删除 `ReservationHeld`/`ConfirmReservation`/`AwardDelivery`，只新增 `ReservationConfirmed`；`finalAward` 为 candidate 或 `NONE`。
 - 两个 P0 阶段队列 `p0.reserve`/`p0.deliver` + 一个通知队列 `p0.notify`，不用一个 workflow 队列。
-- 初始预算 64（TRADE 24/WORKER 28/QUERY 8/RELAY 2/RECOVERY 2），pool 72。
+- 初始预算 65（TRADE 24/WORKER 28/QUERY 8/RELAY 2/RECOVERY 2/CALLBACK 1），pool 72。
 - 批处理默认 1，目标 8；先保证正确性。
 - 背压初始 20,000 单/120 秒，只拒新 draw。
 - 不实现取消路径；`/cancel` 移除或返回 `405/409`。
@@ -514,7 +514,7 @@ queue: p0.notify
 - [ ] 每笔抽奖稳态 3 个 DB 事务、2 个事件、2 次跨库，可在日志/指标中核对。
 - [ ] `PrepareDraw`/`ReservationHeld`/`ConfirmReservation`/`AwardDelivery` 不再产生。
 - [ ] `p0.reserve`/`p0.deliver`/`p0.notify` 独立队列、独立并发、独立指标。
-- [ ] 连接预算启动校验通过；Hikari 池 72；总许可 64。
+- [ ] 连接预算启动校验通过；Hikari 池 72；总许可 65（含 CALLBACK 1）。
 - [ ] 无超卖、无重复积分、无丢单；四方对账 0 差异。
 - [ ] 重复事件、进程崩溃、库存不足/`NONE` 降级均有测试。
 - [ ] `/cancel` 不可用（405/409），状态机不存在 `CANCELLED`。
