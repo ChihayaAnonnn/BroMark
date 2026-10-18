@@ -83,14 +83,14 @@ public class P0BudgetV2Test {
         .forEach(environment.getPropertySources()::addLast);
     var props =
         Binder.get(environment).bind("bm.v2.budget", Bindable.of(V2BudgetProperties.class)).get();
-    assertThat(props.getInstances().get("mysql-it"))
+    assertThat(props.getInstances().get("pg-it"))
         .containsEntry(WorkClass.TRADE, 24)
         .containsEntry(WorkClass.WORKER, 28)
         .containsEntry(WorkClass.QUERY, 8)
         .containsEntry(WorkClass.RELAY, 2)
         .containsEntry(WorkClass.RECOVERY, 2)
         .containsEntry(WorkClass.CALLBACK, 1);
-    assertThat(props.getPhysicalConnectionLimits()).containsEntry("mysql-it", 240);
+    assertThat(props.getPhysicalConnectionLimits()).containsEntry("pg-it", 240);
     assertThat(props.getReservedConnections()).isEqualTo(20);
     assertThat(props.getPrefetch()).isEqualTo(8);
     var pools = Map.of("00", 72, "01", 72, "02", 72);
