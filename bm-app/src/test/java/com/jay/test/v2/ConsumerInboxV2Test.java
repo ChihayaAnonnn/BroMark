@@ -13,6 +13,7 @@ import org.junit.Test;
 
 public class ConsumerInboxV2Test {
   static void schema(AssetTestSupport h) throws Exception {
+    if (AssetTestSupport.postgres()) return;
     for (var slot : com.jay.trigger.job.v2.OutboxRelayJob.SOURCES)
       h.runner.inSlot(
           slot,

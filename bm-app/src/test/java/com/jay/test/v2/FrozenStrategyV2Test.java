@@ -36,6 +36,7 @@ public class FrozenStrategyV2Test {
   }
 
   static void schema(AssetTestSupport h) throws Exception {
+    if (AssetTestSupport.postgres()) return;
     ConsumerInboxV2Test.schema(h);
     h.runner.inControl(
         com.jay.domain.asset.model.WorkClass.RECOVERY,
