@@ -1,3 +1,5 @@
+> **MySQL legacy:** 当前 P0 运行路径已切到 PostgreSQL；本文仅保留历史 MySQL 实验记录，不再用于新实验。
+
 # P0 两机 benchmark runbook（M5 32GB SUT + 16GB Mac k6）
 
 本文只描述**当前 P0 代码与 P0 profile** 在“M5 32GB 做 SUT、16GB Mac 原生 k6 做负载”的两机口径下如何准备、执行、取证和重置。它不是容量结论，也不承诺任何吞吐数字。
