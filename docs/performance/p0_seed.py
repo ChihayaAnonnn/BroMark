@@ -6,8 +6,8 @@
 并为每个用户预置一条已完成结果订单（供 7:1:1:1 的 result 查询使用）。
 
 设计约束：
-- 不绑定任何 Docker 容器名；只通过 mysql CLI 连接 --mysql-host/--mysql-port。
-- 密码只从 MYSQL_PWD 环境变量读取，不写入 argv、日志或 Git。
+- 不绑定任何 Docker 容器名；MySQL 走 mysql CLI，PostgreSQL 走 psql CLI。
+- MySQL 密码只从 MYSQL_PWD 读取，PostgreSQL 密码只从 PGPASSWORD 读取；都不写入 argv。
 - seed.json/tokens.json/private.pem 必须写在仓库外；脚本拒绝 Git 工作区路径。
 - 已存在的数据库、非空输出目录一律拒绝，避免覆盖上一次运行。
 """
@@ -26,6 +26,12 @@ import time
 
 ROOT = Path(__file__).resolve().parents[2]
 MIGRATIONS = ROOT / "docs" / "dev-ops" / "mysql" / "migrations"
+PG_SCHEMA = ROOT / "docs" / "dev-ops" / "postgresql" / "v2-schema.sql"
+DIALECT = "mysql"
+PG_HOST = "127.0.0.1"
+PG_PORT = 5432
+PG_USER = "postgres"
+PG_PASSWORD = ""
 
 RUN_RE = re.compile(r"[a-z0-9_]{1,24}")
 DB_RE = re.compile(r"router_p0_[a-z0-9_]{1,24}_(?:control|one|two)")
@@ -42,7 +48,7 @@ def log(message):
 
 
 def sql(v):
-    """把 Python 值转成 MySQL 字面量；字符串用 utf8mb4 十六进制，避免转义问题。"""
+    """把 Python 值转成当前方言的字面量；两种方言都不依赖调用方转义。"""
     if v is None:
         return "NULL"
     if isinstance(v, bool):
@@ -51,7 +57,13 @@ def sql(v):
         return str(v)
     if isinstance(v, (dict, list)):
         v = json.dumps(v, separators=(",", ":"), ensure_ascii=False)
+    if DIALECT == "postgres":
+        return "'" + str(v).replace("'", "''") + "'"
     return "CONVERT(X'" + str(v).encode("utf-8").hex() + "' USING utf8mb4)"
+
+
+def db_now():
+    return "(clock_timestamp() AT TIME ZONE 'UTC')" if DIALECT == "postgres" else "UTC_TIMESTAMP(6)"
 
 
 MYSQL_BIN = "mysql"
@@ -62,9 +74,34 @@ MYSQL_PASSWORD = ""
 
 
 def mysql(statement, database=None):
-    """执行一条或多条 SQL；返回 --skip-column-names 的原始文本。"""
+    """执行 SQL；MySQL 用 mysql CLI，PostgreSQL 用 psql CLI；返回原始文本。"""
     if database is not None and not DB_RE.fullmatch(database):
         fail("refusing database outside the p0 seed namespace: " + str(database))
+    if DIALECT == "postgres":
+        cmd = [
+            "psql",
+            "-X",
+            "-q",
+            "-A",
+            "-t",
+            "-v",
+            "ON_ERROR_STOP=1",
+            "-h",
+            str(PG_HOST),
+            "-p",
+            str(PG_PORT),
+            "-U",
+            PG_USER,
+            "-d",
+            database or "postgres",
+        ]
+        env = dict(os.environ)
+        env["PGPASSWORD"] = PG_PASSWORD
+        result = subprocess.run(cmd, input=statement, text=True, capture_output=True, env=env)
+        if result.returncode != 0:
+            target = database or "server"
+            raise RuntimeError("psql failed on " + target + ": " + result.stderr.strip())
+        return result.stdout.rstrip("\r\n")
     cmd = [
         MYSQL_BIN,
         "--batch",
@@ -254,6 +291,12 @@ def result_record(user, order, activity, version, strategy, award_snapshot, now_
 
 
 def apply_migrations(dbs):
+    if DIALECT == "postgres":
+        raw = PG_SCHEMA.read_bytes()
+        for db in dbs:
+            mysql(raw.decode("utf-8"), db)
+            log("postgres schema applied to " + db)
+        return {"v2-schema.sql": hashlib.sha256(raw).hexdigest()}
     manifest_path = MIGRATIONS / "manifest.json"
     if not manifest_path.is_file():
         fail("migration manifest not found: " + str(manifest_path))
@@ -287,8 +330,9 @@ def apply_migrations(dbs):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Seed a fresh P0 benchmark environment (MySQL only, no broker required)."
+        description="Seed a fresh P0 benchmark environment (PostgreSQL by default; no broker)."
     )
+    parser.add_argument("--dialect", choices=["postgres", "mysql"], default="postgres")
     parser.add_argument("--run-id", required=True, help="lowercase [a-z0-9_]{1,24}")
     parser.add_argument("--users", type=int, default=2000)
     parser.add_argument("--activities", type=int, default=10)
@@ -303,9 +347,13 @@ def main():
     parser.add_argument("--mysql-port", type=int, default=None)
     parser.add_argument("--mysql-user", default="root")
     parser.add_argument("--mysql-bin", default="mysql")
+    parser.add_argument("--pg-host", default=os.environ.get("V2_PG_HOST", "127.0.0.1:15432"))
+    parser.add_argument("--pg-port", type=int, default=None)
+    parser.add_argument("--pg-user", default="postgres")
     args = parser.parse_args()
 
-    global MYSQL_BIN, MYSQL_HOST, MYSQL_PORT, MYSQL_USER, MYSQL_PASSWORD
+    global DIALECT, MYSQL_BIN, MYSQL_HOST, MYSQL_PORT, MYSQL_USER, MYSQL_PASSWORD
+    global PG_HOST, PG_PORT, PG_USER, PG_PASSWORD
 
     run = args.run_id
     if not RUN_RE.fullmatch(run):
@@ -333,16 +381,36 @@ def main():
     if out.exists() and any(out.iterdir()):
         parser.error("--out must be empty; refusing to overwrite " + str(out))
 
-    mysql_bin = args.mysql_bin
-    if os.sep in mysql_bin:
-        resolved = Path(mysql_bin)
-        if not resolved.is_file():
-            fail("mysql client not executable: " + str(resolved))
-    elif shutil.which(mysql_bin) is None:
-        fail(
-            "mysql CLI not found in PATH; install mysql-client or set --mysql-bin"
-            " (for example: brew install mysql-client)"
-        )
+    DIALECT = args.dialect
+    if DIALECT == "postgres":
+        pg_host = args.pg_host
+        pg_port = args.pg_port
+        if pg_port is None:
+            pg_port = int(os.environ.get("V2_PG_PORT", "5432"))
+        if args.pg_port is None and pg_host.count(":") == 1 and pg_host.rsplit(":", 1)[1].isdigit():
+            pg_host, embedded = pg_host.rsplit(":", 1)
+            pg_port = int(embedded)
+        PG_HOST = pg_host
+        PG_PORT = pg_port
+        PG_USER = args.pg_user
+        PG_PASSWORD = os.environ.get("PGPASSWORD") or os.environ.get("V2_PG_PASSWORD", "")
+        if not PG_PASSWORD:
+            parser.error("set PGPASSWORD or V2_PG_PASSWORD; passwords are never accepted on argv")
+        if shutil.which("psql") is None:
+            fail("psql CLI not found in PATH; install postgresql-client")
+        mysql_bin = "mysql"
+    else:
+        mysql_bin = args.mysql_bin
+    if DIALECT == "mysql":
+        if os.sep in mysql_bin:
+            resolved = Path(mysql_bin)
+            if not resolved.is_file():
+                fail("mysql client not executable: " + str(resolved))
+        elif shutil.which(mysql_bin) is None:
+            fail(
+                "mysql CLI not found in PATH; install mysql-client or set --mysql-bin"
+                " (for example: brew install mysql-client)"
+            )
     if shutil.which("openssl") is None:
         fail("openssl is required to generate the RSA key and RS256 tokens")
 
@@ -359,7 +427,7 @@ def main():
     MYSQL_PORT = port
     MYSQL_USER = args.mysql_user
     MYSQL_PASSWORD = os.environ.get("MYSQL_PWD", "")
-    if not MYSQL_PASSWORD:
+    if DIALECT == "mysql" and not MYSQL_PASSWORD:
         parser.error("set MYSQL_PWD in the environment; passwords are never accepted on argv")
 
     dbs = [f"router_p0_{run}_{part}" for part in ("control", "one", "two")]
@@ -367,9 +435,14 @@ def main():
         if not DB_RE.fullmatch(db):
             fail("invalid database name: " + db)
 
-    log("connecting to mysql " + MYSQL_HOST + ":" + str(MYSQL_PORT))
-    version = mysql("SELECT VERSION()")
-    max_connections = int(mysql("SELECT @@max_connections"))
+    if DIALECT == "postgres":
+        log("connecting to postgresql " + PG_HOST + ":" + str(PG_PORT))
+        version = mysql("SHOW server_version")
+        max_connections = int(mysql("SHOW max_connections"))
+    else:
+        log("connecting to mysql " + MYSQL_HOST + ":" + str(MYSQL_PORT))
+        version = mysql("SELECT VERSION()")
+        max_connections = int(mysql("SELECT @@max_connections"))
     if max_connections < 300:
         log(
             "WARNING: @@max_connections="
@@ -378,15 +451,24 @@ def main():
         )
 
     existing_sql = ",".join(sql(db) for db in dbs)
-    existing = [
-        row
-        for row in mysql(
-            "SELECT SCHEMA_NAME FROM information_schema.schemata WHERE SCHEMA_NAME IN ("
-            + existing_sql
-            + ")"
-        ).splitlines()
-        if row.strip()
-    ]
+    if DIALECT == "postgres":
+        existing = [
+            row
+            for row in mysql(
+                "SELECT datname FROM pg_database WHERE datname IN (" + existing_sql + ")"
+            ).splitlines()
+            if row.strip()
+        ]
+    else:
+        existing = [
+            row
+            for row in mysql(
+                "SELECT SCHEMA_NAME FROM information_schema.schemata WHERE SCHEMA_NAME IN ("
+                + existing_sql
+                + ")"
+            ).splitlines()
+            if row.strip()
+        ]
     if existing:
         fail("refusing existing databases: " + ", ".join(existing))
 
@@ -396,7 +478,10 @@ def main():
         out.chmod(0o700)
 
         for db in dbs:
-            mysql("CREATE DATABASE " + db + " CHARACTER SET utf8mb4 COLLATE utf8mb4_bin")
+            if DIALECT == "postgres":
+                mysql("CREATE DATABASE " + db)
+            else:
+                mysql("CREATE DATABASE " + db + " CHARACTER SET utf8mb4 COLLATE utf8mb4_bin")
             log("created database " + db)
         hashes = apply_migrations(dbs)
 
@@ -582,8 +667,7 @@ def main():
                             str(activity_ids[n % args.activities]),
                             sql("DELIVERED"),
                             sql(record),
-                            "UTC_TIMESTAMP(6)",
-                            "UTC_TIMESTAMP(6)",
+                            db_now() + ",\n                            " + db_now(),
                         ]
                     )
                     + ")"
@@ -672,8 +756,8 @@ def main():
             "tokenFile": str(tokens),
             "publicKey": base64.b64encode(public_der).decode(),
             "migrationHashes": hashes,
-            "mysqlVersion": version,
-            "mysqlMaxConnections": max_connections,
+            "dbVersion": version,
+            "dbMaxConnections": max_connections,
             "generatedAt": now_iso,
         }
         (out / "seed.json").write_text(json.dumps(seed, indent=2, ensure_ascii=False) + "\n")
@@ -689,8 +773,8 @@ def main():
                 "sku",
                 "version",
                 "stockPerPool",
-                "mysqlVersion",
-                "mysqlMaxConnections",
+                "dbVersion",
+                "dbMaxConnections",
                 "generatedAt",
             )
         }
