@@ -458,9 +458,8 @@ Expected: FAIL，旧 handler 仍存在 / cancel 仍可用。
 
 - `V2RaffleConfig` 删除 `prepare`/`held`/`confirmed(old)`/`cancelled`/`deliver(old)` 这些 event handler beans；新增两个 handler。`drawProgressService`/`awardDeliveryService`/`candidateWorker` 的 bean 与旧 recovery bean 留到 Task 10 一起删除，避免上下文缺依赖。
 - `DrawController` 删除 cancel 方法或返回 `ResponseEntity.status(405).build()`；删除 `service.cancel` 调用。
-- 删除 `DrawProgressService`、`AwardDeliveryService`、`CandidateWorker` 及对应 bean；选奖逻辑已并入 `DrawService`。
-- `DrawService` 删除 `cancel` 方法与 `DrawProgressService.active` 引用；需要 active 校验时在 `DrawDeliveryService` 内实现。
-- 删除/替换只验证六段/取消的测试；保留支付/签到/兑换测试。
+- **不要删除 `DrawService.cancel` 方法或 `DrawProgressService`/`AwardDeliveryService`/`CandidateWorker` 类**：`DrawCancellationV2Test` 等旧测试仍引用它们，删除会编译失败。Task 10 删除旧 recovery 时一并删除类和测试。
+- 不删除只验证六段/取消的测试；Task 10/11 统一替换。保留支付/签到/兑换测试。
 
 - [ ] **Step 4: 运行测试确认通过**
 
