@@ -182,16 +182,22 @@ def main():
         host, port = args.target_host.rsplit(":", 1)
         args.target_host, args.target_port = host, int(port)
 
-    available = set(
-        line.strip()
-        for line in mysql(
+    meta = ET.fromstring(
+        "<root>"
+        + mysql(
             args,
             "select table_name from information_schema.tables where table_schema=%s"
             % quote(args.source_db),
             None,
-        ).splitlines()
-        if line.strip()
+        )
+        + "</root>"
     )
+    available = {
+        (field.text or "").strip()
+        for row in meta.iter("row")
+        for field in row.findall("field")
+        if (field.text or "").strip()
+    }
     all_tables = [t for t in tables() if t in available]
     if not all_tables:
         fail("no matching V2 tables in source database")
