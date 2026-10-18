@@ -484,12 +484,23 @@ git commit -m "feat(p0): wire reserve/confirm handlers and remove cancellation"
 - Test: `bm-app/src/test/java/com/jay/test/v2/P0BudgetV2Test.java`
 
 **Interfaces:**
-- 默认预算：`TRADE=24, WORKER=28, QUERY=8, RELAY=2, RECOVERY=2`；`physicalConnectionLimits.mysql-it=240`；`reservedConnections=20`；`prefetch=8`。
+- 代码默认预算保持旧值（7 个许可），避免 `application-v2-it.yml` 的 pool 8 启动失败。
+- P0 profile `application-v2-p0.yml` 覆盖：`TRADE=24, WORKER=28, QUERY=8, RELAY=2, RECOVERY=2`；`physicalConnectionLimits.mysql-it=240`；`reservedConnections=20`；`prefetch=8`。
 - P0 profile：3 个 Hikari pool `maximum-pool-size=72`，`minimum-idle=0`，`connection-timeout=1000`；`max_connections=300`。
 
 - [ ] **Step 1: 写失败测试**
 
 ```java
+@Test public void p0ProfileDeclaresPoolAndBudget() throws Exception {
+  var yaml = new String(getClass().getClassLoader()
+      .getResourceAsStream("application-v2-p0.yml").readAllBytes());
+  assertThat(yaml).contains("maximum-pool-size: 72");
+  assertThat(yaml).contains("TRADE: 24").contains("WORKER: 28")
+      .contains("QUERY: 8").contains("RELAY: 2").contains("RECOVERY: 2");
+  assertThat(yaml).contains("physical-connection-limits").contains("240");
+  assertThat(yaml).contains("prefix: p0");
+}
+
 @Test public void acceptsP0PoolAndBudget() {
   var p = new V2BudgetProperties();
   p.getInstances().get("mysql-it").put(WorkClass.TRADE, 24);
@@ -512,7 +523,7 @@ git commit -m "feat(p0): wire reserve/confirm handlers and remove cancellation"
 - [ ] **Step 2: 运行测试确认失败**
 
 Run: `mvn -pl bm-app -am -Dtest=P0BudgetV2Test -DfailIfNoTests=false test`
-Expected: FAIL，默认值仍是 2/1/1/1/1/1 或校验不通过。
+Expected: FAIL，`application-v2-p0.yml` 不存在或缺少 P0 值。
 
 - [ ] **Step 3: 实现**
 
