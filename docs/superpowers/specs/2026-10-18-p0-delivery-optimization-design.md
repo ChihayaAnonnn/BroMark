@@ -357,7 +357,7 @@ queue: p0.notify
 - 重复 `ReserveAward`：inbox 返回 duplicate；若已有 responses，按原响应重放 `ReservationConfirmed`，不再扣库存。
 - 重复 `ReservationConfirmed`：订单已 `DELIVERED`，直接返回；不重复加积分。
 - 同一 `requestId` 的 HTTP 重试在背压/在途限制下仍返回原订单视图，不能被当成新的在途请求拒绝；只有不同 `requestId` 的新抽奖才受限。
-- 消费失败：事务回滚，消息不 ack，进入 retry；复用现有 `RetryPolicy`/`retry_job` 的 12 次预算与指数退避，不新增无限重试；超过预算进 DLQ/人工复核。
+- 消费失败：事务回滚，消息不 ack，进入 retry；复用现有 `RetryPolicy`/`retry_job` 的 12 次预算与指数退避，不新增无限重试；超过预算进 `retry_job DEAD` + `raw_message` quarantine（DLQ 等价物）/人工复核，不声明无人消费的 broker DLQ。
 - 进程崩溃：订单/ outbox 已提交的会重发；未提交的 HTTP 请求失败，客户端按 requestId 重试，受理幂等。
 
 ### 6.3 库存不足/降级
