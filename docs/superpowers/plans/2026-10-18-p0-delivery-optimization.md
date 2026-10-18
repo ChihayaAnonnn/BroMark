@@ -693,49 +693,49 @@ git commit -m "feat(p0): stop scheduling legacy recovery"
 
 ---
 
-## Task 11: 端到端与对账
+## Task 11: P0 端到端与对账（直接服务，无 broker）
 
 **Files:**
 - Test: `bm-app/src/test/java/com/jay/test/v2/P0EndToEndV2Test.java`
-- Modify: `bm-app/src/test/java/com/jay/test/v2/RaffleIntegrationV2Test.java`（改成新链路或删除）
-- Delete: 只验证六段/取消的旧测试
 
 **Interfaces:**
-- 使用 Spring 上下文/`AssetTestSupport` + 直接调用 `V2MessageListener` 或 Rabbit 容器，跑完整三段。
-- 对账 SQL：订单状态、`available+reserved+allocated`、积分流水、交付记录。
+- 直接调用 `DrawService.create` -> `StockReservationService.confirmOnReserve` -> `DrawDeliveryService.deliver`，不依赖 Rabbit/Redis。
+- 覆盖：CREDIT 正常交付、库存售罄 -> NONE、重复 `ReservationConfirmed` 不二次加积分、`finalAward` 篡改不改变订单。
+- 对账 SQL：订单 `DELIVERED`、积分流水、`award_stock` 的 available+reserved+allocated 守恒。
 
 - [ ] **Step 1: 写失败测试**
 
 ```java
-@Test public void endToEndCreditThenNoneThenDuplicate() {
-  // 1) 有库存：admission -> reserve -> delivery，订单 DELIVERED，余额 +10
-  // 2) 无库存：admission -> reserve 落 NONE -> delivery，订单 DELIVERED，余额不变
-  // 3) 重复 ReservationConfirmed：余额不变
-  // 4) 对账：stock total=available+reserved+allocated，delivery 行存在，差异 0
+@Test public void creditThenNoneThenDuplicateIsConsistent() {
+  // 1) 有库存：create -> confirmOnReserve -> deliver -> DELIVERED + balance
+  // 2) 库存 0：create -> confirmOnReserve -> NONE -> deliver -> DELIVERED + balance unchanged
+  // 3) 重复 deliver：balance unchanged
+  // 4) 对账：stock total == available+reserved+allocated; delivery row exists
 }
 ```
 
 - [ ] **Step 2: 运行测试确认失败**
 
 Run: `mvn -pl bm-app -am -Dtest=P0EndToEndV2Test -DfailIfNoTests=false test`
-Expected: FAIL，旧链路仍走六段/取消。
+Expected: FAIL，旧六段/取消路径或缺少直接 E2E。
 
-- [ ] **Step 3: 实现/清理**
+- [ ] **Step 3: 实现**
 
-- 更新/删除旧六段测试；保留支付/签到/兑换/资产测试。
-- 确保 `V2MessageListener` 对旧事件类型返回异常/隔离，不静默 ack。
-- 对账 SQL 覆盖 2 个 user 库 × 4 表 + control `award_stock`/`award_reservation`。
+- 复用 `AssetTestSupport`、`DrawAcceptanceV2Test.publish/grant`、`P0AdmissionGate`（可传 no-op gate）。
+- 从 `ReserveAward` outbox 行解析 `ReserveCommand`，调用 `confirmOnReserve`；从 `ReservationConfirmed` 事件调用 `deliver`。
+- 不启动 Rabbit/Redis；不修改/删除旧六段测试（已知红，留给后续清理）。
+- 对账查询覆盖 2 个 user 库 × 4 表 + control `award_stock`/`award_reservation`。
 
 - [ ] **Step 4: 运行测试确认通过**
 
-Run: 同上；再跑 `mvn -pl bm-app -am test`（需要 `V2_MYSQL_PASSWORD`、Rabbit）。
-Expected: PASS；旧六段测试已删除/替换。
+Run: 同上。
+Expected: PASS；P0 相关套件全绿。
 
 - [ ] **Step 5: 提交**
 
 ```bash
-git add -A
-git commit -m "test(p0): add end-to-end credit/none/duplicate reconciliation"
+git add bm-app/src/test/java/com/jay/test/v2/P0EndToEndV2Test.java
+git commit -m "test(p0): add direct-service end-to-end reconciliation"
 ```
 
 ---
