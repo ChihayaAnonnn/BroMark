@@ -819,6 +819,10 @@ CREATE INDEX IF NOT EXISTS deferred_fact_pending_facts ON deferred_fact (aggrega
 CREATE INDEX IF NOT EXISTS award_reservation_reservation_recovery ON award_reservation (recovery_status,state,last_progress_at,draw_order_id);
 CREATE INDEX IF NOT EXISTS v2_draw_order_000_draw_recovery ON v2_draw_order_000 (recovery_status,state,last_progress_at,order_id);
 CREATE INDEX IF NOT EXISTS v2_draw_order_000_draw_user ON v2_draw_order_000 (user_id,activity_id);
+ALTER TABLE v2_draw_order_000 ADD COLUMN IF NOT EXISTS reserved_at timestamp(6) without time zone;
+ALTER TABLE v2_draw_order_001 ADD COLUMN IF NOT EXISTS reserved_at timestamp(6) without time zone;
+ALTER TABLE v2_draw_order_002 ADD COLUMN IF NOT EXISTS reserved_at timestamp(6) without time zone;
+ALTER TABLE v2_draw_order_003 ADD COLUMN IF NOT EXISTS reserved_at timestamp(6) without time zone;
 CREATE INDEX IF NOT EXISTS v2_draw_order_000_draw_backlog ON v2_draw_order_000 (state,last_progress_at,order_id);
 CREATE INDEX IF NOT EXISTS v2_draw_order_001_draw_recovery ON v2_draw_order_001 (recovery_status,state,last_progress_at,order_id);
 CREATE INDEX IF NOT EXISTS v2_draw_order_001_draw_user ON v2_draw_order_001 (user_id,activity_id);
