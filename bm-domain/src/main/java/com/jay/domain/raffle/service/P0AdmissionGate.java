@@ -9,12 +9,14 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * P0 入口背压闸门。
  *
- * <p>全局积压超过保护线时只拒绝新的 draw；同一 requestId 的重试共享一次在途许可，不会被当成
+ * <p>只有全局积压（pending）超过保护线时拒绝新的 draw；最老积压年龄只作为指标/告警，不参与全局
+ * 拒绝——单笔卡住不能把全部 draw 打成 429。同一 requestId 的重试共享一次在途许可，不会被当成
  * 新的在途请求拒绝。许可只覆盖受理事务，交付是异步的，不能在交付完成前一直占用。
  */
 public final class P0AdmissionGate {
   public static final long MAX_PENDING = 20_000;
-  public static final long MAX_OLDEST_AGE_SECONDS = 120;
+  /** 仅用于 p0_oldest_age_seconds 告警与人工重放判断，不参与入口拒绝。 */
+  public static final long OLDEST_AGE_ALERT_SECONDS = 120;
 
   private record Entry(String requestId, AtomicInteger permits) {}
 
@@ -37,14 +39,13 @@ public final class P0AdmissionGate {
 
   /**
    * 受理入口。requestId 非空时，同一 requestId 的并发重试共享在途许可；不同 requestId 仍受
-   * 单用户 1 单在途限制。
+   * 单用户 1 单在途限制。只有 pending 超过保护线会拒绝；oldestAge 只观测/告警。
    */
   public boolean tryEnter(String user, long activity, String requestId) {
     Objects.requireNonNull(user);
     if (activity <= 0) throw new IllegalArgumentException("Activity required");
     var snapshot = backlog.get();
-    if (snapshot.pending() > MAX_PENDING
-        || snapshot.oldestAgeSeconds() > MAX_OLDEST_AGE_SECONDS) return false;
+    if (snapshot.pending() > MAX_PENDING) return false;
 
     var entered = new AtomicBoolean();
     inflight.compute(

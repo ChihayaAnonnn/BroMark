@@ -10,6 +10,7 @@ import com.zaxxer.hikari.metrics.micrometer.MicrometerMetricsTrackerFactory;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import java.util.List;
 import javax.sql.DataSource;
 import org.springframework.beans.factory.SmartInitializingSingleton;
@@ -47,6 +48,19 @@ public class V2MetricsConfig {
           Counter.builder("p0_event_total")
               .tags("type", type, "result", result)
               .register(metrics);
+      // 预注册三个阶段实际会产生的 timer，保证首个请求前 /actuator/prometheus 就有序列。
+      for (String result : List.of("success", "error", "ratelimited"))
+        Timer.builder("p0_stage_seconds")
+            .tags("stage", "admission", "result", result)
+            .register(metrics);
+      for (String result : List.of("success", "error"))
+        Timer.builder("p0_stage_seconds")
+            .tags("stage", "reserve", "result", result)
+            .register(metrics);
+      for (String result : List.of("delivered", "duplicate", "retry", "failed"))
+        Timer.builder("p0_stage_seconds")
+            .tags("stage", "deliver", "result", result)
+            .register(metrics);
       Gauge.builder("p0_backlog_orders", probe, p -> p.snapshot().pending())
           .tag("state", "PENDING_RESERVATION")
           .description("PENDING_RESERVATION orders across all draw shards")

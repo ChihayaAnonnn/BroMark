@@ -318,7 +318,8 @@ queue: p0.notify
 
 - 后台每 1 秒统计：`PENDING_RESERVATION` 数量、最老 `created_at` 年龄、outbox PENDING 数量，写入内存 gauge。
 - 受理入口检查 gauge：
-  - `pending > 20,000` 或 `oldestAge > 120s`：对新 draw 返回 429 + `Retry-After: 1`；query/result 不拒绝。
+  - `pending > 20,000`：对新 draw 返回 429 + `Retry-After: 1`；query/result 不拒绝。
+  - `oldestAge > 120s`：只写 `p0_oldest_age_seconds` 并告警，不参与全局拒绝；单笔卡单不得把全部 draw 打成 429，按人工重放处理。
   - 恢复正常后自动放行，不需要人工。
 - 单用户同时在途抽奖限制 1（单实例内存信号量；2,000 用户用 Caffeine/ConcurrentHashMap 维护），交付后释放。
 - 单活动在途上限可配置（初始 5,000），防止单个活动打满库存行。
@@ -470,7 +471,7 @@ queue: p0.notify
 | 3C MySQL 仍是瓶颈 | 交付上不去 | 先看 COMMIT/行锁；下一步做 stock 分桶/账户原子更新（后续设计） |
 | `fallback` 被配置成 `CREDIT`/有库存 | T2 在库存耗尽时无法落到 NONE | 发布策略校验 `fallback.type == NONE && stockPoolId == null`；不满足拒绝发布 |
 | 批量事务死锁/长锁 | P99 抖动 | 默认 batch=1；通过测试后开 8；按 user/stockPoolId 排序；死锁回退单条 |
-| 背压阈值不当 | 误拒或积压 | 初始 20,000/120s；按“积压斜率 0”调；只拒新 draw |
+| 背压阈值不当 | 误拒或积压 | 初始 pending 20,000；oldestAge 120s 只告警并人工重放；按“积压斜率 0”调；只拒新 draw |
 | 单实例内存限流 | 多实例失效 | 本期单实例；多实例改 Redis/DB 计数 |
 | 连接预算与池校验冲突 | 启动失败 | 遵守 `total < pool max`；65 < 72；启动时校验 |
 | CREDIT 奖未配置 `stockPoolId` | 积分绕过库存，破坏“积分也有库存” | 发布策略校验所有 `CREDIT` 奖必须有 `stockPoolId`；不满足拒绝发布 |
@@ -506,7 +507,7 @@ queue: p0.notify
 - 两个 P0 阶段队列 `p0.reserve`/`p0.deliver` + 一个通知队列 `p0.notify`，不用一个 workflow 队列。
 - 初始预算 65（TRADE 24/WORKER 28/QUERY 8/RELAY 2/RECOVERY 2/CALLBACK 1），pool 72。
 - 批处理默认 1，目标 8；先保证正确性。
-- 背压初始 20,000 单/120 秒，只拒新 draw。
+- 背压只按 pending 20,000 拒绝新 draw；oldestAge 120s 只告警并人工重放，不做全局年龄拒绝。
 - 不实现取消路径；`/cancel` 移除或返回 `405/409`。
 
 ## 12. 验收清单（实施完成后逐项勾）

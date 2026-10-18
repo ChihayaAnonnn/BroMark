@@ -630,7 +630,7 @@ Expected: FAIL，gate/probe 不存在。
 - [ ] **Step 3: 实现**
 
 - `P0BacklogProbe` 用 1 秒定时查询 8 张 `v2_draw_order_*` 的 `state='PENDING_RESERVATION'` 数量与最老 `last_progress_at`；走 `draw_backlog` 索引，不扫全表。
-- `P0AdmissionGate` 持有 `AtomicReference<P0BacklogSnapshot>` + `ConcurrentHashMap<String,AtomicInteger>`；超过 20,000 或 120s 拒绝新 draw；同一 requestId 在 `DrawService` 幂等分支优先返回，不走 gate 拒绝。
+- `P0AdmissionGate` 持有 `AtomicReference<P0BacklogSnapshot>` + `ConcurrentHashMap<String,AtomicInteger>`；只按 pending 超过 20,000 拒绝新 draw；oldestAge 120s 只做指标/告警和人工重放，不做全局年龄拒绝；同一 requestId 在 `DrawService` 幂等分支优先返回，不走 gate 拒绝。
 - `DrawService.create` 先做同一 `requestId` 的幂等查询并直接返回已有订单；只有新请求才进入 gate。`try/finally` 在受理成功/失败后 `leave`，不能把重试请求当成新的在途请求拒绝。
 - 黑名单按 spec 处理：`admitted.blacklisted()` 时落 `REJECTED`，不扣额度、不写 `ReserveAward`、不进入 gate；测试覆盖余额/额度不变且无 outbox。
 - `V2MetricsConfig` 注册 gauge/counter；`DrawService`/`DrawDeliveryService` 记录 admission/delivery/stage。

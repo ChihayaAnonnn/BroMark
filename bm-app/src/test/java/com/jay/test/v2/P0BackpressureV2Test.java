@@ -28,16 +28,18 @@ import org.springframework.jdbc.datasource.DelegatingDataSource;
 public class P0BackpressureV2Test {
 
   @Test
-  public void rejectsNewDrawWhenBacklogExceededButRecoversAutomatically() {
+  public void rejectsNewDrawOnlyWhenPendingExceedsBacklogAndRecoversAutomatically() {
     var gate = new P0AdmissionGate();
     gate.update(new P0BacklogSnapshot(20_001, 10));
     assertThat(gate.tryEnter("u1", 1)).isFalse();
     assertThat(gate.inflight()).isZero();
 
+    /** oldestAge 只用于指标/告警：单笔卡单不能在全局范围拒绝所有 draw。 */
     gate.update(new P0BacklogSnapshot(0, 121));
-    assertThat(gate.tryEnter("u1", 1)).isFalse();
+    assertThat(gate.tryEnter("u1", 1)).isTrue();
+    gate.leave("u1");
 
-    /** 阈值是保护线：等于 20,000/120s 仍然放行。 */
+    /** 阈值是保护线：等于 20,000 仍然放行；age 再大也不参与拒绝。 */
     gate.update(new P0BacklogSnapshot(20_000, 120));
     assertThat(gate.tryEnter("u1", 1)).isTrue();
     gate.leave("u1");
@@ -264,6 +266,39 @@ public class P0BackpressureV2Test {
           var delivery =
               new DrawDeliveryService(
                   repo, h.assets, new MicrometerRelayObservation(registry));
+
+          /** 事务回滚不能把 delivery 记成 delivered：指标只在 afterCommit 自增。 */
+          assertThatThrownBy(
+                  () ->
+                      h.tx(
+                          user,
+                          () -> {
+                            delivery.deliver(event);
+                            throw new IllegalStateException("force rollback");
+                          }))
+              .isInstanceOf(IllegalStateException.class);
+          assertThat(
+                  registry.find("p0_delivery_total").tag("result", "delivered").counter().count())
+              .isZero();
+          assertThat(
+                  registry
+                      .find("p0_event_total")
+                      .tag("type", "ReservationConfirmed")
+                      .tag("result", "delivered")
+                      .counter()
+                      .count())
+              .isZero();
+          assertThat(
+                  registry
+                      .find("p0_stage_seconds")
+                      .tag("stage", "deliver")
+                      .tag("result", "delivered")
+                      .timer()
+                      .count())
+              .isZero();
+          assertThat(h.tx(user, () -> repo.find(view.orderId(), false)).state())
+              .isEqualTo("PENDING_RESERVATION");
+
           h.tx(
               user,
               () -> {

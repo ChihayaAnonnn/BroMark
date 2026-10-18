@@ -12,8 +12,10 @@ import com.jay.domain.strategy.service.*;
 import com.jay.domain.task.model.*;
 import com.jay.infrastructure.adapter.repository.v2.*;
 import com.jay.infrastructure.cache.P0AdmissionCache;
+import com.jay.infrastructure.event.MicrometerRelayObservation;
 import com.jay.infrastructure.id.BlockOrderIdGenerator;
 import com.jay.trigger.listener.v2.StockCommandListener;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.math.BigDecimal;
 import java.time.*;
 import java.util.*;
@@ -198,13 +200,31 @@ public class P0ReservationV2Test {
                   1,
                   2,
                   ReceiptJson.write(command));
-          var events =
-              StockProtocolV2Test.control(
-                  h, () -> new StockCommandListener(svc, h.codec).apply(event));
+          var registry = new SimpleMeterRegistry();
+          var listener =
+              new StockCommandListener(
+                  svc, h.codec, new MicrometerRelayObservation(registry));
+          var events = StockProtocolV2Test.control(h, () -> listener.apply(event));
           assertThat(events).hasSize(1);
           assertThat(events.getFirst().eventType()).isEqualTo("ReservationConfirmed");
           assertThat(events.getFirst().schemaVersion()).isEqualTo(2);
           assertThat(events.getFirst().aggregateId()).isEqualTo(command.drawOrderId());
+          assertThat(
+                  registry
+                      .find("p0_stage_seconds")
+                      .tag("stage", "reserve")
+                      .tag("result", "success")
+                      .timer()
+                      .count())
+              .isOne();
+          assertThat(
+                  registry
+                      .find("p0_event_total")
+                      .tag("type", "ReservationConfirmed")
+                      .tag("result", "emitted")
+                      .counter()
+                      .count())
+              .isOne();
           var result = ReceiptJson.read(events.getFirst().payload(), ReservationResult.class);
           assertThat(result.state()).isEqualTo("CONFIRMED");
           assertThat(result.finalSnapshot().type()).isEqualTo("CREDIT");

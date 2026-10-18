@@ -288,11 +288,14 @@ docker run -d --name bromark-p0-app --network bromark-p0 \
 
 ```sh
 curl -fsS "http://$M5_IP:8091/actuator/health"
+curl -fsS "http://$M5_IP:8091/actuator/prometheus" | grep -E '^p0_(delivery|event|stage|backlog|oldest|inflight)'
 docker logs --tail 200 bromark-p0-app
 docker exec bromark-p0-rabbit rabbitmqctl list_queues name messages consumers
 ```
 
-确认：health 为 `UP`；`p0.reserve`/`p0.deliver`/`p0.notify` 已声明且有消费者；日志里是 `p0` 前缀，不是旧 `bromark.v2`；没有启动期预算/连接池校验错误。
+确认：health 为 `UP`；`/actuator/prometheus` 能返回 `p0_*` 序列（P0 profile 已暴露
+`health,prometheus`）；`p0.reserve`/`p0.deliver`/`p0.notify` 已声明且有消费者；日志里是 `p0`
+前缀，不是旧 `bromark.v2`；没有启动期预算/连接池校验错误。
 
 ## 5. 负载机准备与 k6 命令
 
@@ -454,6 +457,9 @@ done
 | `rabbit-queues.txt` | `rabbitmqctl list_queues name messages messages_ready messages_unacknowledged consumers` |
 | `backlog.txt` | 各 user 库 `PENDING_RESERVATION` 计数、`outbox` pending 计数 |
 | `clock-before.json` / `clock-after.json` | 两台机器 `python3 -c 'import time;print(time.time())'` 与 `date -u` |
+| `prometheus-before.txt` / `prometheus-after.txt` | 正式窗口开始/结束时的 `curl -fsS http://$M5_IP:8091/actuator/prometheus`，用于服务端 `DELIVERED/s` |
+| `delivered-rate.txt` | 由两个 Prometheus 快照的 `p0_delivery_total{result="delivered"}` 差值除以窗口秒数 |
+| `delivery-latency-us.txt` / `delivery-latency.txt` | DB `outbox.created_at` → `v2_draw_order.delivered_at` 的端到端延迟及分位数 |
 | `env.txt` | `git rev-parse HEAD`、`k6 version`、`docker info`、`uname -a`、seed 参数（不含密码/token） |
 | `SHA256SUMS` | 对上述文件做 `shasum -a 256` |
 
@@ -490,6 +496,151 @@ shasum -a 256 "$OUT"/* > "$OUT/SHA256SUMS"
 
 不要用 `k6` 客户端延迟代替服务端 `DELIVERED` 延迟；不要用入口 2xx 代替交付吞吐；不要把 seed 的 2,000 条预置结果订单算成本轮新交付。
 
+### 6.1 服务端 `DELIVERED/s` 与端到端完成延迟
+
+`p0_delivery_total{result="delivered"}` 是**事务提交后**才自增的 counter（回滚或提交失败不计），所以它比入口 2xx 更接近“真正完成交付”的口径。每个正式窗口都必须用同一窗口的两个快照计算：
+
+```sh
+OUT="$HOME/bromark-runs/$RUN/open-80"
+START=$(date +%s)
+curl -fsS "http://$M5_IP:8091/actuator/prometheus" > "$OUT/prometheus-before.txt"
+
+# 在同一窗口执行 §5.5 的正式 k6 命令（开环只传 -e RATE/VUS/DURATION，不要传 --vus/--duration）
+
+END=$(date +%s)
+curl -fsS "http://$M5_IP:8091/actuator/prometheus" > "$OUT/prometheus-after.txt"
+
+python3 - "$OUT/prometheus-before.txt" "$OUT/prometheus-after.txt" "$START" "$END" <<'PY'
+import sys
+
+def delivered(path):
+    total = 0.0
+    for line in open(path):
+        line = line.strip()
+        if line.startswith("#") or not line.startswith("p0_delivery_total{"):
+            continue
+        if 'result="delivered"' not in line:
+            continue
+        total += float(line.rsplit(None, 1)[1])
+    return total
+
+before, after = delivered(sys.argv[1]), delivered(sys.argv[2])
+start, end = int(sys.argv[3]), int(sys.argv[4])
+window = end - start
+if window <= 0:
+    raise SystemExit("invalid measurement window")
+if after < before:
+    raise SystemExit("p0_delivery_total reset (app restarted?); redo this window")
+delta = after - before
+print(f"DELIVERED/s = {delta / window:.2f} ({delta:.0f} delivered / {window}s)")
+PY | tee "$OUT/delivered-rate.txt"
+```
+
+口径：
+
+- 分母必须是两快照之间的墙钟窗口；smoke/预热不能进入正式分母，也不能拿 k6 的 `http_reqs/s` 或入口 2xx 代替。
+- 应用重启会让 counter 归零；`after < before` 时该窗口作废，重跑，不能把两段拼起来。
+- 该 counter 只反映本 profile 实际提交的交付，不含 seed 的 2,000 条预置 `DELIVERED` fixture。
+
+端到端完成延迟用 DB 时间戳计算。`v2_draw_order` **没有** `created_at` 列；`ReserveAward` 的
+`outbox.created_at` 是受理事务内写事件的（近似受理完成时刻），与 `v2_draw_order.delivered_at`
+同为 UTC `datetime(6)`，按 `outbox.aggregate_id = v2_draw_order.order_id` 关联：
+
+```sh
+START=<正式窗口开始 epoch 秒>   # 与 §6.1 的 START 相同
+END=<正式窗口结束 epoch 秒>     # 与 §6.1 的 END 相同
+for role in one two; do
+  MYSQL_PWD="$V2_MYSQL_PASSWORD" mysql -h 127.0.0.1 -P 13316 -uroot --batch \
+    --skip-column-names -D "router_p0_${RUN}_${role}" -e "
+    SELECT TIMESTAMPDIFF(MICROSECOND, o.created_at, d.delivered_at)
+    FROM outbox o JOIN v2_draw_order_000 d ON d.order_id=o.aggregate_id
+    WHERE o.event_type='ReserveAward' AND d.state='DELIVERED'
+      AND o.created_at >= FROM_UNIXTIME(${START}) AND d.delivered_at <= FROM_UNIXTIME(${END})
+    UNION ALL
+    SELECT TIMESTAMPDIFF(MICROSECOND, o.created_at, d.delivered_at)
+    FROM outbox o JOIN v2_draw_order_001 d ON d.order_id=o.aggregate_id
+    WHERE o.event_type='ReserveAward' AND d.state='DELIVERED'
+      AND o.created_at >= FROM_UNIXTIME(${START}) AND d.delivered_at <= FROM_UNIXTIME(${END})
+    UNION ALL
+    SELECT TIMESTAMPDIFF(MICROSECOND, o.created_at, d.delivered_at)
+    FROM outbox o JOIN v2_draw_order_002 d ON d.order_id=o.aggregate_id
+    WHERE o.event_type='ReserveAward' AND d.state='DELIVERED'
+      AND o.created_at >= FROM_UNIXTIME(${START}) AND d.delivered_at <= FROM_UNIXTIME(${END})
+    UNION ALL
+    SELECT TIMESTAMPDIFF(MICROSECOND, o.created_at, d.delivered_at)
+    FROM outbox o JOIN v2_draw_order_003 d ON d.order_id=o.aggregate_id
+    WHERE o.event_type='ReserveAward' AND d.state='DELIVERED'
+      AND o.created_at >= FROM_UNIXTIME(${START}) AND d.delivered_at <= FROM_UNIXTIME(${END});"
+done > "$OUT/delivery-latency-us.txt"
+
+python3 - "$OUT/delivery-latency-us.txt" <<'PY'
+import sys
+
+values = sorted(int(line) for line in open(sys.argv[1]) if line.strip())
+
+def pct(p):
+    if not values:
+        return float("nan")
+    index = min(len(values) - 1, max(0, round((len(values) - 1) * p / 100)))
+    return values[index] / 1000.0
+
+maximum = values[-1] / 1000.0 if values else float("nan")
+print(
+    f"n={len(values)} p50={pct(50):.1f}ms p95={pct(95):.1f}ms "
+    f"p99={pct(99):.1f}ms max={maximum:.1f}ms"
+)
+PY | tee "$OUT/delivery-latency.txt"
+```
+
+口径：
+
+- 该延迟是**服务端受理写入 → 交付提交**的端到端时间，不是 HTTP 响应延迟，也不含客户端网络。
+- 查询要覆盖正式窗口内的所有 shard，窗口边界必须与 §6.1 的 Prometheus 快照一致，不能把上一轮订单算进来。
+- `outbox.created_at` 是受理事务内的事件写入时间，与真实 commit 有几毫秒差；报告里必须注明这个口径。
+
+### 6.2 积压年龄告警与 `PENDING_RESERVATION` 人工重放
+
+入口闸门只按 `pending > 20,000` 拒绝新 draw；`p0_oldest_age_seconds > 120` **只告警**，不会全局
+429（单笔卡单不能把全部 draw 打死）。告警后按下面步骤定位和人工重放：
+
+```sh
+# 1. 找卡住的订单（对 8 个分片分别执行，这里以 000 为例）
+MYSQL_PWD="$V2_MYSQL_PASSWORD" mysql -h 127.0.0.1 -P 13316 -uroot --batch \
+  -D "router_p0_${RUN}_one" -e "
+  SELECT order_id,user_id,state,last_progress_at FROM v2_draw_order_000
+  WHERE state='PENDING_RESERVATION'
+    AND last_progress_at < UTC_TIMESTAMP(6) - INTERVAL 120 SECOND;"
+
+# 2. 查该订单的事件状态：outbox=入口事件，retry_job=消费重试
+MYSQL_PWD="$V2_MYSQL_PASSWORD" mysql -h 127.0.0.1 -P 13316 -uroot --batch \
+  -D "router_p0_${RUN}_one" -e "
+  SELECT event_id,event_type,state,attempt,next_attempt_at,lease_until
+  FROM outbox WHERE aggregate_id='<order_id>';
+  SELECT event_id,event_type,state,attempt,next_attempt_at,lease_until
+  FROM retry_job WHERE aggregate_id='<order_id>';"
+```
+
+重放规则：
+
+- P0 的消费链是 consumer inbox 幂等 + outbox/retry_job 至少一次投递；**只允许把事件重置为
+  `PENDING` 让 relay/retry 重新投递**，不得手改订单状态、库存或积分。
+- `ReserveAward` 卡在 `PENDING`/`DEAD` 时（`outbox` 中 `event_type='ReserveAward'`）：
+  ```sql
+  UPDATE outbox SET state='PENDING',attempt=0,next_attempt_at=UTC_TIMESTAMP(6),
+    lease_token=NULL,lease_until=NULL
+  WHERE event_id='<event_id>' AND event_type='ReserveAward' AND state IN ('PENDING','DEAD');
+  ```
+- `ReservationConfirmed` 已进重试且 `retry_job` 为 `DEAD` 时：
+  ```sql
+  UPDATE retry_job SET state='PENDING',attempt=0,next_attempt_at=UTC_TIMESTAMP(6),
+    lease_token=NULL,lease_until=NULL
+  WHERE event_id='<event_id>' AND event_type='ReservationConfirmed' AND state IN ('PENDING','DEAD');
+  ```
+- 重放后核对：订单进入 `DELIVERED`、存在 `v2_award_delivery`、积分流水与库存
+  `available+reserved+allocated` 对账一致；`p0_oldest_age_seconds` 随后回落。
+- 如果两个事件都已是 `PUBLISHED`、订单仍卡住，或库存/积分已不一致：不要盲目重置事件，先查
+  `retry_job`/`recovery_case` 与 app 日志，按对账规则开人工复核；不能为了清零积压绕过一致性。
+
 ## 7. 本轮跑完后的重置
 
 ```sh
@@ -514,6 +665,8 @@ docker exec bromark-p0-redis redis-cli FLUSHDB
 ## 8. 已知边界 / 常见问题
 
 - **P0 profile 启动前置**：profile 已包含 `asset-write-mode=V2`、`raffle.enabled=true` 和全部 admission 值；若环境变量/命令行覆盖导致缺值，`V2FeatureProperties.validateAdmission()` 或 `RedisRequestAdmission` 会拒绝启动，先按第 4.6 节核对，不要只补 `raffle.enabled`。
+- **背压年龄口径**：入口只按 `pending > 20,000` 拒绝；`p0_oldest_age_seconds > 120` 只告警并走人工重放，不触发全局 429。报告里不能把“年龄告警”写成“入口已拒绝”。
+- **PENDING_RESERVATION 卡单**：先看 `p0_oldest_age_seconds` 与 backlog SQL，再按 §6.2 定位事件并只重置事件状态重投；不得手改订单/库存/积分，事件都已 `PUBLISHED` 或四方不一致时转人工复核。
 - **max_connections**：P0 需要 MySQL `max_connections=300`；seed 在低于 300 时只警告，不阻止小规模 smoke。正式跑前必须核对。
 - **host 端口转发**：应用与 MySQL 同 Docker 网络时优先用容器 DNS `bromark-p0-mysql:3306`；`host.docker.internal:13316` 会绕宿主端口，容量口径会变。
 - **k6 场景覆盖**：开环不要传 `--vus/--duration`；闭环可以传，CLI 会覆盖脚本的 scenario。

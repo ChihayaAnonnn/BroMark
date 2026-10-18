@@ -151,8 +151,8 @@ public class V2RaffleConfig {
 
   @Bean
   public StockCommandListener stockCommandListener(
-      StockReservationService stock, RouteCodec codec) {
-    return new StockCommandListener(stock, codec);
+      StockReservationService stock, RouteCodec codec, RelayObservation observation) {
+    return new StockCommandListener(stock, codec, observation);
   }
 
   @Bean(name = "ReserveAward")
