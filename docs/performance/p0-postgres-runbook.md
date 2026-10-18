@@ -55,6 +55,13 @@ PGPASSWORD="$V2_PG_PASSWORD" python3 docs/performance/p0_seed.py \
   --run-id p0run1 \
   --users 2000 --activities 10 --prizes 10 \
   --out /tmp/bromark-p0-p0run1
+
+export V2_DB00=router_p0_p0run1_control
+export V2_DB01=router_p0_p0run1_one
+export V2_DB02=router_p0_p0run1_two
+export BM_V2_AUTH_PUBLIC_KEY="$(python3 -c 'import json;print(json.load(open("/tmp/bromark-p0-p0run1/seed.json"))["publicKey"])')"
+export BM_V2_AUTH_ISSUER=https://issuer.test
+export BM_V2_AUTH_AUDIENCE=bromark
 ```
 
 脚本会建 `router_p0_<run>_{control,one,two}` 三个库、按 `docs/dev-ops/postgresql/v2-schema.sql` 建表、写入 10 个库存池/策略/CREDIT 奖/fallback NONE、2,000 用户和全活动额度账户，并把 seed/tokens/private key 写到仓库外。

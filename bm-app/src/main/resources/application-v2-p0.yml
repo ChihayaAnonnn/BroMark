@@ -55,6 +55,10 @@ redis:
 bm:
   v2:
     enabled: true
+    auth:
+      public-key: ${BM_V2_AUTH_PUBLIC_KEY:}
+      issuer: ${BM_V2_AUTH_ISSUER:https://issuer.test}
+      audience: ${BM_V2_AUTH_AUDIENCE:bromark}
     # V2 资产写模式 + raffle；入口准入没有代码默认值，P0 启动必须显式给出。
     # 限额按 P0 workload（160 draw/s 等价混合）配置，不是容量结论；max-in-flight
     # 与 TRADE/QUERY/RECOVERY 数据库许可对齐，local-fallback 是 Redis 故障时的保守值。
