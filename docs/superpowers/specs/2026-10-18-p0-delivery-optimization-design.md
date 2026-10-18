@@ -257,8 +257,6 @@ queue: p0.notify
   consumer: user 库；并发 4；prefetch 8；手动 ack
   说明：兑换/签到通知不属于 P0 三段链路，本期只改队列名与拓扑，不改语义
 
-queue: p0.dlq
-  绑定重试耗尽/格式错误的消息；人工/定时复核
 ```
 
 要点：
@@ -267,6 +265,7 @@ queue: p0.dlq
 - `p0.deliver` 并发高于 `p0.reserve`：交付是 user 库、按用户分散；库存是 10 个奖/10 行，control 并发过高只会增加行锁。兑换/签到通知单独 `p0.notify`，避免和交付抢同一批消费者。
 - 不再使用旧 `bromark.v2.workflow`；`notifications` 改为 `p0.notify`，语义不变；切换时删除旧队列和旧 exchange。
 - 监听器统一走 `V2MessageListener`，保留“提交后 ack、失败进 retry、耗尽进 DLQ”的语义。
+- 不单独声明 broker `p0.dlq`：P0 的重试耗尽/格式错误由 `retry_job DEAD` + `raw_message` quarantine 承担；声明一个无人消费的队列会让运维误判。
 - 每个队列暴露 ready/unacked 指标；消费端按阶段记录耗时。
 
 ### 5.5 数据库与连接预算

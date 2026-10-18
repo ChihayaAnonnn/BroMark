@@ -368,7 +368,7 @@ git commit -m "feat(p0): deliver confirmed awards in one user transaction"
 - `EventRouting.USER = Set.of("ReservationConfirmed", "GrantCredit")`（保留支付用户事件）
 - `EventRouting.NOTIFICATIONS = Set.of("ExchangeCompleted","SignInCompleted")`
 - `EventRouting.route` 接受 `schemaVersion == 1 || == 2`，拒绝 3/0/-1；删除现有 `schemaVersion != 1` 的硬门槛。
-- 队列：`p0.reserve`（并发 8）、`p0.deliver`（16）、`p0.notify`（4）、`p0.dlq`；exchange `p0.events`。
+- 队列：`p0.reserve`（并发 8）、`p0.deliver`（16）、`p0.notify`（4）；exchange `p0.events`。
 - `V2MessageListener` handlers：`ReserveAward`、`ReservationConfirmed`、通知。
 
 - [ ] **Step 1: 写失败测试**
@@ -401,7 +401,7 @@ Expected: FAIL，旧路由仍接受六段类型。
 - `EventRouting` 只保留新集合；未知类型抛 `IllegalArgumentException`。
 - 删除 `EventRouting.route` 中的 `if (e.schemaVersion() != 1) throw ...`，改为 `schemaVersion == 1 || schemaVersion == 2`；否则 Task 1 构造的 v2 事件无法路由。
 - `V2RabbitConfig`：
-  - 新 exchange `p0.events`、队列 `p0.reserve`/`p0.deliver`/`p0.notify`/`p0.dlq`，routing key=eventType。
+  - 新 exchange `p0.events`、队列 `p0.reserve`/`p0.deliver`/`p0.notify`，routing key=eventType。不声明无人消费的 `p0.dlq`；DLQ 等价物是 `retry_job DEAD` + `raw_message` quarantine。
   - `p0.reserve` 绑定 `ReserveAward` + `CreditGranted`；`p0.deliver` 绑定 `ReservationConfirmed` + `GrantCredit`；支付事件继续可路由，语义不变。
   - `@RabbitListener(id="p0-reserve", queues="${...}.reserve", concurrency="8")` 等；`p0.deliver` 16、`p0.notify` 4。
   - 从 `v2MessageContainerFactory` 移除 `setConcurrentConsumers`/`setMaxConcurrentConsumers`，并发由 listener 注解控制，避免属性覆盖。
