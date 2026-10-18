@@ -38,11 +38,11 @@ mini-db-router:
           minimum-idle: 0
           connection-timeout: 1000
       db00:
-        url: jdbc:postgresql://${V2_PG_HOST:host.docker.internal:15432}/${V2_DB00:pg_control}?connectTimeout=1000&socketTimeout=1000&options=-c%20TimeZone%3DUTC&stringtype=unspecified
+        url: jdbc:postgresql://${V2_PG_HOST:host.docker.internal:15432}/${V2_DB00:pg_control}?connectTimeout=1&socketTimeout=1&options=-c%20TimeZone%3DUTC&stringtype=unspecified
       db01:
-        url: jdbc:postgresql://${V2_PG_HOST:host.docker.internal:15432}/${V2_DB01:pg_one}?connectTimeout=1000&socketTimeout=1000&options=-c%20TimeZone%3DUTC&stringtype=unspecified
+        url: jdbc:postgresql://${V2_PG_HOST:host.docker.internal:15432}/${V2_DB01:pg_one}?connectTimeout=1&socketTimeout=1&options=-c%20TimeZone%3DUTC&stringtype=unspecified
       db02:
-        url: jdbc:postgresql://${V2_PG_HOST:host.docker.internal:15432}/${V2_DB02:pg_two}?connectTimeout=1000&socketTimeout=1000&options=-c%20TimeZone%3DUTC&stringtype=unspecified
+        url: jdbc:postgresql://${V2_PG_HOST:host.docker.internal:15432}/${V2_DB02:pg_two}?connectTimeout=1&socketTimeout=1&options=-c%20TimeZone%3DUTC&stringtype=unspecified
 mybatis:
   mapper-locations: classpath:/mybatis/mapper/**/*.xml
 redis:
