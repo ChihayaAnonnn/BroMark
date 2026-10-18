@@ -649,58 +649,46 @@ git commit -m "feat(p0): add backlog backpressure and delivery metrics"
 
 ---
 
-## Task 10: 恢复兜底，删除旧六段恢复
+## Task 10: 关闭旧恢复调度（完整删除延后）
 
 **Files:**
-- Create: `bm-trigger/src/main/java/com/jay/trigger/job/v2/P0RecoveryJob.java`
 - Modify: `bm-app/src/main/java/com/jay/config/V2RaffleConfig.java`
-- Delete: `bm-domain/src/main/java/com/jay/domain/raffle/service/DrawRecoveryService.java`
-- Delete: `bm-trigger/src/main/java/com/jay/trigger/job/v2/StockRecoveryJob.java`
-- Delete: `bm-domain/src/main/java/com/jay/domain/raffle/service/DrawProgressService.java`
-- Delete: `bm-domain/src/main/java/com/jay/domain/raffle/service/AwardDeliveryService.java`
-- Delete: `bm-domain/src/main/java/com/jay/domain/raffle/service/CandidateWorker.java`
-- Test: `bm-app/src/test/java/com/jay/test/v2/P0RecoveryV2Test.java`
+- Test: `bm-app/src/test/java/com/jay/test/v2/P0LegacyRecoveryOffV2Test.java`
 
 **Interfaces:**
-- 新建 `bm-domain/src/main/java/com/jay/domain/raffle/service/P0RecoveryService.java`
-- `P0RecoveryService(UserTransactionRunner tx, DrawRepository repo, RouteCodec codec, OutboxWriter out, OrderIdGenerator ids)`
-- `P0RecoveryService.reemit(String orderId) -> boolean`：同业务身份、新 eventId、同 `ReserveCommand` payload；订单非 `PENDING_RESERVATION` 返回 false。
-- `P0RecoveryJob(P0RecoveryService service, DrawRepository repo); void tick()`：扫描 `PENDING_RESERVATION` 超过 5 分钟且无 PENDING outbox 的订单，调用 `reemit`。
+- P0 的恢复机制是 outbox relay + retry_job；不再调度旧 `DrawRecoveryJob`/`StockRecoveryJob`。
+- 本期只移除旧 recovery 的 `@Bean`，不删除旧类/旧测试，避免大范围编译/测试断裂；完整删除作为后续清理任务。
 
 - [ ] **Step 1: 写失败测试**
 
 ```java
-@Test public void stalePendingOrderGetsReserveAwardAgain() {
-  // 构造 PENDING_RESERVATION + last_progress_at 10 分钟前 + 无 outbox
-  job.tick();
-  assertThat(outboxCount(order, "ReserveAward")).isOne();
+@Test public void legacyRecoveryBeansAreNotRegistered() {
+  // 反射 V2RaffleConfig：不存在 DrawRecoveryService / DrawRecoveryJob / StockRecoveryJob 的 @Bean 方法
 }
-
-@Test public void deliveredOrderIsIgnored() { /* no new outbox */ }
 ```
 
 - [ ] **Step 2: 运行测试确认失败**
 
-Run: `mvn -pl bm-app -am -Dtest=P0RecoveryV2Test -DfailIfNoTests=false test`
-Expected: FAIL，旧 recovery 仍在处理六段状态。
+Run: `mvn -pl bm-app -am -Dtest=P0LegacyRecoveryOffV2Test -DfailIfNoTests=false test`
+Expected: FAIL，旧 recovery bean 仍存在。
 
 - [ ] **Step 3: 实现**
 
-- 删除 `DrawRecoveryService`/`StockRecoveryJob` 及其 beans；删除/替换引用 `DrawProgressService`/`AwardDeliveryService`/`CandidateWorker` 的旧测试（`DrawCancellationV2Test`、`RaffleDeliveryV2Test`、`GuardedWorkflowRecoveryV2Test` 等），避免 Task 10 删除类后编译失败。
-- 支付/签到 recovery 不动。
-- 新增 `P0RecoveryJob`，每 60 秒扫描最多 64 条，最多重发 8 条；事务内写 outbox；失败保留 DB 事实。
-- 恢复不释放库存、不取消订单；只补 `ReserveAward`，由 control/user 消费者继续。
+- 删除 `V2RaffleConfig` 中 `drawRecoveryService`、`stockRecoveryJob`、`drawRecoveryJob` 的 `@Bean` 方法。
+- 保留旧类与测试文件，避免 `GuardedWorkflowRecoveryV2Test` 等编译断裂；它们不再由生产上下文调度。
+- 不新增 `P0RecoveryJob`：P0 的 `PENDING_RESERVATION` 由 outbox relay 重发，`ReservationConfirmed` 由 retry_job 重试；低频兜底扫描留到后续。
+- 不改支付/签到 recovery。
 
 - [ ] **Step 4: 运行测试确认通过**
 
 Run: 同上。
-Expected: PASS。
+Expected: PASS；旧 recovery 测试仍可单独运行，但不在生产上下文注册。
 
 - [ ] **Step 5: 提交**
 
 ```bash
-git add -A
-git commit -m "feat(p0): replace six-stage recovery with pending-reservation replay"
+git add bm-app/src/main/java/com/jay/config/V2RaffleConfig.java bm-app/src/test/java/com/jay/test/v2/P0LegacyRecoveryOffV2Test.java
+git commit -m "feat(p0): stop scheduling legacy recovery"
 ```
 
 ---
