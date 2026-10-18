@@ -1,7 +1,7 @@
 # P0 交付优化 profile：3 个逻辑库各有 72 个 Hikari 连接。
 # 许可：TRADE 24 + WORKER 28 + QUERY 8 + RELAY 2 + RECOVERY 2 = 64，另加
 # CALLBACK 1（支付回调仍使用该工作类），合计 65 < 72，保留 7 个余量。
-# MySQL 实例需设置 max_connections=300（3×72=216 个池连接 + 20 预留 ≤ 240 物理预算）。
+# PostgreSQL 实例需设置 max_connections=300（3×72=216 个池连接 + 20 预留 ≤ 240 物理预算）。
 server:
   port: 8091
 app:
@@ -30,19 +30,19 @@ mini-db-router:
       default: db00
       list: db01,db02
       global:
-        driver-class-name: com.mysql.cj.jdbc.Driver
-        username: root
-        password: ${V2_MYSQL_PASSWORD}
+        driver-class-name: org.postgresql.Driver
+        username: postgres
+        password: ${V2_PG_PASSWORD}
         pool:
           maximum-pool-size: 72
           minimum-idle: 0
           connection-timeout: 1000
       db00:
-        url: jdbc:mysql://${V2_MYSQL_HOST:host.docker.internal:13316}/${V2_DB00:router_control}?useSSL=false&allowPublicKeyRetrieval=true&connectTimeout=1000&socketTimeout=1000
+        url: jdbc:postgresql://${V2_PG_HOST:host.docker.internal:15432}/${V2_DB00:pg_control}?connectTimeout=1000&socketTimeout=1000&options=-c%20TimeZone%3DUTC&stringtype=unspecified
       db01:
-        url: jdbc:mysql://${V2_MYSQL_HOST:host.docker.internal:13316}/${V2_DB01:router_one}?useSSL=false&allowPublicKeyRetrieval=true&connectTimeout=1000&socketTimeout=1000
+        url: jdbc:postgresql://${V2_PG_HOST:host.docker.internal:15432}/${V2_DB01:pg_one}?connectTimeout=1000&socketTimeout=1000&options=-c%20TimeZone%3DUTC&stringtype=unspecified
       db02:
-        url: jdbc:mysql://${V2_MYSQL_HOST:host.docker.internal:13316}/${V2_DB02:router_two}?useSSL=false&allowPublicKeyRetrieval=true&connectTimeout=1000&socketTimeout=1000
+        url: jdbc:postgresql://${V2_PG_HOST:host.docker.internal:15432}/${V2_DB02:pg_two}?connectTimeout=1000&socketTimeout=1000&options=-c%20TimeZone%3DUTC&stringtype=unspecified
 mybatis:
   mapper-locations: classpath:/mybatis/mapper/**/*.xml
 redis:
@@ -75,8 +75,12 @@ bm:
       relay:
         mode: bounded
     budget:
+      physical:
+        "00": pg-it
+        "01": pg-it
+        "02": pg-it
       instances:
-        mysql-it:
+        pg-it:
           TRADE: 24
           WORKER: 28
           QUERY: 8
@@ -85,7 +89,7 @@ bm:
           # 支付回调仍使用 CALLBACK；代码默认 1，profile 必须显式保留以满足启动校验。
           CALLBACK: 1
       physical-connection-limits:
-        mysql-it: 240
+        pg-it: 240
       reserved-connections: 20
       prefetch: 8
 management:
