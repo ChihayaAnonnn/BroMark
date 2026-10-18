@@ -109,7 +109,7 @@ k6 run --log-format raw --console-output=/tmp/p0-requests.jsonl \
 ```bash
 P0_DB_DIALECT=postgres \
 V2_PG_HOST=127.0.0.1:15432 V2_PG_PASSWORD=p0test \
-V2_DB00=pg_control V2_DB01=pg_one V2_DB02=pg_two \
+V2_DB00=router_p0_p0run1_control V2_DB01=router_p0_p0run1_one V2_DB02=router_p0_p0run1_two \
 mvn -q -pl bm-app -am \
   -Dtest='P0*Test,PostgresV2IntegrationIT,PostgresSqlContractIT' \
   -Dsurefire.failIfNoSpecifiedTests=false test
