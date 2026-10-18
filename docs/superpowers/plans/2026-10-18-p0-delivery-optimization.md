@@ -207,6 +207,7 @@ git commit -m "feat(p0): persist candidate and ReserveAward in admission"
 - Modify: `bm-domain/src/main/java/com/jay/domain/stock/service/StockReservationService.java`
 - Modify: `bm-domain/src/main/java/com/jay/domain/strategy/service/StrategyPublicationService.java`
 - Modify: `bm-infrastructure/src/main/java/com/jay/infrastructure/cache/P0AdmissionCache.java`
+- Modify: `bm-app/src/main/java/com/jay/config/V2RaffleConfig.java`
 - Modify: `bm-infrastructure/src/main/java/com/jay/infrastructure/adapter/repository/v2/MySqlStockRepository.java`
 - Modify: `bm-trigger/src/main/java/com/jay/trigger/listener/v2/StockCommandListener.java`
 - Test: `bm-app/src/test/java/com/jay/test/v2/P0ReservationV2Test.java`
@@ -216,7 +217,7 @@ git commit -m "feat(p0): persist candidate and ReserveAward in admission"
 - `StockReservationService.confirmOnReserve(ReserveCommand c) -> ReservationResult`
 - `StockCommandListener.apply(EventEnvelope e) -> List<EventEnvelope>`，只接受 `ReserveAward`
 - `P0AdmissionCache.invalidateActivity(long activity)`：发布后清掉该活动所有 user:activity 缓存项。
-- `StrategyPublicationService` 增加可选 `LongConsumer onPublished`；`V2RaffleConfig` 注入 `cache::invalidateActivity`；旧构造器保留 no-op 兼容测试。
+- 复用 `StrategyPublicationService` 已有的 `Consumer<FrozenStrategy> warm` 钩子：`V2RaffleConfig.strategyPublicationService` 传入 `f -> { admissions.invalidateActivity(f.activityId()); cache.warm(f); }`，不新增构造器。
 - 产出：`ReservationResult(state="CONFIRMED")`；`ReservationConfirmed` 事件 schema 2。
 
 - [ ] **Step 1: 写失败测试**
@@ -277,7 +278,7 @@ Expected: FAIL，`commit`/`confirmOnReserve` 不存在。
   - `repo.save(new ReservationResult(..., "CONFIRMED", final, final.quantity()))`。
 - `StockCommandListener`：只保留 `ReserveAward` 分支；输出 `ReservationConfirmed`，payload=`ReceiptJson.write(result)`，`schemaVersion=2`；删除 confirm/cancel 分支。
 - `StrategyPublicationService.validate`：所有 `CREDIT` 奖 `stockPoolId != null`；`fallback.type == NONE && fallback.stockPoolId == null`；不满足拒绝发布。
-- `P0AdmissionCache.invalidateActivity(long)` 用 `asMap().keySet().removeIf(k -> k.endsWith(":" + activity))`；`StrategyPublicationService.publish` 成功后调用 `onPublished.accept(activityId)`。黑名单没有 writer，接受 2 秒 TTL 延迟（recorded ruling）。
+- `P0AdmissionCache.invalidateActivity(long)` 用 `asMap().keySet().removeIf(k -> k.endsWith(":" + activity))`；`V2RaffleConfig` 的 publication warm 钩子先 invalidate 再 warm。黑名单没有 writer，接受 2 秒 TTL 延迟（recorded ruling）。
 
 - [ ] **Step 4: 运行测试确认通过**
 
