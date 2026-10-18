@@ -114,7 +114,7 @@ public class V2RabbitConfig {
     c.setPassword(password);
     c.setVirtualHost(vhost);
     c.setConnectionTimeout(1000);
-    c.setChannelCacheSize(18);
+    c.setChannelCacheSize(64);
     c.setChannelCheckoutTimeout(1000);
     c.setPublisherConfirmType(CachingConnectionFactory.ConfirmType.CORRELATED);
     c.setPublisherReturns(true);
