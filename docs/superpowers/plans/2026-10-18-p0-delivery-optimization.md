@@ -206,6 +206,7 @@ git commit -m "feat(p0): persist candidate and ReserveAward in admission"
 - Modify: `bm-domain/src/main/java/com/jay/domain/stock/repository/StockRepository.java`
 - Modify: `bm-domain/src/main/java/com/jay/domain/stock/service/StockReservationService.java`
 - Modify: `bm-domain/src/main/java/com/jay/domain/strategy/service/StrategyPublicationService.java`
+- Modify: `bm-infrastructure/src/main/java/com/jay/infrastructure/cache/P0AdmissionCache.java`
 - Modify: `bm-infrastructure/src/main/java/com/jay/infrastructure/adapter/repository/v2/MySqlStockRepository.java`
 - Modify: `bm-trigger/src/main/java/com/jay/trigger/listener/v2/StockCommandListener.java`
 - Test: `bm-app/src/test/java/com/jay/test/v2/P0ReservationV2Test.java`
@@ -214,6 +215,8 @@ git commit -m "feat(p0): persist candidate and ReserveAward in admission"
 - `StockRepository.commit(String pool, String order) -> boolean`
 - `StockReservationService.confirmOnReserve(ReserveCommand c) -> ReservationResult`
 - `StockCommandListener.apply(EventEnvelope e) -> List<EventEnvelope>`，只接受 `ReserveAward`
+- `P0AdmissionCache.invalidateActivity(long activity)`：发布后清掉该活动所有 user:activity 缓存项。
+- `StrategyPublicationService` 增加可选 `LongConsumer onPublished`；`V2RaffleConfig` 注入 `cache::invalidateActivity`；旧构造器保留 no-op 兼容测试。
 - 产出：`ReservationResult(state="CONFIRMED")`；`ReservationConfirmed` 事件 schema 2。
 
 - [ ] **Step 1: 写失败测试**
@@ -274,6 +277,7 @@ Expected: FAIL，`commit`/`confirmOnReserve` 不存在。
   - `repo.save(new ReservationResult(..., "CONFIRMED", final, final.quantity()))`。
 - `StockCommandListener`：只保留 `ReserveAward` 分支；输出 `ReservationConfirmed`，payload=`ReceiptJson.write(result)`，`schemaVersion=2`；删除 confirm/cancel 分支。
 - `StrategyPublicationService.validate`：所有 `CREDIT` 奖 `stockPoolId != null`；`fallback.type == NONE && fallback.stockPoolId == null`；不满足拒绝发布。
+- `P0AdmissionCache.invalidateActivity(long)` 用 `asMap().keySet().removeIf(k -> k.endsWith(":" + activity))`；`StrategyPublicationService.publish` 成功后调用 `onPublished.accept(activityId)`。黑名单没有 writer，接受 2 秒 TTL 延迟（recorded ruling）。
 
 - [ ] **Step 4: 运行测试确认通过**
 
@@ -615,6 +619,7 @@ Expected: FAIL，gate/probe 不存在。
 - `P0BacklogProbe` 用 1 秒定时查询 8 张 `v2_draw_order_*` 的 `state='PENDING_RESERVATION'` 数量与最老 `last_progress_at`；走 `draw_backlog` 索引，不扫全表。
 - `P0AdmissionGate` 持有 `AtomicReference<P0BacklogSnapshot>` + `ConcurrentHashMap<String,AtomicInteger>`；超过 20,000 或 120s 拒绝新 draw；同一 requestId 在 `DrawService` 幂等分支优先返回，不走 gate 拒绝。
 - `DrawService.create` 先做同一 `requestId` 的幂等查询并直接返回已有订单；只有新请求才进入 gate。`try/finally` 在受理成功/失败后 `leave`，不能把重试请求当成新的在途请求拒绝。
+- 黑名单按 spec 处理：`admitted.blacklisted()` 时落 `REJECTED`，不扣额度、不写 `ReserveAward`、不进入 gate；测试覆盖余额/额度不变且无 outbox。
 - `V2MetricsConfig` 注册 gauge/counter；`DrawService`/`DrawDeliveryService` 记录 admission/delivery/stage。
 
 - [ ] **Step 4: 运行测试确认通过**
