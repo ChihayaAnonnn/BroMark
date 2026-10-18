@@ -11,6 +11,7 @@ import com.jay.infrastructure.adapter.repository.v2.*;
 import com.jay.infrastructure.id.*;
 import java.time.*;
 import java.util.*;
+import org.junit.Ignore;
 import org.junit.Test;
 
 public class DrawAcceptanceV2Test {
@@ -111,6 +112,7 @@ public class DrawAcceptanceV2Test {
         });
   }
 
+  @Ignore("legacy six-stage assertion replaced by P0; cleanup task")
   @Test
   public void sameRequestConsumesOnceAndCandidateSurvivesDateAndRuleChanges() {
     AssetTestSupport.run(
