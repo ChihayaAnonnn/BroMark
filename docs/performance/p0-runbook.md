@@ -170,30 +170,31 @@ docker exec bromark-p0-redis redis-cli FLUSHDB
 RUN=p0run1
 SEED_DIR="$HOME/bromark-seed/$RUN"
 
-python3 docs/performance/p0_seed.py \
+MYSQL_PWD="$V2_MYSQL_PASSWORD" python3 docs/performance/p0_seed.py \
   --run-id "$RUN" \
   --users 2000 --activities 10 --prizes 10 \
   --out "$SEED_DIR" \
-  --mysql-host 127.0.0.1 --mysql-port 13316 \
-  --mysql-password "$V2_MYSQL_PASSWORD"
+  --mysql-host 127.0.0.1 --mysql-port 13316
 ```
+
+seed 脚本只从 `MYSQL_PWD` 读取密码，不接受命令行密码参数；不要把密码写进 shell 历史或截图。
 
 如果 M5 的 MySQL 在 Docker 网络内且你就在该网络里执行，可改成 `--mysql-host bromark-p0-mysql --mysql-port 3306`。脚本不绑定容器名，也不会自动 `docker exec`。
 
 快速 smoke 可以先用小规模（**不能**当作正式容量）：
 
 ```sh
-python3 docs/performance/p0_seed.py \
+MYSQL_PWD="$V2_MYSQL_PASSWORD" python3 docs/performance/p0_seed.py \
   --run-id p0smoke1 --users 20 --activities 2 --prizes 2 \
   --out /tmp/p0-smoke-seed \
-  --mysql-host 127.0.0.1 --mysql-port 13316 \
-  --mysql-password "$V2_MYSQL_PASSWORD"
+  --mysql-host 127.0.0.1 --mysql-port 13316
 ```
 
 脚本会打印摘要（不含 token）：
 
 - `users=2000`、`activities=10`、`prizes=10`、`creditPrizes=10`、`stockPools=10`、`resultOrders=2000`、`fallback=NONE`。
 - `seed.json` 的 `activities[*].activityId`、`prizes[*].stockPoolId`、`resultOrders` 供 k6 使用；`publicKey` 供应用启动。
+- `resultOrders[user]` 的订单 ID 形如 `P0RESULT-01.000-<node>-1`，满足 `RouteCodec.routeOrder` 正则且 slot 与 `routeUser(user)` 一致；`p0-load.js` 初始化时会拒绝缺失或不合法 ID，不会伪造 `P0-MISSING-*`。
 - `tokens.json` 是 2,000 个 RS256 JWT；`private.pem` 只留在 M5 的 seed 目录，不复制到负载机。
 
 seed 后核对（示例，数据库名按 `$RUN` 替换）：
@@ -245,7 +246,7 @@ docker run -d --name bromark-p0-app --network bromark-p0 \
   --cpus 4 --memory 8g --memory-swap 8g \
   -p 8091:8091 \
   -e JAVA_OPTS='-Xms4g -Xmx4g' \
-  -e PARAMS='--spring.profiles.active=v2-p0 --bm.v2.raffle.enabled=true --server.port=8091' \
+  -e PARAMS='--spring.profiles.active=v2-p0 --server.port=8091' \
   -e V2_MYSQL_HOST=bromark-p0-mysql:3306 \
   -e V2_MYSQL_PASSWORD="$V2_MYSQL_PASSWORD" \
   -e V2_DB00="router_p0_${RUN}_control" \
@@ -264,7 +265,22 @@ docker run -d --name bromark-p0-app --network bromark-p0 \
 
 说明：
 
-- P0 profile 已设置 pool 72、预算 65、prefix `p0`、bounded relay；但**当前 profile 没有显式设置 `bm.v2.raffle.enabled`**，所以启动参数必须带 `--bm.v2.raffle.enabled=true`，否则抽奖/活动查询 controller 不会注册。
+- P0 profile 已同时声明 `bm.v2.asset-write-mode=V2`、`bm.v2.raffle.enabled=true` 和入口准入值。`V2FeatureProperties.validateAdmission()` 要求 `user-rps`、`activity-rps`、`max-in-flight`、`local-fallback-rps`、`query-rps`、`query-max-in-flight` 必须显式给出；raffle 还要求 `cancel-rps`、`cancel-max-in-flight`。当前 profile 的值：
+
+  | 配置 | P0 值 | 作用 |
+  | --- | --- | --- |
+  | `asset-write-mode` | `V2` | 开启 V2 写路径，停用旧资产写入 |
+  | `raffle.enabled` | `true` | 注册抽奖/活动查询 controller |
+  | `user-rps` | 20 | 每用户入口速率；2,000 用户下不是总吞吐 |
+  | `activity-rps` | 100 | 每活动入口速率；160 draw/s 时约 16/s/活动，留突发余量 |
+  | `max-in-flight` | 24 | 交易在途，与 TRADE 数据库许可对齐 |
+  | `local-fallback-rps` | 1 | Redis 故障时的保守每类预算 |
+  | `query-rps` | 100 | 每用户查询速率 |
+  | `query-max-in-flight` | 8 | 查询在途，与 QUERY 数据库许可对齐 |
+  | `cancel-rps` | 10 | 取消入口速率；P0 不跑取消，但 raffle 启动校验要求 |
+  | `cancel-max-in-flight` | 2 | 取消在途，与 RECOVERY 预算对齐 |
+
+  这些是 P0 的入口保护配置，不是容量结论；改动后必须重新核对 `V2FeatureProperties.validateAdmission()`、`RedisRequestAdmission` 的正值/保守预算关系和数据库物理预算。
 - `PARAMS` 是 bm-app Dockerfile 的入口参数；不要改成在镜像名后面追加 `--spring...`。
 - 若不用 Docker 跑应用，去掉 `--network`/`-p`，把 `V2_MYSQL_HOST` 改为 `127.0.0.1:13316`，并按实际进程资源记录；资源口径会与 4C8G 容器不同。
 
@@ -312,11 +328,51 @@ k6 run \
   "$REPO/docs/performance/p0-load.js" 2>&1 | tee "$OUT/k6.log"
 ```
 
-smoke 通过的最低检查：
+smoke 不能只看“有输出、没有 401/5xx”。至少做下面这组检查，任何一项不满足都要先修复 seed/配置/应用，不能把 smoke 标成通过：
 
-- `requests.jsonl` 每行都有 `requestId/user/op/status/latency/orderId/state` 字段；`op` 比例为 7:1:1:1。
-- 至少出现 `query/result/exchange/draw` 四类请求；`result` 的 `targetOrderId` 来自 `seed.json.resultOrders`。
-- 没有 401/403（token/issuer/audience 配置错误）、没有连接拒绝；5xx 和超时单独统计，不能混入业务拒绝。
+```sh
+python3 - "$OUT/requests.jsonl" <<'PY'
+import collections, json, sys
+
+rows = [json.loads(line) for line in open(sys.argv[1]) if line.strip()]
+if not rows:
+    raise SystemExit("empty requests.jsonl")
+
+accepted = collections.Counter()
+for row in rows:
+    status = row["status"]
+    if status in (401, 403) or status >= 500:
+        raise SystemExit(f"technical/auth failure: {row}")
+    if 400 <= status < 500 and status != 429:
+        raise SystemExit(f"unexpected client error: {row}")
+    if 200 <= status < 300 and row.get("state") != "REJECTED":
+        accepted[row["op"]] += 1
+
+for op in ("query", "result", "exchange", "draw"):
+    if accepted[op] <= 0:
+        raise SystemExit(f"no accepted {op} requests; check token/seed/admission")
+
+for row in rows:
+    if row["op"] == "result" and 200 <= row["status"] < 300:
+        if row.get("state") != "DELIVERED":
+            raise SystemExit(f"result not DELIVERED: {row}")
+    if row["op"] == "exchange" and 200 <= row["status"] < 300:
+        if row.get("state") != "DELIVERED":
+            raise SystemExit(f"exchange not DELIVERED: {row}")
+    if row["op"] == "draw" and 200 <= row["status"] < 300:
+        if row.get("state") not in ("PENDING_RESERVATION", "DELIVERED"):
+            raise SystemExit(f"unexpected draw state: {row}")
+
+print("smoke ok", dict(accepted), "total", len(rows))
+PY
+```
+
+检查含义：
+
+- 四类操作都必须至少有 1 个 2xx 且非 `REJECTED`；429 可以出现（入口保护/单用户速率），但不能四类全是 429。
+- `result` 的 2xx 必须是 `DELIVERED`，`exchange` 的 2xx 必须是 `DELIVERED`，`draw` 的 2xx 只能是 `PENDING_RESERVATION`/`DELIVERED`；不能只看 HTTP 状态。
+- `result` 的 `targetOrderId` 必须来自 `seed.json.resultOrders`；`p0-load.js` 在初始化阶段会拒绝缺失或不符合 `RouteCodec.routeOrder` 的订单 ID。
+- 401/403/5xx 或 404/400/409 等意外 4xx 直接判失败；它们不是业务拒绝，不能混入 rejected 统计。
 
 ### 5.3 预热（1 VU，60 秒，不计入正式分母）
 
@@ -457,10 +513,10 @@ docker exec bromark-p0-redis redis-cli FLUSHDB
 
 ## 8. 已知边界 / 常见问题
 
-- **P0 profile 未写 `bm.v2.raffle.enabled`**：必须在启动参数里加 `--bm.v2.raffle.enabled=true`，否则 `/api/v2/draws` 与 `/api/v2/activities/*` 不注册。本文不修改 profile，只记录运行要求。
+- **P0 profile 启动前置**：profile 已包含 `asset-write-mode=V2`、`raffle.enabled=true` 和全部 admission 值；若环境变量/命令行覆盖导致缺值，`V2FeatureProperties.validateAdmission()` 或 `RedisRequestAdmission` 会拒绝启动，先按第 4.6 节核对，不要只补 `raffle.enabled`。
 - **max_connections**：P0 需要 MySQL `max_connections=300`；seed 在低于 300 时只警告，不阻止小规模 smoke。正式跑前必须核对。
 - **host 端口转发**：应用与 MySQL 同 Docker 网络时优先用容器 DNS `bromark-p0-mysql:3306`；`host.docker.internal:13316` 会绕宿主端口，容量口径会变。
 - **k6 场景覆盖**：开环不要传 `--vus/--duration`；闭环可以传，CLI 会覆盖脚本的 scenario。
 - **Wi-Fi**：同 Wi-Fi 的 P99 受 AP/信道/邻居影响；正式结论优先有线，Wi-Fi 结果必须标注。
-- **结果订单**：`seed.json.resultOrders` 是每个用户一条预置 DELIVERED 订单，供 result 查询；它不是本轮新交付，不能与服务端 `DELIVERED/s` 混算。
+- **结果订单**：`seed.json.resultOrders` 是每个用户一条预置 DELIVERED 订单，供 result 查询；订单 ID 必须同时满足 `RouteCodec.routeOrder` 正则与用户路由 slot，`p0_seed.py` 生成、`p0-load.js` 初始化时校验。它不是本轮新交付，不能与服务端 `DELIVERED/s` 混算。
 - **证据缺失**：没有 `requests.jsonl`/`k6-summary.json`/资源快照的运行，不能写成“通过”；缺项写“未采集”。

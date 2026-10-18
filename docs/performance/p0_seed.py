@@ -7,7 +7,7 @@
 
 设计约束：
 - 不绑定任何 Docker 容器名；只通过 mysql CLI 连接 --mysql-host/--mysql-port。
-- 密码只从命令行/环境变量进入 MYSQL_PWD，不写入 argv、日志或 Git。
+- 密码只从 MYSQL_PWD 环境变量读取，不写入 argv、日志或 Git。
 - seed.json/tokens.json/private.pem 必须写在仓库外；脚本拒绝 Git 工作区路径。
 - 已存在的数据库、非空输出目录一律拒绝，避免覆盖上一次运行。
 """
@@ -29,6 +29,7 @@ MIGRATIONS = ROOT / "docs" / "dev-ops" / "mysql" / "migrations"
 
 RUN_RE = re.compile(r"[a-z0-9_]{1,24}")
 DB_RE = re.compile(r"router_p0_[a-z0-9_]{1,24}_(?:control|one|two)")
+ORDER_RE = re.compile(r"[A-Z][A-Z0-9_]*-0([12])\.(00[0-3])-[A-Za-z0-9]+-[1-9][0-9]*")
 HEX64 = "0" * 64
 
 
@@ -96,6 +97,17 @@ def route(user):
         h = (31 * h + int.from_bytes(units[index:index + 2], "big")) & 0xFFFFFFFF
     slot = (h ^ (h >> 16)) & 7
     return slot // 4 + 1, slot % 4
+
+
+def result_order(user, run, tail):
+    """生成 RouteCodec.routeOrder 可解析、且 slot 等于 routeUser(user) 的结果订单。"""
+    db, table = route(user)
+    node = run.replace("_", "") or "p0"
+    order = f"P0RESULT-0{db}.{table:03d}-{node}r{tail}-1"
+    match = ORDER_RE.fullmatch(order)
+    if not match or f"0{match.group(1)}.{match.group(2)}" != f"0{db}.{table:03d}":
+        fail("generated result order is not route-compatible: " + order)
+    return order
 
 
 def token(private, user, now, ttl):
@@ -290,7 +302,6 @@ def main():
     parser.add_argument("--mysql-host", default=os.environ.get("V2_MYSQL_HOST", "127.0.0.1"))
     parser.add_argument("--mysql-port", type=int, default=None)
     parser.add_argument("--mysql-user", default="root")
-    parser.add_argument("--mysql-password", default=None)
     parser.add_argument("--mysql-bin", default="mysql")
     args = parser.parse_args()
 
@@ -347,12 +358,9 @@ def main():
     MYSQL_HOST = host
     MYSQL_PORT = port
     MYSQL_USER = args.mysql_user
-    if args.mysql_password is not None:
-        MYSQL_PASSWORD = args.mysql_password
-    else:
-        MYSQL_PASSWORD = os.environ.get("V2_MYSQL_PASSWORD", os.environ.get("MYSQL_PWD", ""))
-        if not MYSQL_PASSWORD:
-            parser.error("provide --mysql-password or set V2_MYSQL_PASSWORD/MYSQL_PWD")
+    MYSQL_PASSWORD = os.environ.get("MYSQL_PWD", "")
+    if not MYSQL_PASSWORD:
+        parser.error("set MYSQL_PWD in the environment; passwords are never accepted on argv")
 
     dbs = [f"router_p0_{run}_{part}" for part in ("control", "one", "two")]
     for db in dbs:
@@ -500,7 +508,7 @@ def main():
         )
         control.append(
             "INSERT INTO payment_product VALUES("
-            + ",".join([sql("sku"), "10.00", sql("CNY"), "100.00", "TRUE"])
+            + ",".join([sql(str(sku)), "10.00", sql("CNY"), "100.00", "TRUE"])
             + ")"
         )
         mysql("START TRANSACTION;\n" + ";\n".join(control) + ";\nCOMMIT;", dbs[0])
@@ -551,7 +559,7 @@ def main():
                     )
                 prize_index = prize_indices[n % args.activities][0]
                 snapshot_award = award(award_ids[prize_index], pools[prize_index])
-                order = f"P0RESULT-{run}-{n:06d}"
+                order = result_order(user, run, n + 1)
                 record = result_record(
                     user,
                     order,

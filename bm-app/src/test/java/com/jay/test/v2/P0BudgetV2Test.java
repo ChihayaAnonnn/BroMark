@@ -3,6 +3,7 @@ package com.jay.test.v2;
 import static org.assertj.core.api.Assertions.*;
 
 import com.jay.config.V2BudgetProperties;
+import com.jay.config.V2FeatureProperties;
 import com.jay.domain.asset.model.WorkClass;
 import com.jay.infrastructure.transaction.BoundedDatabaseBudget;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -47,6 +48,31 @@ public class P0BudgetV2Test {
         .contains("prefetch: 8")
         .contains("mode: bounded")
         .contains("max_connections=300");
+  }
+
+  @Test
+  public void p0ProfileDeclaresAdmissionAndRaffle() throws Exception {
+    var environment = new StandardEnvironment();
+    new YamlPropertySourceLoader()
+        .load("v2-p0", new ClassPathResource("application-v2-p0.yml"))
+        .forEach(environment.getPropertySources()::addLast);
+    assertThat(environment.getProperty("bm.v2.raffle.enabled", Boolean.class)).isTrue();
+    var props =
+        Binder.get(environment).bind("bm.v2", Bindable.of(V2FeatureProperties.class)).get();
+    assertThat(props.getAssetWriteMode()).isEqualTo("V2");
+    assertThat(props.getUserRps()).isEqualTo(20);
+    assertThat(props.getActivityRps()).isEqualTo(100);
+    assertThat(props.getMaxInFlight()).isEqualTo(24);
+    assertThat(props.getLocalFallbackRps()).isEqualTo(1);
+    assertThat(props.getQueryRps()).isEqualTo(100);
+    assertThat(props.getQueryMaxInFlight()).isEqualTo(8);
+    assertThat(props.getCancelRps()).isEqualTo(10);
+    assertThat(props.getCancelMaxInFlight()).isEqualTo(2);
+    props.validateAdmission();
+    assertThat(props.getLocalFallbackRps())
+        .isLessThanOrEqualTo(
+            Math.min(
+                props.getUserRps(), Math.min(props.getActivityRps(), props.getQueryRps())));
   }
 
   @Test

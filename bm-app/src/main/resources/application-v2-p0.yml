@@ -55,6 +55,20 @@ redis:
 bm:
   v2:
     enabled: true
+    # V2 资产写模式 + raffle；入口准入没有代码默认值，P0 启动必须显式给出。
+    # 限额按 P0 workload（160 draw/s 等价混合）配置，不是容量结论；max-in-flight
+    # 与 TRADE/QUERY/RECOVERY 数据库许可对齐，local-fallback 是 Redis 故障时的保守值。
+    asset-write-mode: V2
+    raffle:
+      enabled: true
+    user-rps: 20
+    activity-rps: 100
+    max-in-flight: 24
+    local-fallback-rps: 1
+    query-rps: 100
+    query-max-in-flight: 8
+    cancel-rps: 10
+    cancel-max-in-flight: 2
     messaging:
       enabled: true
       prefix: p0

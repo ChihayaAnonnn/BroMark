@@ -28,6 +28,19 @@ for (const prize of seed.prizes) {
     throw new Error('P0 requires every CREDIT prize to have an independent stockPoolId');
 }
 
+// result 是 7:1:1:1 的一部分；没有每个用户的预置订单就不允许开始正式流量。
+if (!seed.resultOrders || typeof seed.resultOrders !== 'object' || Array.isArray(seed.resultOrders))
+  throw new Error('seed.json resultOrders is required for the result leg');
+const RESULT_ORDER_RE = /^[A-Z][A-Z0-9_]*-0[12]\.00[0-3]-[A-Za-z0-9]+-[1-9][0-9]*$/;
+for (let i = 0; i < tokens.length; i++) {
+  const user = tokens[i][0];
+  const order = seed.resultOrders[user];
+  if (typeof order !== 'string' || !RESULT_ORDER_RE.test(order))
+    throw new Error(
+      'seed.json resultOrders missing or not route-compatible for ' + user + '; reseed with p0_seed.py'
+    );
+}
+
 function positiveInt(value, fallback, name) {
   if (value === undefined || value === '') return fallback;
   const parsed = Number(value);
@@ -116,13 +129,8 @@ export default function () {
   let targetOrderId = null;
 
   if (op === 'result') {
-    if (!seed.resultOrders || !seed.resultOrders[user]) {
-      // 正式 seed 会为每个用户预置一条 DELIVERED 结果订单；缺失时仍发请求，
-      // 让 404 进入 rejected 统计而不是让整个压测在初始化阶段崩掉。
-      targetOrderId = `P0-MISSING-${user}`;
-    } else {
-      targetOrderId = seed.resultOrders[user];
-    }
+    targetOrderId = seed.resultOrders[user];
+    if (!targetOrderId) throw new Error('seed.resultOrders missing for ' + user);
     path = `/api/v2/draws/${encodeURIComponent(targetOrderId)}`;
   } else if (op === 'exchange') {
     method = 'POST';
