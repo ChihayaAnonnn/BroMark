@@ -66,3 +66,5 @@ python3 docs/performance/export_v2_stages.py --seed /tmp/SEED/seed.json \
 - [PostgreSQL V2 迁移与 8 核 4 GiB 复测](2026-10-18-postgresql-8c4g-report.md)
 
 - [当前瓶颈综合分析：异步交付链路、数据库事务成本与下一步实验](2026-10-18-bottleneck-synthesis.md)
+
+- [P0 PostgreSQL 运行与压测](p0-postgres-runbook.md)
