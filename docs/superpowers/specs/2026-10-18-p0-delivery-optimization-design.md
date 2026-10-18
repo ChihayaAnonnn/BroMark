@@ -284,18 +284,19 @@ queue: p0.notify
 |---|---:|---|
 | TRADE | 24 | HTTP 受理/兑换 |
 | WORKER | 28 | `p0.reserve` + `p0.deliver` + `p0.notify` 消费 |
+| CALLBACK | 1 | 支付回调等既有 CALLBACK 工作 |
 | QUERY | 8 | 查询/结果 |
 | RELAY | 2 | outbox/retry 发布 |
 | RECOVERY | 2 | 恢复/对账 |
-| **合计** | **64** | 64 < 72，留 8 个余量 |
+| **合计** | **65** | 65 < 72，留 7 个余量 |
 
 说明：
 
 - 这是**初始值**，不是最优值；实施后按 3C MySQL 的实际 CPU/锁等待调整，但必须满足 `total < 每个逻辑池 max`，否则 `V2WorkerConfig.validateConnections` 会拒绝启动。
-- `WORKER=28` 对应 28 个消费线程（8 reserve + 16 deliver + 4 notify），线程与许可一一对应，不额外排队；如果交付仍被许可卡住，再在总预算内提高 WORKER、降低 TRADE。
+- `WORKER=28` 对应 28 个消费线程（8 reserve + 16 deliver + 4 notify），线程与许可一一对应，不额外排队；`CALLBACK=1` 保留给既有支付回调，虽然 P0 主链路不用它。如果交付仍被许可卡住，再在总预算内提高 WORKER、降低 TRADE。
 - 不为后台单独建第二套 Hikari（本期）；先用 `BoundedDatabaseBudget` 的按类信号量隔离，避免连接池被 HTTP 线程全部占用。若实测仍被池 FIFO 卡住，再单独设计后台池。
 - MySQL 3C6G：buffer pool 3G，`innodb_flush_log_at_trx_commit=1`、`sync_binlog=1`、`log_bin=ON`、`flush_method=fsync` 不变；`max_connections=300`。
-- `bm.v2.budget.physical-connection-limits.mysql-it=240`：3×72=216 个池连接 + 20 预留 ≤ 240；启动时由 `validateConnections` 校验。
+- `bm.v2.budget.physical-connection-limits.mysql-it=240`：3×72=216 个池连接 + 20 预留 ≤ 240；启动时由 `validateConnections` 校验。P0 profile 的总许可是 65（含 CALLBACK 1），不是 64。
 - 三个逻辑库仍在一个 MySQL 实例；本设计不把 control/user 拆到不同物理机。
 
 ### 5.6 批处理与提交

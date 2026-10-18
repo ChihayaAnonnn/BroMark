@@ -19,7 +19,7 @@
 - 主链路 3 个 DB 事务、2 个事件（`ReserveAward`、`ReservationConfirmed`）、2 次跨库。
 - 不做旧事件兼容、不迁移旧数据；切换时删除旧队列/旧 outbox/旧状态，空库重建。
 - 不关闭 `innodb_flush_log_at_trx_commit`、`sync_binlog`；不改变分库路由（3 个逻辑库、2 个用户库 × 4 张分表）。
-- 连接池 72/库；总许可 64（TRADE 24 / WORKER 28 / QUERY 8 / RELAY 2 / RECOVERY 2）；`physical-connection-limits=240`。
+- 连接池 72/库；总许可 65（TRADE 24 / WORKER 28 / QUERY 8 / RELAY 2 / RECOVERY 2 / CALLBACK 1）；`physical-connection-limits=240`。
 - 本计划以 MySQL 为 P0 运行目标；PostgreSQL profile 只需保持编译/现有测试不回归，不纳入 P0 验收。
 - 每个任务结束必须提交；提交信息用 `feat(p0): ...` / `test(p0): ...` / `docs(p0): ...`。
 
@@ -485,7 +485,7 @@ git commit -m "feat(p0): wire reserve/confirm handlers and remove cancellation"
 
 **Interfaces:**
 - 代码默认预算保持旧值（7 个许可），避免 `application-v2-it.yml` 的 pool 8 启动失败。
-- P0 profile `application-v2-p0.yml` 覆盖：`TRADE=24, WORKER=28, QUERY=8, RELAY=2, RECOVERY=2`；`physicalConnectionLimits.mysql-it=240`；`reservedConnections=20`；`prefetch=8`。
+- P0 profile `application-v2-p0.yml` 覆盖：`TRADE=24, WORKER=28, QUERY=8, RELAY=2, RECOVERY=2, CALLBACK=1`；`physicalConnectionLimits.mysql-it=240`；`reservedConnections=20`；`prefetch=8`。
 - P0 profile：3 个 Hikari pool `maximum-pool-size=72`，`minimum-idle=0`，`connection-timeout=1000`；`max_connections=300`。
 
 - [ ] **Step 1: 写失败测试**
@@ -496,7 +496,8 @@ git commit -m "feat(p0): wire reserve/confirm handlers and remove cancellation"
       .getResourceAsStream("application-v2-p0.yml").readAllBytes());
   assertThat(yaml).contains("maximum-pool-size: 72");
   assertThat(yaml).contains("TRADE: 24").contains("WORKER: 28")
-      .contains("QUERY: 8").contains("RELAY: 2").contains("RECOVERY: 2");
+      .contains("QUERY: 8").contains("RELAY: 2").contains("RECOVERY: 2")
+      .contains("CALLBACK: 1");
   assertThat(yaml).contains("physical-connection-limits").contains("240");
   assertThat(yaml).contains("prefix: p0");
 }
