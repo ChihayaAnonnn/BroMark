@@ -296,6 +296,7 @@ queue: p0.dlq
 - `WORKER=28` 对应 28 个消费线程（8 reserve + 16 deliver + 4 notify），线程与许可一一对应，不额外排队；如果交付仍被许可卡住，再在总预算内提高 WORKER、降低 TRADE。
 - 不为后台单独建第二套 Hikari（本期）；先用 `BoundedDatabaseBudget` 的按类信号量隔离，避免连接池被 HTTP 线程全部占用。若实测仍被池 FIFO 卡住，再单独设计后台池。
 - MySQL 3C6G：buffer pool 3G，`innodb_flush_log_at_trx_commit=1`、`sync_binlog=1`、`log_bin=ON`、`flush_method=fsync` 不变；`max_connections=300`。
+- `bm.v2.budget.physical-connection-limits.mysql-it=240`：3×72=216 个池连接 + 20 预留 ≤ 240；启动时由 `validateConnections` 校验。
 - 三个逻辑库仍在一个 MySQL 实例；本设计不把 control/user 拆到不同物理机。
 
 ### 5.6 批处理与提交
