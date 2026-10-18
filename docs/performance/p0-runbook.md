@@ -297,6 +297,9 @@ docker exec bromark-p0-rabbit rabbitmqctl list_queues name messages consumers
 `health,prometheus`）；`p0.reserve`/`p0.deliver`/`p0.notify` 已声明且有消费者；日志里是 `p0`
 前缀，不是旧 `bromark.v2`；没有启动期预算/连接池校验错误。
 
+> 安全配置已放行 `/actuator/prometheus`（仅 `health` 与 `prometheus` 免认证），后续修改
+> `V2SecurityConfig.legacyAndManagement` 时必须保留该放行，否则本节的 `DELIVERED/s` 抓取会 403。
+
 ## 5. 负载机准备与 k6 命令
 
 ### 5.1 复制 seed 与建立输出目录

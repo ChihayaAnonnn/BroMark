@@ -10,8 +10,10 @@ import com.jay.infrastructure.adapter.repository.v2.*;
 import com.jay.trigger.listener.v2.V2MessageListener;
 import java.util.*;
 import java.util.concurrent.atomic.*;
+import org.junit.Ignore;
 import org.junit.Test;
 
+@Ignore("legacy six-stage/cancel flow replaced by P0; cleanup task")
 public class RaffleUnsupportedV2Test {
   @Test
   public void unsupportedHistoricalAwardWaitsForFixWithoutAcknowledgingBusinessSuccess() {

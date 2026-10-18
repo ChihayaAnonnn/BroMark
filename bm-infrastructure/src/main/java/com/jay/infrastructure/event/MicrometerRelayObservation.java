@@ -147,10 +147,26 @@ public final class MicrometerRelayObservation implements RelayObservation {
   }
 
   /**
-   * P0 指标只在事务真正提交后生效；回滚/提交失败不能被计成 delivered/emitted。
+   * P0 正向结果（accepted/emitted/delivered/duplicate/success）只在事务真正提交后生效；
+   * 回滚/提交失败不能被计成 delivered/emitted。
+   *
+   * <p>失败/重试类结果（retry/failed/error/rejected/ratelimited）代表一次已经发生的尝试，
+   * 事务回滚也必须可见，因此立即记录。
    *
    * <p>没有事务同步（例如直接调用 service、读取路径）时保持立即记录。
    */
+  private static void p0Record(boolean commitScoped, Runnable record) {
+    if (commitScoped) afterCommit(record);
+    else record.run();
+  }
+
+  private static boolean committedOutcome(String result) {
+    return switch (result) {
+      case "success", "accepted", "emitted", "delivered", "duplicate" -> true;
+      default -> false;
+    };
+  }
+
   private static void afterCommit(Runnable record) {
     if (TransactionSynchronizationManager.isSynchronizationActive()) {
       TransactionSynchronizationManager.registerSynchronization(
@@ -165,30 +181,29 @@ public final class MicrometerRelayObservation implements RelayObservation {
 
   @Override
   public void p0Admission(String result) {
+    String bounded = oneOf(result, P0_ADMISSION_RESULTS);
     var counter =
-        Counter.builder("p0_admission_total")
-            .tag("result", oneOf(result, P0_ADMISSION_RESULTS))
-            .register(registry);
-    afterCommit(counter::increment);
+        Counter.builder("p0_admission_total").tag("result", bounded).register(registry);
+    p0Record(committedOutcome(bounded), counter::increment);
   }
 
   @Override
   public void p0Delivery(String result) {
+    String bounded = oneOf(result, P0_DELIVERY_RESULTS);
     var counter =
-        Counter.builder("p0_delivery_total")
-            .tag("result", oneOf(result, P0_DELIVERY_RESULTS))
-            .register(registry);
-    afterCommit(counter::increment);
+        Counter.builder("p0_delivery_total").tag("result", bounded).register(registry);
+    p0Record(committedOutcome(bounded), counter::increment);
   }
 
   @Override
   public void p0Event(String type, String result) {
     String boundedType = EVENTS.contains(type) ? type : "OTHER";
+    String boundedResult = oneOf(result, P0_EVENT_RESULTS);
     var counter =
         Counter.builder("p0_event_total")
-            .tags("type", boundedType, "result", oneOf(result, P0_EVENT_RESULTS))
+            .tags("type", boundedType, "result", boundedResult)
             .register(registry);
-    afterCommit(counter::increment);
+    p0Record(committedOutcome(boundedResult), counter::increment);
   }
 
   @Override
@@ -200,6 +215,6 @@ public final class MicrometerRelayObservation implements RelayObservation {
         Timer.builder("p0_stage_seconds")
             .tags("stage", stage, "result", result)
             .register(registry);
-    afterCommit(() -> timer.record(nanos, TimeUnit.NANOSECONDS));
+    p0Record(committedOutcome(result), () -> timer.record(nanos, TimeUnit.NANOSECONDS));
   }
 }

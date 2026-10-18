@@ -1,6 +1,7 @@
 package com.jay.test.v2;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -13,9 +14,18 @@ import com.nimbusds.jose.crypto.RSASSASigner;
 import com.nimbusds.jose.jwk.*;
 import com.nimbusds.jose.jwk.gen.RSAKeyGenerator;
 import com.nimbusds.jwt.*;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Instant;
 import java.util.*;
 import org.junit.Test;
+import org.springframework.boot.actuate.autoconfigure.endpoint.EndpointAutoConfiguration;
+import org.springframework.boot.actuate.autoconfigure.endpoint.web.WebEndpointAutoConfiguration;
+import org.springframework.boot.actuate.autoconfigure.health.HealthEndpointAutoConfiguration;
+import org.springframework.boot.actuate.autoconfigure.metrics.MetricsAutoConfiguration;
+import org.springframework.boot.actuate.autoconfigure.metrics.export.prometheus.PrometheusMetricsExportAutoConfiguration;
+import org.springframework.boot.actuate.autoconfigure.web.server.ManagementContextAutoConfiguration;
+import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
+import org.springframework.boot.autoconfigure.web.servlet.DispatcherServletAutoConfiguration;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
 import org.springframework.context.annotation.*;
 import org.springframework.test.web.servlet.*;
@@ -41,6 +51,15 @@ public class V2IdentityV2Test {
     V2ExceptionHandler.class,
     V2IdentityProbeController.class,
     com.jay.trigger.http.v2.TestEndpoints.class
+  })
+  @ImportAutoConfiguration({
+    EndpointAutoConfiguration.class,
+    WebEndpointAutoConfiguration.class,
+    ManagementContextAutoConfiguration.class,
+    HealthEndpointAutoConfiguration.class,
+    MetricsAutoConfiguration.class,
+    PrometheusMetricsExportAutoConfiguration.class,
+    DispatcherServletAutoConfiguration.class
   })
   static class WebConfig {}
 
@@ -69,6 +88,7 @@ public class V2IdentityV2Test {
             "bm.v2.enabled=true",
             "bm.v2.auth.issuer=https://issuer.test",
             "bm.v2.auth.audience=bromark",
+            "management.endpoints.web.exposure.include=health,prometheus",
             "bm.v2.auth.public-key=" + Base64.getEncoder().encodeToString(publicBytes()));
   }
 
@@ -165,7 +185,13 @@ public class V2IdentityV2Test {
               mvc.perform(get("/api/v2/activities/1")).andExpect(status().isOk());
               mvc.perform(post("/api/v2/activities/1")).andExpect(status().isUnauthorized());
               mvc.perform(get("/api/v2/orders/1")).andExpect(status().isUnauthorized());
-              mvc.perform(get("/actuator/prometheus")).andExpect(status().isForbidden());
+              var metrics = c.getBean(MeterRegistry.class);
+              metrics.counter("p0_delivery_total", "result", "failed").increment();
+              mvc.perform(get("/actuator/health")).andExpect(status().isOk());
+              mvc.perform(get("/actuator/prometheus"))
+                  .andExpect(status().isOk())
+                  .andExpect(content().string(containsString("p0_delivery_total")));
+              mvc.perform(get("/actuator/env")).andExpect(status().isForbidden());
               for (String path :
                   List.of(
                       "/api/v2/test/typed",

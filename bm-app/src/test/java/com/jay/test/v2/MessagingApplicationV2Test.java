@@ -121,8 +121,9 @@ public class MessagingApplicationV2Test {
       var registry =
           context.getBean(
               org.springframework.amqp.rabbit.listener.RabbitListenerEndpointRegistry.class);
-      assertThat(registry.getListenerContainer("v2-notification").isRunning()).isTrue();
-      assertThat(registry.getListenerContainer("v2-workflow").isRunning()).isTrue();
+      assertThat(registry.getListenerContainer("p0-reserve").isRunning()).isTrue();
+      assertThat(registry.getListenerContainer("p0-deliver").isRunning()).isTrue();
+      assertThat(registry.getListenerContainer("p0-notify").isRunning()).isTrue();
     }
   }
 

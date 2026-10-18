@@ -340,7 +340,7 @@ public final class RelayFaultProbe {
                                     .RabbitListenerEndpointRegistry.class);
                         registry.stop();
                         var states = new java.util.LinkedHashMap<String, Boolean>();
-                        for (String id : List.of("v2-workflow", "v2-notification")) {
+                        for (String id : List.of("p0-reserve", "p0-deliver", "p0-notify")) {
                           var container =
                               java.util.Objects.requireNonNull(registry.getListenerContainer(id));
                           states.put(id, container.isRunning());

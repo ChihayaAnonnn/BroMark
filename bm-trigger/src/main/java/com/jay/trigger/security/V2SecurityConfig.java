@@ -89,7 +89,9 @@ public class V2SecurityConfig {
     return http.csrf(c -> c.disable())
         .authorizeHttpRequests(
             a ->
-                a.requestMatchers("/actuator/health")
+                // health 与 prometheus 免认证；其余 actuator 端点继续拒绝。
+                // 运行手册依赖 /actuator/prometheus 抓取 DELIVERED/s，改动时不得移除放行。
+                a.requestMatchers("/actuator/health", "/actuator/prometheus")
                     .permitAll()
                     .requestMatchers("/actuator/**", "/api/v2/**")
                     .denyAll()

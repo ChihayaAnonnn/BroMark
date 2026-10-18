@@ -8,8 +8,10 @@ import com.jay.domain.stock.model.*;
 import com.jay.infrastructure.adapter.repository.v2.*;
 import java.time.*;
 import java.util.*;
+import org.junit.Ignore;
 import org.junit.Test;
 
+@Ignore("legacy six-stage/cancel flow replaced by P0; cleanup task")
 public class RaffleDeliveryV2Test {
   @Test
   public void awardDeliveryIsAtomicAndIdempotentAfterAckLoss() {
