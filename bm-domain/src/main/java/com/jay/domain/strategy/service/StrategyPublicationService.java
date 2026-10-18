@@ -41,8 +41,10 @@ public final class StrategyPublicationService {
       if (!ids.add(p.awardId())) throw new IllegalArgumentException("Duplicate award");
     }
     validate(c.fallback());
-    if (c.fallback().stockPoolId() != null || c.fallback().unlockAfter() != 0)
-      throw new IllegalArgumentException("Fallback must be unlimited");
+    if (!c.fallback().type().equals("NONE")
+        || c.fallback().stockPoolId() != null
+        || c.fallback().unlockAfter() != 0)
+      throw new IllegalArgumentException("Fallback must be NONE without stock");
     for (var prize : c.prizes())
       if (prize.awardId() == c.fallback().awardId()
           && (!prize.type().equals(c.fallback().type())
@@ -107,6 +109,8 @@ public final class StrategyPublicationService {
       RequestHasher.amount(p.maxAmount());
       if (p.minAmount().compareTo(p.maxAmount()) > 0)
         throw new IllegalArgumentException("Range reversed");
+      if (p.stockPoolId() == null)
+        throw new IllegalArgumentException("CREDIT requires stock pool");
     } else if (p.minAmount() != null || p.maxAmount() != null || p.stockPoolId() != null)
       throw new IllegalArgumentException("NONE has no benefit");
   }

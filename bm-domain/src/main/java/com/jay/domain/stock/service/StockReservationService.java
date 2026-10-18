@@ -47,6 +47,40 @@ public final class StockReservationService {
     return r;
   }
 
+  /** P0 control transaction: reserve and confirm in one save. */
+  public ReservationResult confirmOnReserve(ReserveCommand c) {
+    var old =
+        repo.lockOrCreate(
+            new CancelCommand(c.drawOrderId(), c.userId(), c.identityHash(), c.requestHash()));
+    if (old.state().equals("CONFIRMED")) return old;
+    if (!old.state().equals("NEW")) throw new AssetConflictException("Invalid confirmation");
+    repo.bindRequest(
+        c.drawOrderId(),
+        new RequestHasher().hash("RESERVE", Map.of("command", ReceiptJson.write(c))));
+    validate(c);
+    AwardSnapshot award;
+    boolean allocated = false;
+    if (c.candidate().quantity() == 1) {
+      allocated = repo.commit(c.candidate().stockPoolId(), c.drawOrderId());
+      award = allocated ? c.candidate() : c.fallback();
+    } else {
+      award = c.candidate();
+    }
+    if (!allocated && (!award.type().equals("NONE") || award.stockPoolId() != null))
+      throw new AssetConflictException("Reservation fallback must be NONE without stock");
+    var r =
+        new ReservationResult(
+            c.drawOrderId(),
+            c.userId(),
+            c.identityHash(),
+            c.requestHash(),
+            "CONFIRMED",
+            award,
+            award.quantity());
+    repo.save(r);
+    return r;
+  }
+
   private void validate(ReserveCommand c) {
     var f = strategies.load(c.strategyId(), c.version());
     validateAward(f, c.candidate(), false);

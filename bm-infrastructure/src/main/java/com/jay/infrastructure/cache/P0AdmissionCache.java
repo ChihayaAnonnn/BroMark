@@ -64,4 +64,9 @@ public final class P0AdmissionCache implements DrawAdmissionSource {
   public void invalidate(String user, long activity) {
     admissions.invalidate(user + ":" + activity);
   }
+
+  public void invalidateActivity(long activity) {
+    String suffix = ":" + activity;
+    admissions.asMap().keySet().removeIf(key -> key.endsWith(suffix));
+  }
 }

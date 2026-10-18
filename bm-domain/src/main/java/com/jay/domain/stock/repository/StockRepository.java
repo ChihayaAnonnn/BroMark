@@ -34,6 +34,8 @@ public interface StockRepository extends RecoveryAggregatePort {
 
   boolean hold(String pool, String order);
 
+  boolean commit(String pool, String order);
+
   void move(String pool, String order, String kind);
 
   void addStock(String pool, String biz, long delta, String reason);

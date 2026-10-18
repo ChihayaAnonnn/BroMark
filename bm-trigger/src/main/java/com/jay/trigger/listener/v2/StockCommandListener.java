@@ -17,43 +17,22 @@ public final class StockCommandListener {
   }
 
   public List<EventEnvelope> apply(EventEnvelope e) {
-    ReservationResult r =
-        switch (e.eventType()) {
-          case "ReserveAward" -> {
-            var c = ReceiptJson.read(e.payload(), ReserveCommand.class);
-            identity(e, c.drawOrderId(), c.userId(), c.requestHash());
-            yield stock.reserve(c);
-          }
-          case "ConfirmReservation" -> {
-            var c = ReceiptJson.read(e.payload(), ConfirmCommand.class);
-            identity(e, c.drawOrderId(), c.userId(), c.requestHash());
-            yield stock.confirm(c);
-          }
-          case "CancelReservation" -> {
-            var c = ReceiptJson.read(e.payload(), CancelCommand.class);
-            identity(e, c.drawOrderId(), c.userId(), c.requestHash());
-            yield stock.cancel(c);
-          }
-          default -> throw new AssetConflictException("Wrong stock command");
-        };
-    String type =
-        switch (r.state()) {
-          case "HELD" -> "ReservationHeld";
-          case "CONFIRMED" -> "ReservationConfirmed";
-          case "CANCELLED" -> "ReservationCancelled";
-          default -> throw new AssetConflictException("Unknown reservation state");
-        };
+    if (!"ReserveAward".equals(e.eventType()))
+      throw new AssetConflictException("Wrong stock command");
+    var c = ReceiptJson.read(e.payload(), ReserveCommand.class);
+    identity(e, c.drawOrderId(), c.userId(), c.requestHash());
+    var r = stock.confirmOnReserve(c);
     return List.of(
         new EventEnvelope(
             codec.newEventId(),
-            type,
+            "ReservationConfirmed",
             r.drawOrderId(),
             new BusinessId("DRAW", r.drawOrderId(), r.requestHash()),
             r.userId(),
             codec.routeUser(r.userId()),
             r.requestHash(),
             e.aggregateVersion(),
-            1,
+            2,
             ReceiptJson.write(r)));
   }
 

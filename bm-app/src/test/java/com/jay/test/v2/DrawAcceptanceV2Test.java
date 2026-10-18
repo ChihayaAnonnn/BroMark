@@ -77,9 +77,20 @@ public class DrawAcceptanceV2Test {
 
   static long publish(AssetTestSupport h, String pool) {
     long activity = Math.abs(UUID.randomUUID().getLeastSignificantBits() >>> 1);
+    String stockPool = pool;
+    if (stockPool == null) {
+      stockPool = "draw-pool-" + UUID.randomUUID();
+      String created = stockPool;
+      StockProtocolV2Test.control(
+          h,
+          () -> {
+            StockProtocolV2Test.service(h).createPool(created, "initial", 0, "no stock");
+            return null;
+          });
+    }
     new StrategyPublicationService(
             h.runner, new MySqlStrategyVersionRepository(h.j.getDataSource()))
-        .publish(FrozenStrategyV2Test.command(activity, pool));
+        .publish(FrozenStrategyV2Test.command(activity, stockPool));
     return activity;
   }
 

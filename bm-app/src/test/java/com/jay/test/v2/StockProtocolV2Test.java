@@ -163,10 +163,17 @@ public class StockProtocolV2Test {
                 return null;
               });
           long strategy = Math.abs(UUID.randomUUID().getLeastSignificantBits() >>> 1);
+          String pool = "zero-" + UUID.randomUUID();
+          control(
+              h,
+              () -> {
+                service(h).createPool(pool, "initial", 0, "no stock");
+                return null;
+              });
           String v =
               new StrategyPublicationService(
                       h.runner, new MySqlStrategyVersionRepository(h.j.getDataSource()))
-                  .publish(FrozenStrategyV2Test.command(strategy, null));
+                  .publish(FrozenStrategyV2Test.command(strategy, pool));
           control(
               h,
               () -> {

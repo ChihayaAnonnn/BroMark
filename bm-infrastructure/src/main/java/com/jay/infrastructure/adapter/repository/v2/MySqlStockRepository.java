@@ -158,6 +158,17 @@ public final class MySqlStockRepository implements StockRepository {
     return true;
   }
 
+  public boolean commit(String p, String order) {
+    requireControlTransaction();
+    if (j.update(
+            "update award_stock set available=available-1,allocated=allocated+1,version=version+1"
+                + " where stock_pool_id=? and recovery_status='ACTIVE' and available>0",
+            p)
+        != 1) return false;
+    log(p, order, "COMMIT", 0, -1, 0, 1, "commit");
+    return true;
+  }
+
   public void move(String p, String order, String kind) {
     requireControlTransaction();
     pool(p);

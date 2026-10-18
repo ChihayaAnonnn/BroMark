@@ -33,8 +33,17 @@ public class V2RaffleConfig {
 
   @Bean
   public StrategyPublicationService strategyPublicationService(
-      UserTransactionRunner tx, MySqlStrategyVersionRepository r, StrategyVersionCache cache) {
-    return new StrategyPublicationService(tx, r, cache::warm);
+      UserTransactionRunner tx,
+      MySqlStrategyVersionRepository r,
+      StrategyVersionCache cache,
+      P0AdmissionCache admissions) {
+    return new StrategyPublicationService(
+        tx,
+        r,
+        f -> {
+          admissions.invalidateActivity(f.activityId());
+          cache.warm(f);
+        });
   }
 
   @Bean

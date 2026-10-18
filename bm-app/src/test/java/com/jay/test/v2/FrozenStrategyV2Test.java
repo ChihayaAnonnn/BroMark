@@ -59,13 +59,20 @@ public class FrozenStrategyV2Test {
     AssetTestSupport.run(
         h -> {
           schema(h);
+          String pool = "freeze-" + UUID.randomUUID();
+          StockProtocolV2Test.control(
+              h,
+              () -> {
+                StockProtocolV2Test.service(h).createPool(pool, "initial", 1, "p0");
+                return null;
+              });
           long id = Math.abs(UUID.randomUUID().getLeastSignificantBits() >>> 1);
           var repo = new MySqlStrategyVersionRepository(h.j.getDataSource());
           var pub = new StrategyPublicationService(h.runner, repo);
-          var c = command(id, null);
+          var c = command(id, pool);
           String v = pub.publish(c);
           c.prizes().clear();
-          String v2 = pub.publish(command(id, null));
+          String v2 = pub.publish(command(id, pool));
           var cache = new StrategyVersionCache(h.runner, repo, null, 1);
           cache.load(id, v);
           cache.load(id, v2);

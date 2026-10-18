@@ -50,6 +50,13 @@ public class StrategyCacheV2Test {
     AssetTestSupport.run(
         h -> {
           FrozenStrategyV2Test.schema(h);
+          String pool = "weighted-" + UUID.randomUUID();
+          StockProtocolV2Test.control(
+              h,
+              () -> {
+                StockProtocolV2Test.service(h).createPool(pool, "initial", 1, "p0");
+                return null;
+              });
           long a = Math.abs(UUID.randomUUID().getLeastSignificantBits() >>> 1);
           var p =
               new PublishStrategyCommand.Prize(
@@ -57,7 +64,7 @@ public class StrategyCacheV2Test {
                   "CREDIT",
                   new java.math.BigDecimal("3.00"),
                   new java.math.BigDecimal("3.00"),
-                  null,
+                  pool,
                   java.math.BigDecimal.ONE,
                   3);
           var none =
