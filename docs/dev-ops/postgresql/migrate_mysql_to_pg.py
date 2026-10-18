@@ -96,6 +96,18 @@ def value_sql(value, data_type, source_type):
     return quote(value)
 
 
+def parse_xml(text):
+    if text.lstrip().startswith("<?xml"):
+        text = text.split("?>", 1)[1]
+    root = ET.fromstring(text)
+    if root.tag != "resultset":
+        # MySQL may emit several resultsets; the copier always issues one.
+        for child in root:
+            if child.tag == "resultset":
+                return child
+    return root
+
+
 def target_count(args, table):
     return int(psql(args, "select count(*) from " + table, args.target_db).strip())
 
@@ -116,12 +128,12 @@ def copy_table(args, table):
         None,
     )
     source_types = {}
-    for row in ET.fromstring("<root>" + source_meta + "</root>").iter("row"):
+    for row in parse_xml(source_meta).iter("row"):
         fields = {f.get("name"): (f.text or "") for f in row}
         source_types[fields.get("column_name")] = fields.get("data_type", "")
     select = ",".join(("HEX(" + n + ") AS " + n) if source_types.get(n) in ("blob", "longblob", "varbinary", "binary") else n for n in names)
     xml = mysql(args, "select " + select + " from " + table, args.source_db)
-    root = ET.fromstring("<root>" + xml + "</root>")
+    root = parse_xml(xml)
     batches = []
     batch = []
     for row in root.iter("row"):
@@ -182,15 +194,13 @@ def main():
         host, port = args.target_host.rsplit(":", 1)
         args.target_host, args.target_port = host, int(port)
 
-    meta = ET.fromstring(
-        "<root>"
-        + mysql(
+    meta = parse_xml(
+        mysql(
             args,
             "select table_name from information_schema.tables where table_schema=%s"
             % quote(args.source_db),
             None,
         )
-        + "</root>"
     )
     available = {
         (field.text or "").strip()
