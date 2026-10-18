@@ -1,26 +1,26 @@
 package com.jay.test.v2;
 
-import com.jay.domain.asset.model.WorkClass;
 import com.jay.domain.asset.model.Deadline;
+import com.jay.domain.asset.model.RouteSlot;
+import com.jay.domain.asset.model.WorkClass;
 import com.jay.domain.asset.repository.UserTransactionRunner;
 import com.jay.domain.asset.service.FaultInjector;
 import com.jay.domain.task.model.BatchSettleReport;
 import com.jay.domain.task.model.ClaimedPublish;
-import com.jay.domain.task.model.PublishResolution;
 import com.jay.domain.task.model.PublishOutcome;
-import com.jay.domain.asset.model.RouteSlot;
+import com.jay.domain.task.model.PublishResolution;
 import com.jay.domain.task.repository.BatchOutboxRepository;
-import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
-import org.springframework.aop.framework.ProxyFactory;
-import org.aopalliance.intercept.MethodInterceptor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Proxy;
 import java.nio.file.*;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 import javax.sql.DataSource;
+import org.aopalliance.intercept.MethodInterceptor;
+import org.springframework.aop.framework.ProxyFactory;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.support.GenericApplicationContext;
@@ -166,7 +166,9 @@ public final class RelayFaultProbe {
     volatile BatchOutboxRepository repository;
     boolean submitted;
 
-    LateSettlement(Path directory) { this.directory = directory; }
+    LateSettlement(Path directory) {
+      this.directory = directory;
+    }
 
     BeanPostProcessor capture() {
       return new BeanPostProcessor() {
@@ -176,18 +178,21 @@ public final class RelayFaultProbe {
           repository = (BatchOutboxRepository) bean;
           var factory = new ProxyFactory(bean);
           factory.setProxyTargetClass(true);
-          factory.addAdvice((MethodInterceptor) invocation -> {
-            Object result = invocation.proceed();
-            if (invocation.getMethod().getName().equals("claimBatch")
-                && Files.exists(directory.resolve("arm-late"))) {
-              for (Object item : (List<?>) result) {
-                var task = (ClaimedPublish) item;
-                if (Files.readString(directory.resolve("arm-late")).strip().equals(task.eventId()))
-                  claimed.putIfAbsent(task.eventId(), task);
-              }
-            }
-            return result;
-          });
+          factory.addAdvice(
+              (MethodInterceptor)
+                  invocation -> {
+                    Object result = invocation.proceed();
+                    if (invocation.getMethod().getName().equals("claimBatch")
+                        && Files.exists(directory.resolve("arm-late"))) {
+                      for (Object item : (List<?>) result) {
+                        var task = (ClaimedPublish) item;
+                        if (Files.readString(directory.resolve("arm-late"))
+                            .strip()
+                            .equals(task.eventId())) claimed.putIfAbsent(task.eventId(), task);
+                      }
+                    }
+                    return result;
+                  });
           return factory.getProxy();
         }
       };
@@ -201,19 +206,39 @@ public final class RelayFaultProbe {
         var task = java.util.Objects.requireNonNull(claimed.get(target), "original claim missing");
         Instant started = Instant.now();
         var deadline = new Deadline(started.plusSeconds(1));
-        var report = repository.settleBatch(task.ownerSlot(),
-            List.of(new PublishResolution(task, PublishOutcome.CONFIRMED, "CONFIRMED")), deadline);
-        var json = new com.fasterxml.jackson.databind.ObjectMapper()
-            .registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
-        var result = java.util.Map.of("originalClaim", task, "report", report,
-            "started", started, "deadline", deadline.expiresAt(), "finished", Instant.now(),
-            "scope", "test-only fresh 1s repository transaction; original runOnce deadline unchanged");
-        Files.writeString(directory.resolve("late-settle-result.tmp"), json.writeValueAsString(result));
-        Files.move(directory.resolve("late-settle-result.tmp"), directory.resolve("late-settle-result.json"),
+        var report =
+            repository.settleBatch(
+                task.ownerSlot(),
+                List.of(new PublishResolution(task, PublishOutcome.CONFIRMED, "CONFIRMED")),
+                deadline);
+        var json =
+            new com.fasterxml.jackson.databind.ObjectMapper()
+                .registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
+        var result =
+            java.util.Map.of(
+                "originalClaim",
+                task,
+                "report",
+                report,
+                "started",
+                started,
+                "deadline",
+                deadline.expiresAt(),
+                "finished",
+                Instant.now(),
+                "scope",
+                "test-only fresh 1s repository transaction; original runOnce deadline unchanged");
+        Files.writeString(
+            directory.resolve("late-settle-result.tmp"), json.writeValueAsString(result));
+        Files.move(
+            directory.resolve("late-settle-result.tmp"),
+            directory.resolve("late-settle-result.json"),
             StandardCopyOption.ATOMIC_MOVE);
       } catch (Exception e) {
-        try { Files.writeString(directory.resolve("late-settle-failure"), e.toString()); }
-        catch (java.io.IOException ignored) { }
+        try {
+          Files.writeString(directory.resolve("late-settle-failure"), e.toString());
+        } catch (java.io.IOException ignored) {
+        }
         throw new IllegalStateException("late settlement probe failed", e);
       }
     }
@@ -222,10 +247,13 @@ public final class RelayFaultProbe {
   /** 仅测试传输层阻塞真实ReservationHeld字节；暂停/恢复调用实际RecoveryService。 */
   static final class LateReceipt {
     final Path directory;
-    final com.fasterxml.jackson.databind.ObjectMapper json = new com.fasterxml.jackson.databind.ObjectMapper()
-        .registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
+    final com.fasterxml.jackson.databind.ObjectMapper json =
+        new com.fasterxml.jackson.databind.ObjectMapper()
+            .registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
 
-    LateReceipt(Path directory) { this.directory = directory; }
+    LateReceipt(Path directory) {
+      this.directory = directory;
+    }
 
     BeanPostProcessor transport() {
       return new BeanPostProcessor() {
@@ -237,29 +265,48 @@ public final class RelayFaultProbe {
             var field = bean.getClass().getDeclaredField("template");
             field.setAccessible(true);
             var template = (org.springframework.amqp.rabbit.core.RabbitTemplate) field.get(bean);
-            template.addBeforePublishPostProcessors(message -> {
-              try {
-                var event = json.readValue(message.getBody(), com.jay.domain.task.model.EventEnvelope.class);
-                if (!event.eventType().equals("ReservationHeld")) return message;
-                var marker = java.util.Map.of("event", event, "bodyBase64",
-                    java.util.Base64.getEncoder().encodeToString(message.getBody()),
-                    "headers", message.getMessageProperties().getHeaders(),
-                    "messageId", message.getMessageProperties().getMessageId(),
-                    "wireSha256", java.util.HexFormat.of().formatHex(
-                        java.security.MessageDigest.getInstance("SHA-256").digest(message.getBody())),
-                    "at", Instant.now(), "pid", ProcessHandle.current().pid());
-                Files.writeString(directory.resolve("receipt-blocked.tmp"), json.writeValueAsString(marker));
-                Files.move(directory.resolve("receipt-blocked.tmp"), directory.resolve("receipt-blocked.json"),
-                    StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-                while (!Files.exists(directory.resolve("release-receipt"))) Thread.sleep(20);
-                return message;
-              } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new IllegalStateException("receipt transport interrupted", e);
-              } catch (java.io.IOException | java.security.NoSuchAlgorithmException e) {
-                throw new IllegalStateException("receipt marker failed", e);
-              }
-            });
+            template.addBeforePublishPostProcessors(
+                message -> {
+                  try {
+                    var event =
+                        json.readValue(
+                            message.getBody(), com.jay.domain.task.model.EventEnvelope.class);
+                    if (!event.eventType().equals("ReservationHeld")) return message;
+                    var marker =
+                        java.util.Map.of(
+                            "event",
+                            event,
+                            "bodyBase64",
+                            java.util.Base64.getEncoder().encodeToString(message.getBody()),
+                            "headers",
+                            message.getMessageProperties().getHeaders(),
+                            "messageId",
+                            message.getMessageProperties().getMessageId(),
+                            "wireSha256",
+                            java.util.HexFormat.of()
+                                .formatHex(
+                                    java.security.MessageDigest.getInstance("SHA-256")
+                                        .digest(message.getBody())),
+                            "at",
+                            Instant.now(),
+                            "pid",
+                            ProcessHandle.current().pid());
+                    Files.writeString(
+                        directory.resolve("receipt-blocked.tmp"), json.writeValueAsString(marker));
+                    Files.move(
+                        directory.resolve("receipt-blocked.tmp"),
+                        directory.resolve("receipt-blocked.json"),
+                        StandardCopyOption.ATOMIC_MOVE,
+                        StandardCopyOption.REPLACE_EXISTING);
+                    while (!Files.exists(directory.resolve("release-receipt"))) Thread.sleep(20);
+                    return message;
+                  } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException("receipt transport interrupted", e);
+                  } catch (java.io.IOException | java.security.NoSuchAlgorithmException e) {
+                    throw new IllegalStateException("receipt marker failed", e);
+                  }
+                });
           } catch (ReflectiveOperationException e) {
             throw new IllegalStateException("test transport template unavailable", e);
           }
@@ -269,58 +316,110 @@ public final class RelayFaultProbe {
     }
 
     void commands(org.springframework.context.ConfigurableApplicationContext context) {
-      Thread.ofPlatform().daemon().name("test-only-recovery-commands").start(() -> {
-        var executed = new java.util.HashSet<String>();
-        while (context.isActive()) {
-          try {
-            for (String action : List.of("pause", "resume", "stop-consumers")) {
-              Path command = directory.resolve("command-" + action + ".json");
-              if (!Files.exists(command) || !executed.add(action)) continue;
-              var input = json.readTree(Files.readString(command));
-              String run = input.get("runId").asText();
-              if (!run.matches("[a-z0-9_]{1,16}")
-                  || !("router_perf_it_" + run + "_control").equals(System.getenv("V2_DB00")))
-                throw new IllegalArgumentException("recovery command target run mismatch");
-              if (action.equals("stop-consumers")) {
-                var registry = context.getBean(org.springframework.amqp.rabbit.listener.RabbitListenerEndpointRegistry.class);
-                registry.stop();
-                var states = new java.util.LinkedHashMap<String, Boolean>();
-                for (String id : List.of("v2-workflow", "v2-notification")) {
-                  var container = java.util.Objects.requireNonNull(registry.getListenerContainer(id));
-                  states.put(id, container.isRunning());
+      Thread.ofPlatform()
+          .daemon()
+          .name("test-only-recovery-commands")
+          .start(
+              () -> {
+                var executed = new java.util.HashSet<String>();
+                while (context.isActive()) {
+                  try {
+                    for (String action : List.of("pause", "resume", "stop-consumers")) {
+                      Path command = directory.resolve("command-" + action + ".json");
+                      if (!Files.exists(command) || !executed.add(action)) continue;
+                      var input = json.readTree(Files.readString(command));
+                      String run = input.get("runId").asText();
+                      if (!run.matches("[a-z0-9_]{1,16}")
+                          || !("router_perf_it_" + run + "_control")
+                              .equals(System.getenv("V2_DB00")))
+                        throw new IllegalArgumentException("recovery command target run mismatch");
+                      if (action.equals("stop-consumers")) {
+                        var registry =
+                            context.getBean(
+                                org.springframework.amqp.rabbit.listener
+                                    .RabbitListenerEndpointRegistry.class);
+                        registry.stop();
+                        var states = new java.util.LinkedHashMap<String, Boolean>();
+                        for (String id : List.of("v2-workflow", "v2-notification")) {
+                          var container =
+                              java.util.Objects.requireNonNull(registry.getListenerContainer(id));
+                          states.put(id, container.isRunning());
+                        }
+                        if (states.values().stream().anyMatch(Boolean::booleanValue))
+                          throw new IllegalStateException("test consumer stop not complete");
+                        Files.writeString(
+                            directory.resolve(action + "-result.tmp"),
+                            json.writeValueAsString(
+                                java.util.Map.of(
+                                    "command",
+                                    input,
+                                    "states",
+                                    states,
+                                    "at",
+                                    Instant.now(),
+                                    "success",
+                                    true)));
+                        Files.move(
+                            directory.resolve(action + "-result.tmp"),
+                            directory.resolve(action + "-result.json"),
+                            StandardCopyOption.ATOMIC_MOVE);
+                        continue;
+                      }
+                      var slot =
+                          new RouteSlot(
+                              input.get("dbKey").asText(), input.get("tableKey").asText());
+                      var recovery =
+                          context.getBean(com.jay.domain.task.service.RecoveryService.class);
+                      String order = input.get("orderId").asText();
+                      if (action.equals("pause"))
+                        recovery.pause(
+                            slot,
+                            "DRAW",
+                            order,
+                            com.jay.domain.task.model.RecoveryStatus.REVIEW,
+                            "isolated test late ReservationHeld transport");
+                      else
+                        recovery.resume(
+                            slot,
+                            "DRAW",
+                            order,
+                            input.get("expectedVersion").asLong(),
+                            "task8-isolated-operator",
+                            "verified original late ReservationHeld fact");
+                      Files.writeString(
+                          directory.resolve(action + "-result.tmp"),
+                          json.writeValueAsString(
+                              java.util.Map.of(
+                                  "action",
+                                  action,
+                                  "orderId",
+                                  order,
+                                  "at",
+                                  Instant.now(),
+                                  "success",
+                                  true,
+                                  "command",
+                                  input,
+                                  "operator",
+                                  "task8-isolated-operator",
+                                  "reason",
+                                  "verified original late ReservationHeld fact")));
+                      Files.move(
+                          directory.resolve(action + "-result.tmp"),
+                          directory.resolve(action + "-result.json"),
+                          StandardCopyOption.ATOMIC_MOVE);
+                    }
+                    Thread.sleep(20);
+                  } catch (Exception e) {
+                    try {
+                      Files.writeString(
+                          directory.resolve("recovery-command-failure"), e.toString());
+                    } catch (java.io.IOException ignored) {
+                    }
+                    return;
+                  }
                 }
-                if (states.values().stream().anyMatch(Boolean::booleanValue))
-                  throw new IllegalStateException("test consumer stop not complete");
-                Files.writeString(directory.resolve(action + "-result.tmp"), json.writeValueAsString(
-                    java.util.Map.of("command", input, "states", states, "at", Instant.now(), "success", true)));
-                Files.move(directory.resolve(action + "-result.tmp"), directory.resolve(action + "-result.json"),
-                    StandardCopyOption.ATOMIC_MOVE);
-                continue;
-              }
-              var slot = new RouteSlot(input.get("dbKey").asText(), input.get("tableKey").asText());
-              var recovery = context.getBean(com.jay.domain.task.service.RecoveryService.class);
-              String order = input.get("orderId").asText();
-              if (action.equals("pause"))
-                recovery.pause(slot, "DRAW", order, com.jay.domain.task.model.RecoveryStatus.REVIEW,
-                    "isolated test late ReservationHeld transport");
-              else
-                recovery.resume(slot, "DRAW", order, input.get("expectedVersion").asLong(),
-                    "task8-isolated-operator", "verified original late ReservationHeld fact");
-              Files.writeString(directory.resolve(action + "-result.tmp"), json.writeValueAsString(
-                  java.util.Map.of("action", action, "orderId", order, "at", Instant.now(), "success", true,
-                      "command", input, "operator", "task8-isolated-operator",
-                      "reason", "verified original late ReservationHeld fact")));
-              Files.move(directory.resolve(action + "-result.tmp"), directory.resolve(action + "-result.json"),
-                  StandardCopyOption.ATOMIC_MOVE);
-            }
-            Thread.sleep(20);
-          } catch (Exception e) {
-            try { Files.writeString(directory.resolve("recovery-command-failure"), e.toString()); }
-            catch (java.io.IOException ignored) { }
-            return;
-          }
-        }
-      });
+              });
     }
   }
 
@@ -336,37 +435,49 @@ public final class RelayFaultProbe {
     builder.initializers(
         context -> {
           var generic = (GenericApplicationContext) context;
+          UnlimitedLoadMode.install(generic);
           generic.registerBean(
               "task8ConfirmProbe",
               FaultInjector.class,
               () -> afterConfirm(directory, late::submitIfTriggered),
               definition -> definition.setPrimary(true));
           generic.registerBean("task8LateCapture", BeanPostProcessor.class, late::capture);
-          generic.registerBean("task8ReceiptTransport", BeanPostProcessor.class, receipt::transport);
+          generic.registerBean(
+              "task8ReceiptTransport", BeanPostProcessor.class, receipt::transport);
           generic.registerBean(
               "task8SettleProbe",
               BeanPostProcessor.class,
               () -> settleConnectionProbe(generic, directory));
         });
     var app = builder.run(Arrays.copyOfRange(args, 1, args.length));
-    if (Files.exists(directory.resolve("arm-receipt")) || Files.exists(directory.resolve("arm-admin")))
-      receipt.commands(app);
+    UnlimitedLoadMode.verifyRuntime((GenericApplicationContext) app, directory);
+    if (Files.exists(directory.resolve("arm-receipt"))
+        || Files.exists(directory.resolve("arm-admin"))) receipt.commands(app);
     if (Files.exists(directory.resolve("arm-sampler"))) {
       var prometheus = app.getBean(io.micrometer.prometheusmetrics.PrometheusMeterRegistry.class);
-      Thread.ofPlatform().daemon().name("task8-metrics-snapshot").start(() -> {
-        while (!Thread.currentThread().isInterrupted()) {
-          try {
-            Files.writeString(directory.resolve("metrics.tmp"), prometheus.scrape());
-            Files.move(directory.resolve("metrics.tmp"), directory.resolve("metrics.prom"),
-                StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-            Thread.sleep(1000);
-          } catch (Exception error) {
-            try { Files.writeString(directory.resolve("metrics-failure"), error.toString()); }
-            catch (java.io.IOException ignored) { }
-            return;
-          }
-        }
-      });
+      Thread.ofPlatform()
+          .daemon()
+          .name("task8-metrics-snapshot")
+          .start(
+              () -> {
+                while (!Thread.currentThread().isInterrupted()) {
+                  try {
+                    Files.writeString(directory.resolve("metrics.tmp"), prometheus.scrape());
+                    Files.move(
+                        directory.resolve("metrics.tmp"),
+                        directory.resolve("metrics.prom"),
+                        StandardCopyOption.ATOMIC_MOVE,
+                        StandardCopyOption.REPLACE_EXISTING);
+                    Thread.sleep(1000);
+                  } catch (Exception error) {
+                    try {
+                      Files.writeString(directory.resolve("metrics-failure"), error.toString());
+                    } catch (java.io.IOException ignored) {
+                    }
+                    return;
+                  }
+                }
+              });
     }
     int port =
         ((org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext) app)

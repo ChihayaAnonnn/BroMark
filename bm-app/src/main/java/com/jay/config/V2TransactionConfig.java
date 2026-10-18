@@ -40,7 +40,7 @@ public class V2TransactionConfig {
   public static void validateNetworkTimeouts(
       DataSource ds, com.jay.domain.task.model.RelayPolicy policy) {
     if (!(ds instanceof cn.bugstack.middleware.db.router.dynamic.DynamicDataSource routed))
-      throw new IllegalArgumentException("Bounded relay requires routed MySQL data sources");
+      throw new IllegalArgumentException("Bounded relay requires routed data sources");
     long limit = Math.min(policy.claimTimeout().toMillis(), policy.settleTimeout().toMillis());
     for (var source : routed.getResolvedDataSources().values()) {
       if (!(source instanceof com.zaxxer.hikari.HikariDataSource pool)
@@ -48,9 +48,23 @@ public class V2TransactionConfig {
         throw new IllegalArgumentException(
             "Bounded relay requires Hikari acquisition timeout within DB budget");
       try (var connection = source.getConnection()) {
-        var properties = connection.unwrap(com.mysql.cj.jdbc.JdbcConnection.class).getPropertySet();
-        int socket = properties.getIntegerProperty("socketTimeout").getValue();
-        int connect = properties.getIntegerProperty("connectTimeout").getValue();
+        long socket;
+        long connect;
+        if (pool.getJdbcUrl().startsWith("jdbc:postgresql:")) {
+          // pgJDBC连接超时以秒配置；Socket使用已建立连接的实际JDBC网络超时。
+          var parameters =
+              org.postgresql.Driver.parseURL(pool.getJdbcUrl(), pool.getDataSourceProperties());
+          if (parameters == null) throw new IllegalArgumentException("Invalid PostgreSQL JDBC URL");
+          connect =
+              Math.multiplyExact(
+                  org.postgresql.PGProperty.CONNECT_TIMEOUT.getInt(parameters), 1000L);
+          socket = connection.getNetworkTimeout();
+        } else {
+          var properties =
+              connection.unwrap(com.mysql.cj.jdbc.JdbcConnection.class).getPropertySet();
+          socket = properties.getIntegerProperty("socketTimeout").getValue();
+          connect = properties.getIntegerProperty("connectTimeout").getValue();
+        }
         if (socket < 1 || connect < 1 || socket > limit || connect > limit)
           throw new IllegalArgumentException(
               "Bounded relay requires finite JDBC network timeouts within DB budget");

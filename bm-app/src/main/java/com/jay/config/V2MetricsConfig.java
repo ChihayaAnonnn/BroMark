@@ -35,6 +35,11 @@ public class V2MetricsConfig {
             index++;
             pool.setMetricsTrackerFactory(new MicrometerMetricsTrackerFactory(metrics));
           }
+        // InnoDB累计等待仅适用于MySQL；PostgreSQL等待由pg_stat_activity独立采集。
+        if (dynamic.getResolvedDataSources().values().stream()
+            .filter(HikariDataSource.class::isInstance)
+            .map(HikariDataSource.class::cast)
+            .anyMatch(pool -> pool.getJdbcUrl().startsWith("jdbc:postgresql:"))) return;
       }
       io.micrometer.core.instrument.Gauge.builder(
               "bm.v2.database.lock.wait",

@@ -1,6 +1,7 @@
 package com.jay.config;
 
 import com.jay.domain.asset.model.WorkClass;
+import java.time.Duration;
 import java.util.*;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
@@ -26,6 +27,16 @@ public class V2BudgetProperties {
                       1,
                       WorkClass.RECOVERY,
                       1))));
+
+  private Duration tradePermitMaxWait = Duration.ofSeconds(1);
+
+  public Duration getTradePermitMaxWait() {
+    return tradePermitMaxWait;
+  }
+
+  public void setTradePermitMaxWait(Duration value) {
+    tradePermitMaxWait = value;
+  }
 
   private int replicaCount = 1;
   private int reservedConnections = 20;

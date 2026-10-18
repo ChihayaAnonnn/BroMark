@@ -76,6 +76,46 @@ public class V2FoundationWiringTest {
   }
 
   @Test
+  public void configuredTradeWaitIsAppliedToTheRealBudget() {
+    Java25RouterIntegrationTest.databaseContext()
+        .withUserConfiguration(Foundation.class)
+        .withPropertyValues("bm.v2.enabled=true", "bm.v2.budget.trade-permit-max-wait=2s")
+        .run(
+            c -> {
+              assertThat(c).hasNotFailed();
+              var budget = c.getBean(BoundedDatabaseBudget.class);
+              var deadline = new Deadline(Instant.now().plusSeconds(5));
+              var first = budget.acquire("mysql-it", WorkClass.TRADE, deadline);
+              var second = budget.acquire("mysql-it", WorkClass.TRADE, deadline);
+              var entered = new CountDownLatch(1);
+              try (var executor = Executors.newSingleThreadExecutor()) {
+                try {
+                  var attempt =
+                      executor.submit(
+                          () -> {
+                            entered.countDown();
+                            try (var permit =
+                                budget.acquire("mysql-it", WorkClass.TRADE, deadline)) {
+                              return "acquired";
+                            }
+                          });
+                  assertThat(entered.await(1, TimeUnit.SECONDS)).isTrue();
+                  Thread.sleep(1250);
+                  assertThat(attempt.isDone()).isFalse();
+                  assertThatThrownBy(() -> attempt.get(1500, TimeUnit.MILLISECONDS))
+                      .isInstanceOf(ExecutionException.class)
+                      .hasCauseInstanceOf(BudgetExceededException.class);
+                } finally {
+                  first.close();
+                  second.close();
+                }
+              }
+              assertThat(budget.available("mysql-it", WorkClass.TRADE)).isEqualTo(2);
+              assertThat(budget.isIdle()).isTrue();
+            });
+  }
+
+  @Test
   public void rejectsBudgetsThatCanExhaustAConcentratedLogicalPool() {
     Java25RouterIntegrationTest.databaseContext()
         .withUserConfiguration(Foundation.class)

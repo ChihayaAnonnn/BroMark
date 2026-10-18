@@ -47,39 +47,44 @@ public final class MySqlConsumerInbox implements ConsumerInbox {
     requireTx();
     String hash = digest(JsonStore.write(e));
     try {
-      j.update(
-          "insert into consumer_inbox values(?,?,?,UTC_TIMESTAMP(6))", consumer, e.eventId(), hash);
-      return true;
-    } catch (DuplicateKeyException ex) {
-      String saved =
-          j.queryForObject(
-              "select payload_hash from consumer_inbox where consumer_name=? and event_id=? for"
-                  + " update",
-              String.class,
+      if (j.update(
+              "insert into consumer_inbox values(?,?,?,UTC_TIMESTAMP(6))",
               consumer,
-              e.eventId());
-      if (!hash.equals(saved)) throw new AssetConflictException("Transport event changed");
-      return false;
+              e.eventId(),
+              hash)
+          == 1) return true;
+    } catch (DuplicateKeyException ex) {
+      // MySQL 重复键不使事务失效；PG 兼容层通过 ON CONFLICT 返回 0。
     }
+    String saved =
+        j.queryForObject(
+            "select payload_hash from consumer_inbox where consumer_name=? and event_id=? for"
+                + " update",
+            String.class,
+            consumer,
+            e.eventId());
+    if (!hash.equals(saved)) throw new AssetConflictException("Transport event changed");
+    return false;
   }
 
   public boolean tryStartOperation(String consumer, EventEnvelope e) {
     requireTx();
     String hash = businessHash(e);
     try {
-      j.update("insert into consumer_receipt values(?,?,?,'[]')", consumer, operation(e), hash);
-      return true;
+      if (j.update("insert into consumer_receipt values(?,?,?,'[]')", consumer, operation(e), hash)
+          == 1) return true;
     } catch (DuplicateKeyException ex) {
-      String saved =
-          j.queryForObject(
-              "select payload_hash from consumer_receipt where consumer_name=? and operation_key=?"
-                  + " for update",
-              String.class,
-              consumer,
-              operation(e));
-      if (!hash.equals(saved)) throw new AssetConflictException("Business event changed");
-      return false;
+      // 同 tryInsert：重复请求继续锁定并校验原始摘要。
     }
+    String saved =
+        j.queryForObject(
+            "select payload_hash from consumer_receipt where consumer_name=? and operation_key=?"
+                + " for update",
+            String.class,
+            consumer,
+            operation(e));
+    if (!hash.equals(saved)) throw new AssetConflictException("Business event changed");
+    return false;
   }
 
   public List<EventEnvelope> responses(String consumer, EventEnvelope e) {

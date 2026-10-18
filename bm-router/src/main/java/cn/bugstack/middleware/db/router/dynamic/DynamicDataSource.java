@@ -16,6 +16,25 @@ public class DynamicDataSource extends AbstractRoutingDataSource implements Auto
       java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
   private boolean closed;
   private java.util.concurrent.CompletableFuture<Void> deferredClose;
+  private boolean postgresCompatibility;
+
+  /** 仅PostgreSQL连接使用V2 SQL兼容层，预算和监控仍持有原始Hikari池。 */
+  public void setPostgresCompatibility(boolean enabled) {
+    this.postgresCompatibility = enabled;
+  }
+
+  @Override
+  public java.sql.Connection getConnection() throws java.sql.SQLException {
+    var connection = super.getConnection();
+    return postgresCompatibility ? PostgresConnection.wrap(connection) : connection;
+  }
+
+  @Override
+  public java.sql.Connection getConnection(String username, String password)
+      throws java.sql.SQLException {
+    var connection = super.getConnection(username, password);
+    return postgresCompatibility ? PostgresConnection.wrap(connection) : connection;
+  }
 
   @Override
   public void setTargetDataSources(java.util.Map<Object, Object> targets) {

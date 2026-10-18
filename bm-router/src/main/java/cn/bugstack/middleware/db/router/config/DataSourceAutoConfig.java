@@ -124,6 +124,11 @@ public class DataSourceAutoConfig implements EnvironmentAware {
   public DataSource createDataSource() {
     Map<Object, Object> targets = new java.util.LinkedHashMap<>();
     DynamicDataSource dynamic = new DynamicDataSource();
+    boolean postgres = defaultDataSourceConfig.get("url").toString().startsWith("jdbc:postgresql:");
+    if (dataSourceMap.values().stream()
+        .anyMatch(c -> c.get("url").toString().startsWith("jdbc:postgresql:") != postgres))
+      throw new IllegalArgumentException("All routed databases must use the same SQL dialect");
+    dynamic.setPostgresCompatibility(postgres);
     try {
       DataSource control = createDataSource(defaultDataSourceConfig);
       targets.put("db00", control);

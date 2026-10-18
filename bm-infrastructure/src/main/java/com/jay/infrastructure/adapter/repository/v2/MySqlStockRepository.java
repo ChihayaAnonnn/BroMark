@@ -189,14 +189,16 @@ public final class MySqlStockRepository implements StockRepository {
         || biz.isBlank()
         || reason == null
         || reason.isBlank()) throw new IllegalArgumentException("Pool budget required");
-    boolean created = true;
+    boolean created;
     try {
-      j.update(
-          "insert into award_stock(stock_pool_id,total,available,reserved,allocated)"
-              + " values(?,?,?,0,0)",
-          p,
-          total,
-          total);
+      created =
+          j.update(
+                  "insert into award_stock(stock_pool_id,total,available,reserved,allocated)"
+                      + " values(?,?,?,0,0)",
+                  p,
+                  total,
+                  total)
+              == 1;
     } catch (org.springframework.dao.DuplicateKeyException duplicate) {
       created = false;
     }

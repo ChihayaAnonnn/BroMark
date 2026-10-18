@@ -64,15 +64,23 @@ public final class MySqlAssetRepository implements AssetRepository {
               TransactionSynchronizationManager.unbindResource(resourceKey);
             }
           });
-      j.update(
-          "insert into user_credit_account(user_id) values(?) on duplicate key update"
-              + " user_id=user_id",
-          user);
-      String status =
-          j.queryForObject(
+      var statuses =
+          j.queryForList(
               "select status from user_credit_account where user_id=? for update",
               String.class,
               user);
+      if (statuses.isEmpty()) {
+        j.update(
+            "insert into user_credit_account(user_id) values(?) on duplicate key update"
+                + " user_id=user_id",
+            user);
+        statuses =
+            j.queryForList(
+                "select status from user_credit_account where user_id=? for update",
+                String.class,
+                user);
+      }
+      String status = statuses.getFirst();
       if (!"ACTIVE".equals(status))
         throw new AssetConflictException("Account disabled or unaudited");
     } else if (!user.equals(locks.user)) throw new IllegalStateException("Cross user locks");
@@ -81,17 +89,26 @@ public final class MySqlAssetRepository implements AssetRepository {
       if (locks.activities.contains(activity)) continue;
       if (!locks.activities.isEmpty() && activity < locks.activities.last())
         throw new IllegalStateException("Activity lock order");
-      j.update(
-          "insert into raffle_activity_account(user_id,activity_id) values(?,?) on duplicate key"
-              + " update user_id=user_id",
-          user,
-          activity);
-      j.queryForObject(
-          "select activity_id from raffle_activity_account where user_id=? and activity_id=? for"
-              + " update",
-          Long.class,
-          user,
-          activity);
+      var rows =
+          j.queryForList(
+              "select activity_id from raffle_activity_account where user_id=? and activity_id=?"
+                  + " for update",
+              Long.class,
+              user,
+              activity);
+      if (rows.isEmpty()) {
+        j.update(
+            "insert into raffle_activity_account(user_id,activity_id) values(?,?) on duplicate key"
+                + " update user_id=user_id",
+            user,
+            activity);
+        j.queryForObject(
+            "select activity_id from raffle_activity_account where user_id=? and activity_id=? for"
+                + " update",
+            Long.class,
+            user,
+            activity);
+      }
       locks.activities.add(activity);
     }
   }
@@ -265,12 +282,11 @@ public final class MySqlAssetRepository implements AssetRepository {
     };
     long[] limits = {0, delta.monthLimitDelta(), delta.dayLimitDelta()};
     long[] remaining = {after.total(), after.monthRemaining(), after.dayRemaining()};
-    for (int i = 0; i < 3; i++)
-      j.update(
-          "insert into "
-              + table("user_quota_ledger")
-              + "(user_id,activity_id,biz_type,biz_id,request_hash,bucket_type,bucket_key,delta,limit_delta,remaining_after,receipt)"
-              + " values(?,?,?,?,?,?,?,?,?,?,?)",
+    String receiptJson = JsonStore.write(receipt);
+    var parameters = new ArrayList<Object>(33);
+    for (int i = 0; i < 3; i++) {
+      Collections.addAll(
+          parameters,
           user,
           activity,
           kind + ":" + id.type(),
@@ -281,6 +297,14 @@ public final class MySqlAssetRepository implements AssetRepository {
           changes[i],
           limits[i],
           remaining[i],
-          JsonStore.write(receipt));
+          receiptJson);
+    }
+    if (j.update(
+            "insert into "
+                + table("user_quota_ledger")
+                + "(user_id,activity_id,biz_type,biz_id,request_hash,bucket_type,bucket_key,delta,limit_delta,remaining_after,receipt)"
+                + " values(?,?,?,?,?,?,?,?,?,?,?),(?,?,?,?,?,?,?,?,?,?,?),(?,?,?,?,?,?,?,?,?,?,?)",
+            parameters.toArray())
+        != 3) throw new IllegalStateException("Quota ledger insert failed");
   }
 }

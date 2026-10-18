@@ -12,12 +12,32 @@ import java.util.concurrent.locks.*;
 public final class BoundedDatabaseBudget implements DatabaseBudget {
   private final Map<String, Map<WorkClass, Semaphore>> pools = new HashMap<>();
   private final MeterRegistry metrics;
+  private final long tradeMaxWaitNanos;
+  private final boolean boundedTradeWait;
   private final ReentrantLock lock = new ReentrantLock();
   private final Condition idle = lock.newCondition();
   private volatile boolean accepting = true;
   private int inFlight;
 
   public BoundedDatabaseBudget(Map<String, Map<WorkClass, Integer>> limits, MeterRegistry metrics) {
+    // 保留已有直接构造调用的 deadline 语义；应用通过配置启用前台短等待。
+    this(limits, metrics, Duration.ofNanos(Long.MAX_VALUE), false);
+  }
+
+  public BoundedDatabaseBudget(
+      Map<String, Map<WorkClass, Integer>> limits, MeterRegistry metrics, Duration tradeMaxWait) {
+    this(limits, metrics, tradeMaxWait, true);
+  }
+
+  private BoundedDatabaseBudget(
+      Map<String, Map<WorkClass, Integer>> limits,
+      MeterRegistry metrics,
+      Duration tradeMaxWait,
+      boolean boundedTradeWait) {
+    this.boundedTradeWait = boundedTradeWait;
+    if (tradeMaxWait == null || tradeMaxWait.isZero() || tradeMaxWait.isNegative())
+      throw new IllegalArgumentException("Positive TRADE permit wait required");
+    this.tradeMaxWaitNanos = tradeMaxWait.toNanos();
     this.metrics = metrics;
     if (limits.isEmpty()) throw new IllegalArgumentException("Physical database budgets required");
     limits.forEach(
@@ -55,9 +75,19 @@ public final class BoundedDatabaseBudget implements DatabaseBudget {
         Duration remaining = deadline.remaining();
         if (remaining.isNegative() || remaining.isZero())
           throw new BudgetExceededException("Database permit deadline exceeded");
-        if (!semaphore.tryAcquire(
-            Math.min(remaining.toNanos(), TimeUnit.MILLISECONDS.toNanos(50)), TimeUnit.NANOSECONDS))
-          continue;
+        long waitNanos = remaining.toNanos();
+        // 前台交易只短暂排队；后台任务仍遵守原有恢复/关闭期限。
+        if (work == WorkClass.TRADE && boundedTradeWait) {
+          waitNanos = Math.min(waitNanos, tradeMaxWaitNanos - (System.nanoTime() - started));
+          if (waitNanos <= 0)
+            throw new BudgetExceededException("TRADE permit wait budget exceeded");
+        }
+        // 有界前台等待保留公平队列位置，避免每50ms退出、重新排队。
+        long attemptNanos =
+            work == WorkClass.TRADE && boundedTradeWait
+                ? waitNanos
+                : Math.min(waitNanos, TimeUnit.MILLISECONDS.toNanos(50));
+        if (!semaphore.tryAcquire(attemptNanos, TimeUnit.NANOSECONDS)) continue;
         lock.lock();
         try {
           if (!accepting) {

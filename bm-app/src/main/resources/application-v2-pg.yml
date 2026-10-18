@@ -1,0 +1,16 @@
+# V2 PostgreSQL 数据源；与运行环境 profile 一起启用。旧 V1 不在迁移范围。
+mini-db-router:
+  jdbc:
+    datasource:
+      global:
+        driver-class-name: org.postgresql.Driver
+        username: postgres
+        password: ${V2_PG_PASSWORD}
+        pool:
+          connection-init-sql: SET TIME ZONE 'UTC'
+      db00:
+        url: jdbc:postgresql://${V2_PG_HOST:localhost:5432}/${V2_DB00:router_control}?connectTimeout=1&socketTimeout=1&stringtype=unspecified&ApplicationName=bromark-v2&options=-c%20TimeZone%3DUTC
+      db01:
+        url: jdbc:postgresql://${V2_PG_HOST:localhost:5432}/${V2_DB01:router_one}?connectTimeout=1&socketTimeout=1&stringtype=unspecified&ApplicationName=bromark-v2&options=-c%20TimeZone%3DUTC
+      db02:
+        url: jdbc:postgresql://${V2_PG_HOST:localhost:5432}/${V2_DB02:router_two}?connectTimeout=1&socketTimeout=1&stringtype=unspecified&ApplicationName=bromark-v2&options=-c%20TimeZone%3DUTC

@@ -37,7 +37,7 @@ public class V2WorkerConfig {
                   logical, ((com.zaxxer.hikari.HikariDataSource) source).getMaximumPoolSize());
             });
     props.validateConnections(measuredPools);
-    return new BoundedDatabaseBudget(props.getInstances(), metrics);
+    return new BoundedDatabaseBudget(props.getInstances(), metrics, props.getTradePermitMaxWait());
   }
 
   @Bean(destroyMethod = "")

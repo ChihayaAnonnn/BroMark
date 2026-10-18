@@ -36,3 +36,23 @@ python3 docs/performance/export_v2_stages.py --seed /tmp/SEED/seed.json \
 `collect_v2_results.py` 的 `sent/received/accepted/completed/pending/rejected/unconfirmed/unknown/http503WithOrderId/http503WithoutOrderId` 均为**请求或去重订单数**；`queryLatencyMs`、`acceptanceLatencyMs`、`serverDrawConfirmationLatencyMs`、`serverDrawDeliveryLatencyMs`、`completionLatencyMs` 为毫秒 P50/P95/P99；`pollObservationDelayMs` 为毫秒；`oldestAge` 与 `drainSeconds` 为秒。`userCountsByOperation` 是每操作唯一用户数；`requestsByDatabase` 是按用户 Java 路由的请求数，查询接口实际还会读控制库。`transportRetries` 是相同事件身份的运输重试次数；`redriveEmitted` 是新增恢复事件数，`redriveSuppressed` 是抑制次数，缺原始证据时均为 `null`，不写成零。`smokeDataComplete` 只说明这一份请求与订单追踪数据完整；`smokeTechnicalPassed` 还要求实际120秒到达、k6/tracker退出码、运行前后资源身份、零 dropped、资源预算、时钟、负载期四域非增长、停写对账和本轮 SLO，缺一项即 false 并列入 `smokeFailures`。运行目录 `metadata.json.task8SampleFiles` 可列出 Task8 每个真实 `sample.json` 路径，且 `reconciliation` 和 `resourceBudgetOk` 必须来自本轮独立证据；缺失不补零。旧 `safeCapacityCandidate` 仍按完整 600 秒、三轮与六域/四域/时钟门禁计算。`fullCapacityPassed=false` 和 `releaseAuthorized=false` 始终保留。
 
 `python3 -m unittest discover -s docs/performance -p 'test_*.py'` 运行工具回归。测试里的合成 JWT 字符串和 HTTP server 只检查分布及解析行为；真实业务结果必须另存原始请求、阶段、四域采样、停写六域对账和文件 SHA256。热点 8/32 参数扩展、006 历史基线恢复、完整 Java 容量类和正式压力矩阵在本次精简范围外。
+
+## 练习项目专项实验
+
+2026-10-17 已完成本地固定资源的对照、阶梯测试及三轮10分钟复验，发现并验证了ID号段边界异常。查看 [实验计划与调整记录](2026-10-17-practice-capacity-plan.md) 和 [实测报告](2026-10-17-practice-capacity-report.md)。这组练习实验独立报告实际吞吐、失败率、数据库身份核查和对账；前述完整容量/发布字段保持原定义。
+
+- [抽奖、兑换写入 SQL 优化 A/B/A（2 核 4 GiB，性能收益未验收）](2026-10-17-draw-exchange-write-ab-report.md)
+
+- [关闭入口限流和数据库业务许可：2 核 4 GiB 混合压测](2026-10-18-unlimited-2c4g-report.md)
+
+- [激进连接池实验：每库 64、应用 2 核 4 GiB](2026-10-18-pool64-2c4g-report.md)
+
+- [每库 64：应用从 2 核提升到 4 核，内存 4 GiB](2026-10-18-pool64-4c4g-report.md)
+
+- [每库 64：应用从 4 核提升到 8 核，内存 4 GiB](2026-10-18-pool64-8c4g-report.md)
+
+- [8 核 4 GiB：MySQL 直连对照，受理吞吐改善但交付容量尚未证明](2026-10-18-8c4g-mysql-route-ab-report.md)
+
+- [PostgreSQL V2 迁移与 8 核 4 GiB 复测](2026-10-18-postgresql-8c4g-report.md)
+
+- [当前瓶颈综合分析：异步交付链路、数据库事务成本与下一步实验](2026-10-18-bottleneck-synthesis.md)

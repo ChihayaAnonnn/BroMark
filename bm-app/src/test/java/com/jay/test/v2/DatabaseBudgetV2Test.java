@@ -90,6 +90,221 @@ public class DatabaseBudgetV2Test {
   }
 
   @Test
+  public void saturatedTradeRejectsWithoutWaitingForTheWholeRequestDeadline() throws Exception {
+    var registry = new SimpleMeterRegistry();
+    var budget =
+        new BoundedDatabaseBudget(Map.of("mysql-it", limits()), registry, Duration.ofMillis(50));
+    var held = budget.acquire("mysql-it", WorkClass.TRADE, soon());
+    try (var executor = Executors.newSingleThreadExecutor()) {
+      try {
+        var attempt =
+            executor.submit(
+                () -> {
+                  try (var permit =
+                      budget.acquire(
+                          "mysql-it",
+                          WorkClass.TRADE,
+                          new Deadline(Instant.now().plusSeconds(2)))) {
+                    return "unexpected";
+                  }
+                });
+        assertThatThrownBy(() -> attempt.get(500, TimeUnit.MILLISECONDS))
+            .isInstanceOf(ExecutionException.class)
+            .hasCauseInstanceOf(BudgetExceededException.class);
+        assertThat(budget.available("mysql-it", WorkClass.TRADE)).isZero();
+        assertThat(registry.get("bm.v2.database.rejected").tag("work", "TRADE").counter().count())
+            .isEqualTo(1);
+      } finally {
+        held.close();
+      }
+    }
+    assertThat(budget.available("mysql-it", WorkClass.TRADE)).isEqualTo(1);
+    assertThat(budget.isIdle()).isTrue();
+  }
+
+  @Test
+  public void workerCanWaitBeyondTheForegroundTradeLimit() throws Exception {
+    var budget =
+        new BoundedDatabaseBudget(
+            Map.of("mysql-it", limits()), new SimpleMeterRegistry(), Duration.ofMillis(50));
+    var held = budget.acquire("mysql-it", WorkClass.WORKER, soon());
+    var entered = new CountDownLatch(1);
+    try (var executor = Executors.newSingleThreadExecutor()) {
+      try {
+        var attempt =
+            executor.submit(
+                () -> {
+                  entered.countDown();
+                  try (var permit =
+                      budget.acquire(
+                          "mysql-it",
+                          WorkClass.WORKER,
+                          new Deadline(Instant.now().plusSeconds(2)))) {
+                    return "acquired";
+                  }
+                });
+        assertThat(entered.await(1, TimeUnit.SECONDS)).isTrue();
+        Thread.sleep(150);
+        assertThat(attempt.isDone()).isFalse();
+        held.close();
+        assertThat(attempt.get(1, TimeUnit.SECONDS)).isEqualTo("acquired");
+      } finally {
+        held.close();
+      }
+    }
+    assertThat(budget.available("mysql-it", WorkClass.WORKER)).isEqualTo(1);
+    assertThat(budget.isIdle()).isTrue();
+  }
+
+  @Test
+  public void shortRequestDeadlineStillBoundsConfiguredTradeWait() throws Exception {
+    var registry = new SimpleMeterRegistry();
+    var budget =
+        new BoundedDatabaseBudget(Map.of("mysql-it", limits()), registry, Duration.ofSeconds(1));
+    try (var held = budget.acquire("mysql-it", WorkClass.TRADE, soon());
+        var executor = Executors.newSingleThreadExecutor()) {
+      var attempt = executor.submit(() -> budget.acquire("mysql-it", WorkClass.TRADE, soon()));
+      assertThatThrownBy(() -> attempt.get(500, TimeUnit.MILLISECONDS))
+          .isInstanceOf(ExecutionException.class)
+          .hasCauseInstanceOf(BudgetExceededException.class);
+      assertThat(budget.available("mysql-it", WorkClass.TRADE)).isZero();
+    }
+    assertThat(budget.available("mysql-it", WorkClass.TRADE)).isEqualTo(1);
+  }
+
+  @Test
+  public void rejectsNonPositiveTradeWaitConfiguration() {
+    for (var invalid : List.of(Duration.ZERO, Duration.ofMillis(-1))) {
+      assertThatThrownBy(
+              () ->
+                  new BoundedDatabaseBudget(
+                      Map.of("mysql-it", limits()), new SimpleMeterRegistry(), invalid))
+          .isInstanceOf(IllegalArgumentException.class);
+    }
+  }
+
+  @Test
+  public void configuredTradeCanWaitBeyondOnePollAndAcquire() throws Exception {
+    var budget =
+        new BoundedDatabaseBudget(
+            Map.of("mysql-it", limits()), new SimpleMeterRegistry(), Duration.ofSeconds(1));
+    var held = budget.acquire("mysql-it", WorkClass.TRADE, soon());
+    var entered = new CountDownLatch(1);
+    try (var executor = Executors.newSingleThreadExecutor()) {
+      try {
+        var attempt =
+            executor.submit(
+                () -> {
+                  entered.countDown();
+                  try (var permit =
+                      budget.acquire(
+                          "mysql-it",
+                          WorkClass.TRADE,
+                          new Deadline(Instant.now().plusSeconds(3)))) {
+                    return "acquired";
+                  }
+                });
+        assertThat(entered.await(1, TimeUnit.SECONDS)).isTrue();
+        Thread.sleep(150);
+        assertThat(attempt.isDone()).isFalse();
+        held.close();
+        assertThat(attempt.get(1, TimeUnit.SECONDS)).isEqualTo("acquired");
+      } finally {
+        held.close();
+      }
+    }
+    assertThat(budget.available("mysql-it", WorkClass.TRADE)).isEqualTo(1);
+    assertThat(budget.isIdle()).isTrue();
+  }
+
+  @Test
+  public void boundedTradeAcquiredDuringShutdownIsReleasedWithoutAdmission() throws Exception {
+    assertStoppingWaiter(
+        new BoundedDatabaseBudget(
+            Map.of("mysql-it", limits()), new SimpleMeterRegistry(), Duration.ofSeconds(1)),
+        true);
+  }
+
+  @Test
+  public void legacyTradeWaitStillNoticesShutdownBeforeTheLongDeadline() throws Exception {
+    assertStoppingWaiter(
+        new BoundedDatabaseBudget(Map.of("mysql-it", limits()), new SimpleMeterRegistry()), false);
+  }
+
+  private void assertStoppingWaiter(BoundedDatabaseBudget budget, boolean releaseWhileWaiting)
+      throws Exception {
+    var held = budget.acquire("mysql-it", WorkClass.TRADE, soon());
+    var entered = new CountDownLatch(1);
+    try (var executor = Executors.newSingleThreadExecutor()) {
+      try {
+        var attempt =
+            executor.submit(
+                () -> {
+                  entered.countDown();
+                  try (var permit =
+                      budget.acquire(
+                          "mysql-it",
+                          WorkClass.TRADE,
+                          new Deadline(Instant.now().plusSeconds(5)))) {
+                    return "unexpected";
+                  }
+                });
+        assertThat(entered.await(1, TimeUnit.SECONDS)).isTrue();
+        Thread.sleep(100);
+        budget.stopAccepting();
+        if (releaseWhileWaiting) held.close();
+        assertThatThrownBy(() -> attempt.get(500, TimeUnit.MILLISECONDS))
+            .isInstanceOf(ExecutionException.class)
+            .hasCauseInstanceOf(RejectedExecutionException.class);
+      } finally {
+        held.close();
+      }
+    }
+    assertThat(budget.available("mysql-it", WorkClass.TRADE)).isEqualTo(1);
+    assertThat(budget.isIdle()).isTrue();
+  }
+
+  @Test
+  public void interruptedBoundedTradeWaitPreservesInterruptWithoutLeaking() throws Exception {
+    var budget =
+        new BoundedDatabaseBudget(
+            Map.of("mysql-it", limits()), new SimpleMeterRegistry(), Duration.ofSeconds(10));
+    var held = budget.acquire("mysql-it", WorkClass.TRADE, soon());
+    var entered = new CountDownLatch(1);
+    var interrupted = new java.util.concurrent.atomic.AtomicBoolean();
+    var failure = new java.util.concurrent.atomic.AtomicReference<Throwable>();
+    var waiter =
+        new Thread(
+            () -> {
+              entered.countDown();
+              try (var permit =
+                  budget.acquire(
+                      "mysql-it", WorkClass.TRADE, new Deadline(Instant.now().plusSeconds(30)))) {
+                failure.set(new AssertionError("Unexpected admission"));
+              } catch (RejectedExecutionException e) {
+                interrupted.set(Thread.currentThread().isInterrupted());
+                failure.set(e);
+              }
+            });
+    try {
+      waiter.start();
+      assertThat(entered.await(1, TimeUnit.SECONDS)).isTrue();
+      Thread.sleep(100);
+      waiter.interrupt();
+      waiter.join(1000);
+      assertThat(waiter.isAlive()).isFalse();
+      assertThat(failure.get()).isInstanceOf(RejectedExecutionException.class);
+      assertThat(interrupted.get()).isTrue();
+    } finally {
+      held.close();
+      waiter.interrupt();
+      waiter.join(1000);
+    }
+    assertThat(budget.available("mysql-it", WorkClass.TRADE)).isEqualTo(1);
+    assertThat(budget.isIdle()).isTrue();
+  }
+
+  @Test
   public void controlledVirtualWorkerRejectsOverflowAndStops() throws Exception {
     try (var worker = new BoundedVirtualExecutor("it-worker", 1, Duration.ofSeconds(5))) {
       var start = new CountDownLatch(1);
