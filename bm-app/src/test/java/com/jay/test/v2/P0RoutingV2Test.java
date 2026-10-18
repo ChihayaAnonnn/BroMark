@@ -9,6 +9,7 @@ import com.jay.domain.asset.model.BusinessId;
 import com.jay.domain.asset.model.RouteSlot;
 import com.jay.domain.asset.service.RouteCodec;
 import com.jay.domain.task.model.EventEnvelope;
+import com.jay.domain.task.service.EventHandler;
 import com.jay.domain.task.service.EventRouting;
 import java.lang.reflect.Field;
 import java.util.*;
@@ -98,8 +99,9 @@ public class P0RoutingV2Test {
                 java.util.stream.Collectors.toMap(
                     org.springframework.amqp.core.Queue::getName, q -> q));
     assertThat(queues.keySet())
-        .containsExactlyInAnyOrder("p0.reserve", "p0.deliver", "p0.notify", "p0.dlq");
-    assertThat(queues.keySet()).doesNotContain("p0.workflow", "p0.notifications");
+        .containsExactlyInAnyOrder("p0.reserve", "p0.deliver", "p0.notify");
+    assertThat(queues.keySet())
+        .doesNotContain("p0.workflow", "p0.notifications", "p0.dlq");
     assertThat(queues.values())
         .allSatisfy(
             q -> {
@@ -130,6 +132,33 @@ public class P0RoutingV2Test {
         .containsEntry("p0.reserve", Set.of("ReserveAward", "CreditGranted"))
         .containsEntry("p0.deliver", Set.of("ReservationConfirmed", "GrantCredit"))
         .containsEntry("p0.notify", Set.of("ExchangeCompleted", "SignInCompleted"));
+  }
+
+  @Test
+  public void registersP0HandlersOnlyWhenRaffleEnabledAndWired() {
+    EventHandler noop = e -> List.of();
+    assertThat(V2RabbitConfig.p0Handlers(Map.of(), false)).isEmpty();
+    assertThat(V2RabbitConfig.p0Handlers(Map.of("GrantCredit", noop), false))
+        .containsOnlyKeys("GrantCredit");
+    var payment = Map.of("GrantCredit", noop, "CreditGranted", noop);
+    assertThat(V2RabbitConfig.p0Handlers(payment, false))
+        .containsOnlyKeys("GrantCredit", "CreditGranted");
+
+    assertThatThrownBy(() -> V2RabbitConfig.p0Handlers(Map.of(), true))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("ReserveAward");
+    assertThatThrownBy(() -> V2RabbitConfig.p0Handlers(Map.of("ReserveAward", noop), true))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("ReservationConfirmed");
+
+    var all = new HashMap<String, EventHandler>();
+    all.put("ReserveAward", noop);
+    all.put("ReservationConfirmed", noop);
+    all.putAll(payment);
+    assertThat(V2RabbitConfig.p0Handlers(all, false))
+        .containsOnlyKeys("ReserveAward", "ReservationConfirmed", "GrantCredit", "CreditGranted");
+    assertThat(V2RabbitConfig.p0Handlers(all, true))
+        .containsOnlyKeys("ReserveAward", "ReservationConfirmed", "GrantCredit", "CreditGranted");
   }
 
   @Test

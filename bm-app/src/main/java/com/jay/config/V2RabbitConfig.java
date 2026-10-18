@@ -141,8 +141,9 @@ public class V2RabbitConfig {
 
   /**
    * Pure P0 topology: {@code p0.events} fans out to the reserve, deliver and notify stages by
-   * event type; {@code p0.dlq} is declared for operator/recovery review. Kept side-effect free so
-   * the queue names and bindings are verifiable without a broker.
+   * event type. Retry-exhausted/invalid messages are represented by {@code retry_job DEAD} plus
+   * {@code raw_message} quarantine, so no broker DLQ is declared. Kept side-effect free so the
+   * queue names and bindings are verifiable without a broker.
    */
   public static Declarables p0Topology(String prefix, String queueType) {
     if (!Set.of("quorum", "classic").contains(queueType) || !prefix.matches("[A-Za-z0-9._-]{1,96}"))
@@ -156,7 +157,6 @@ public class V2RabbitConfig {
     objects.add(reserve);
     objects.add(deliver);
     objects.add(notify);
-    objects.add(queue(prefix + ".dlq", queueType));
     for (String type : EventRouting.CONTROL)
       objects.add(BindingBuilder.bind(reserve).to(exchange).with(type));
     for (String type : EventRouting.USER)
@@ -169,6 +169,29 @@ public class V2RabbitConfig {
   private static org.springframework.amqp.core.Queue queue(String name, String queueType) {
     return new org.springframework.amqp.core.Queue(
         name, true, false, false, Map.of("x-queue-type", queueType));
+  }
+
+  /**
+   * Handler map for the shared V2 listener. P0 handlers must be complete when the raffle feature is
+   * enabled but are optional in payment-only applications; payment handlers are conditional because
+   * {@code V2PaymentConfig} is {@code @ConditionalOnProperty(payment.enabled)}.
+   */
+  public static Map<String, EventHandler> p0Handlers(
+      Map<String, EventHandler> handlers, boolean raffleEnabled) {
+    var registered = new HashMap<String, EventHandler>();
+    for (String type : List.of("ReserveAward", "ReservationConfirmed")) {
+      var handler = handlers.get(type);
+      if (handler == null) {
+        if (raffleEnabled) throw new IllegalStateException("Missing P0 handler: " + type);
+        continue;
+      }
+      registered.put(type, handler);
+    }
+    for (String type : List.of("GrantCredit", "CreditGranted")) {
+      var handler = handlers.get(type);
+      if (handler != null) registered.put(type, handler);
+    }
+    return registered;
   }
 
   @Bean(name = "v2MessageContainerFactory")
@@ -304,18 +327,9 @@ public class V2RabbitConfig {
       RecoveryService recovery,
       RouteCodec codec,
       Map<String, EventHandler> handlers,
+      @Value("${bm.v2.raffle.enabled:false}") boolean raffleEnabled,
       FaultInjector faults) {
-    var registered = new HashMap<String, EventHandler>();
-    for (String type : List.of("ReserveAward", "ReservationConfirmed")) {
-      var handler = handlers.get(type);
-      if (handler == null) throw new IllegalStateException("Missing P0 handler: " + type);
-      registered.put(type, handler);
-    }
-    // Payment is unchanged; its config is conditional, so keep its handlers only when wired.
-    for (String type : List.of("GrantCredit", "CreditGranted")) {
-      var handler = handlers.get(type);
-      if (handler != null) registered.put(type, handler);
-    }
+    var registered = p0Handlers(handlers, raffleEnabled);
     var j = new JdbcTemplate(ds);
     EventHandler notification =
         e -> {
